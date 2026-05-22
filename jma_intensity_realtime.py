@@ -134,11 +134,13 @@ class Ring:
 def main():
     ap = argparse.ArgumentParser(description="Raspberry Shake UDP リアルタイム計測震度")
     ap.add_argument("--bind", type=str, default="0.0.0.0:8888", help="受信アドレス:ポート（例: 0.0.0.0:8888）")
-    ap.add_argument("--channels", type=str, default="HNN,HNE,HNZ", help="3成分（カンマ区切り）")
+    ap.add_argument("--channels", type=str, default="ENZ,ENN,ENE", help="3成分（カンマ区切り）RS4D加速度計: ENZ,ENN,ENE")
     ap.add_argument("--network", type=str, default="AM")
     ap.add_argument("--station", type=str, required=True)
     ap.add_argument("--stationxml", type=str, help="ローカル StationXML")
     ap.add_argument("--fdsn", type=str, help="FDSN Stations ベースURL（例: http://rs.local:16023）")
+    ap.add_argument("--sensitivity", type=float, default=387867.0,
+                    help="counts/(m/s²) 感度値。StationXML不要の場合に使用。R38DC実測値: 387867 (公式V6: 384500)")
 
     # リアルタイム設定
     ap.add_argument("--rt-window", type=float, default=90.0, help="震度計算の窓長[秒]")
@@ -173,6 +175,7 @@ def main():
 
     # 検出状態
     last_trigger_time = 0.0
+    last_periodic_output = 0.0
 
     # StationXML は初回に揃えておく（stream を仮作成して取得に使う）
     inv_cache = None
@@ -265,27 +268,31 @@ def main():
 
             st_counts = Stream(traces)
 
-            # StationXML（キャッシュ）取得
-            if inv_cache is None:
-                try:
-                    inv_cache = get_inventory(
-                        fdsn_url=args.fdsn,
-                        stationxml_path=args.stationxml,
-                        network=args.network, station=args.station,
-                        t0=st_counts[0].stats.starttime, t1=st_counts[0].stats.endtime
-                    )
-                    print("[INFO] StationXML をロードしました。counts→ACC 変換を開始。")
-                except Exception as e:
-                    print(f"[WARN] StationXML 取得失敗: {e}")
-                    continue
-
             # counts -> ACC
             st_acc = st_counts.copy()
-            try:
-                st_acc.remove_response(inventory=inv_cache, output="ACC", water_level=60.0, taper=True)
-            except Exception as e:
-                print(f"[WARN] remove_response 失敗: {e}")
-                continue
+            if args.stationxml or args.fdsn:
+                # StationXML（キャッシュ）取得
+                if inv_cache is None:
+                    try:
+                        inv_cache = get_inventory(
+                            fdsn_url=args.fdsn,
+                            stationxml_path=args.stationxml,
+                            network=args.network, station=args.station,
+                            t0=st_counts[0].stats.starttime, t1=st_counts[0].stats.endtime
+                        )
+                        print("[INFO] StationXML をロードしました。counts→ACC 変換を開始。")
+                    except Exception as e:
+                        print(f"[WARN] StationXML 取得失敗: {e}")
+                        continue
+                try:
+                    st_acc.remove_response(inventory=inv_cache, output="ACC", water_level=60.0, taper=True)
+                except Exception as e:
+                    print(f"[WARN] remove_response 失敗: {e}")
+                    continue
+            else:
+                # 感度値で直接 counts → m/s² に変換（概算）
+                for tr in st_acc:
+                    tr.data = tr.data / args.sensitivity
 
             # 3成分取得
             # Z/N/E がそろわない場合はスキップ
@@ -312,7 +319,7 @@ def main():
                 last_trigger_time = t_now
 
             # トリガ時 or 5秒ごとに現在の震度を出す
-            periodic = (int(t_now) % 5 == 0)
+            periodic = (t_now - last_periodic_output) >= 5.0
             if triggered or periodic:
                 # JMA フィルタ → 0.3s 閾値 → 震度
                 az = apply_jma_filter_time(trZ.data.astype(np.float64), fs)
@@ -325,6 +332,8 @@ def main():
                 I_final = np.floor(np.round(I_raw, 3) * 100.0) / 100.0
                 scale = jma_scale_from_I(I_final)
 
+                if periodic:
+                    last_periodic_output = t_now
                 lab = "TRIGGER" if triggered else "STATUS"
                 print(f"[{lab}] fs={fs:.1f}Hz ratio={ratio:.2f}  a={a_gal:.2f}gal  I={I_final:.2f}  震度:{scale}")
 
