@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RS4D 計測震度ダッシュボード — モックアップ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        background: #0d1117;
+        color: #e6edf3;
+        font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        font-size: 13px;
+        min-height: 100vh;
+    }
+
+    /* ===== ステータスバー ===== */
+    #statusbar {
+        background: #161b22;
+        border-bottom: 1px solid #30363d;
+        padding: 6px 16px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        font-size: 12px;
+        color: #8b949e;
+    }
+    #statusbar .station { color: #e6edf3; font-weight: bold; }
+    #statusbar .sep { color: #30363d; }
+    #statusbar .val { color: #58a6ff; }
+    #statusbar .uptime { margin-left: auto; }
+    #ws-status {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #3fb950; display: inline-block; margin-right: 4px;
+    }
+
+    /* ===== 情報バナー（通常: 各地震度テロップ / EEW時: 赤点滅） ===== */
+    #info-banner {
+        background: #161b22;
+        border-bottom: 1px solid #30363d;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        position: relative;
+    }
+    #banner-label {
+        flex: 0 0 auto;
+        padding: 0 12px;
+        font-size: 13px;
+        font-weight: bold;
+        white-space: nowrap;
+        border-right: 1px solid #30363d;
+        color: #8b949e;
+    }
+    #banner-label.eew {
+        background: #da3633;
+        color: #fff;
+        border-right: none;
+    }
+    #banner-scroll-wrap {
+        flex: 1;
+        overflow: hidden;
+        position: relative;
+        height: 100%;
+    }
+    #banner-ticker {
+        display: inline-flex;
+        align-items: center;
+        height: 100%;
+        white-space: nowrap;
+        font-size: 15px;
+        gap: 32px;
+        animation: ticker-scroll 30s linear infinite;
+    }
+    #banner-ticker.eew-mode {
+        animation: none;
+        font-weight: bold;
+        color: #fff;
+        font-size: 15px;
+    }
+    #info-banner.eew-active {
+        background: #da3633;
+        animation: blink-bg 1s step-end infinite;
+    }
+    .ticker-item { display: inline-flex; align-items: center; gap: 6px; }
+    .ticker-pref { color: #8b949e; font-size: 13px; }
+    .ticker-place { color: #e6edf3; }
+    .ticker-scale { font-weight: bold; margin-left: 2px; }
+
+    @keyframes ticker-scroll {
+        0%   { transform: translateX(100%); }
+        100% { transform: translateX(-100%); }
+    }
+    @keyframes blink-bg {
+        0%, 100% { background: #da3633; }
+        50%       { background: #b91c1c; }
+    }
+
+    /* ===== メインレイアウト ===== */
+    #main {
+        display: grid;
+        grid-template-columns: 1fr 1.4fr 1fr;
+        gap: 8px;
+        padding: 8px;
+        height: calc(100vh - 72px); /* statusbar + banner */
+    }
+
+    .panel {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 12px;
+        overflow: hidden;
+    }
+    .panel-title {
+        font-size: 11px;
+        color: #8b949e;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #21262d;
+        padding-bottom: 6px;
+    }
+
+    /* ===== 左カラム: 震度・STA/LTA ===== */
+    #col-left {
+        grid-column: 1;
+        grid-row: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* 震度パネル */
+    #intensity-panel {
+        flex: 0 0 auto;
+    }
+    #scale-display {
+        text-align: center;
+        padding: 12px 0 8px;
+    }
+    #scale-num {
+        font-size: 160px;
+        font-weight: 900;
+        line-height: 1;
+        color: #f97316;
+        text-shadow: 0 0 40px rgba(249,115,22,0.5);
+        transition: color 0.5s, text-shadow 0.5s;
+    }
+    #scale-label {
+        font-size: 22px;
+        color: #8b949e;
+        margin-top: 4px;
+    }
+    #intensity-bar-wrap {
+        margin: 10px 0 4px;
+        position: relative;
+    }
+    #intensity-bar-bg {
+        height: 12px;
+        background: #21262d;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    #intensity-bar-fill {
+        height: 100%;
+        width: 62%; /* I=4.87/7 */
+        background: linear-gradient(90deg, #3fb950, #f97316);
+        border-radius: 6px;
+        transition: width 0.5s;
+    }
+    #intensity-vals {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 6px;
+        font-size: 12px;
+    }
+    #i-value { color: #e6edf3; font-weight: bold; }
+    #a-value { color: #8b949e; }
+
+    /* STA/LTAパネル */
+    #stalta-panel { flex: 0 0 auto; }
+    #stalta-bar-wrap { margin: 6px 0 4px; }
+    #stalta-bar-bg {
+        height: 10px;
+        background: #21262d;
+        border-radius: 5px;
+        overflow: visible;
+        position: relative;
+    }
+    #stalta-bar-fill {
+        height: 100%;
+        width: 46%; /* 3.2 / (3.5*2) */
+        background: #58a6ff;
+        border-radius: 5px;
+        transition: width 0.4s;
+    }
+    #stalta-thr-line {
+        position: absolute;
+        top: -3px;
+        left: 50%; /* thr/max = 3.5/7 = 50% */
+        width: 2px;
+        height: 16px;
+        background: #f97316;
+    }
+    #stalta-vals {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 4px;
+        font-size: 11px;
+        color: #8b949e;
+    }
+
+    /* 監視状態バッジ */
+    #trigger-badge {
+        text-align: center;
+        margin-top: 6px;
+    }
+    .badge {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+    }
+    .badge.monitoring { background: #1f6feb33; color: #58a6ff; border: 1px solid #1f6feb; }
+    .badge.triggered  { background: #da363333; color: #f85149; border: 1px solid #da3633; animation: blink-border 0.5s step-end infinite; }
+
+    /* トリガ履歴 */
+    #events-panel { flex: 1 1 0; overflow: hidden; display: flex; flex-direction: column; }
+    #events-table-wrap { overflow-y: auto; flex: 1; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+        color: #8b949e;
+        text-align: left;
+        padding: 4px 6px;
+        border-bottom: 1px solid #21262d;
+        font-weight: normal;
+        font-size: 11px;
+        position: sticky; top: 0;
+        background: #161b22;
+    }
+    tbody td { padding: 5px 6px; border-bottom: 1px solid #21262d20; }
+    tbody tr:last-child td { border-bottom: none; }
+    .scale-cell { font-weight: bold; }
+    .scale-0,.scale-1,.scale-2 { color: #3fb950; }
+    .scale-3,.scale-4 { color: #f97316; }
+    .scale-5w,.scale-5s { color: #f85149; }
+    .scale-6w,.scale-6s,.scale-7 { color: #f85149; font-weight: 900; }
+    .scale-suffix { font-size: 0.6em; vertical-align: middle; font-weight: normal; }
+
+    /* ===== 中央カラム: 地図・推移グラフ ===== */
+    #col-center {
+        grid-column: 2;
+        grid-row: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    #map-panel { flex: 1 1 0; }
+    #map {
+        height: 100%;
+        min-height: 200px;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    #charts-row { flex: 0 0 120px; }
+    #history-panel { overflow: hidden; height: 100%; }
+    .chart-wrap { position: relative; height: 88px; }
+
+    /* ===== 右カラム: P2P ===== */
+    #col-right {
+        grid-column: 3;
+        grid-row: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    #p2p-panel { flex: 1 1 0; overflow: hidden; display: flex; flex-direction: column; }
+    #p2p-table-wrap { overflow-y: auto; flex: 1; }
+    .tsunami-warn { color: #f85149; font-size: 10px; margin-left: 2px; }
+
+    /* ===== レスポンシブ（スマホ） ===== */
+    @media (max-width: 900px) {
+        #main { grid-template-columns: 1fr; height: auto; }
+        #col-left, #col-center, #col-right { grid-column: 1; grid-row: auto; }
+        #map { height: 250px; }
+    }
+</style>
+</head>
+<body>
+
+<!-- ステータスバー -->
+<div id="statusbar">
+    <span id="ws-status"></span>
+    <span class="station">AM.R38DC</span>
+    <span class="sep">|</span>
+    <span><span class="val" id="fs-val">100.0</span> Hz</span>
+    <span class="sep">|</span>
+    <span>pkt: <span class="val" id="pkt-val">3,847</span></span>
+    <span class="sep">|</span>
+    <span>RS4D DATACAST</span>
+    <span class="uptime">稼働 <span id="uptime-val">00:23:14</span> &nbsp;|&nbsp; <span id="clock">2026-05-23 14:07:32</span></span>
+</div>
+
+<!-- 情報バナー（通常: 各地震度テロップ / EEW時: 赤点滅） -->
+<div id="info-banner">
+    <div id="banner-label">最新地震 05-23 14:07</div>
+    <div id="banner-scroll-wrap">
+        <div id="banner-ticker">
+            <span class="ticker-item"><span class="ticker-pref">東京都</span><span class="ticker-place">千代田区</span><span class="ticker-scale scale-4">震度４</span></span>
+            <span class="ticker-item"><span class="ticker-pref">神奈川県</span><span class="ticker-place">横浜市</span><span class="ticker-scale scale-3">震度３</span></span>
+            <span class="ticker-item"><span class="ticker-pref">埼玉県</span><span class="ticker-place">さいたま市</span><span class="ticker-scale scale-3">震度３</span></span>
+            <span class="ticker-item"><span class="ticker-pref">千葉県</span><span class="ticker-place">千葉市</span><span class="ticker-scale scale-4">震度４</span></span>
+            <span class="ticker-item"><span class="ticker-pref">茨城県</span><span class="ticker-place">水戸市</span><span class="ticker-scale scale-2">震度２</span></span>
+            <span class="ticker-item"><span class="ticker-pref">栃木県</span><span class="ticker-place">宇都宮市</span><span class="ticker-scale scale-2">震度２</span></span>
+            <span class="ticker-item"><span class="ticker-pref">群馬県</span><span class="ticker-place">前橋市</span><span class="ticker-scale scale-1">震度１</span></span>
+            <span class="ticker-item"><span class="ticker-pref">静岡県</span><span class="ticker-place">静岡市</span><span class="ticker-scale scale-1">震度１</span></span>
+        </div>
+    </div>
+</div>
+
+<!-- メインレイアウト -->
+<div id="main">
+
+    <!-- 左カラム -->
+    <div id="col-left">
+
+        <!-- 震度パネル -->
+        <div class="panel" id="intensity-panel">
+            <div class="panel-title">現地計測震度 <span style="font-weight:normal; letter-spacing:0; text-transform:none; color:#58a6ff;">AM.R38DC</span></div>
+            <div id="scale-display">
+                <div id="scale-num">５<span id="scale-suffix" style="font-size:0.45em; vertical-align:middle;">弱</span></div>
+                <div id="scale-label" style="font-size:13px; color:#8b949e;">現在地点の計測値</div>
+            </div>
+            <div id="intensity-bar-wrap">
+                <div id="intensity-bar-bg">
+                    <div id="intensity-bar-fill"></div>
+                </div>
+            </div>
+            <div id="intensity-vals">
+                <span id="i-value">I = 4.87</span>
+                <span id="a-value">12.34 gal</span>
+            </div>
+            <div id="trigger-badge" style="margin-top:10px;">
+                <span class="badge triggered">⚠ トリガ検出</span>
+            </div>
+        </div>
+
+        <!-- STA/LTAパネル -->
+        <div class="panel" id="stalta-panel">
+            <div class="panel-title">STA/LTA 検出</div>
+            <div id="stalta-bar-wrap">
+                <div id="stalta-bar-bg">
+                    <div id="stalta-bar-fill"></div>
+                    <div id="stalta-thr-line"></div>
+                </div>
+            </div>
+            <div id="stalta-vals">
+                <span>比: <strong style="color:#58a6ff;">3.20</strong></span>
+                <span>閾値: <strong style="color:#f97316;">3.5</strong></span>
+                <span>STA:1s / LTA:20s</span>
+            </div>
+        </div>
+
+        <!-- トリガ履歴 -->
+        <div class="panel" id="events-panel">
+            <div class="panel-title">トリガ履歴</div>
+            <div id="events-table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>時刻</th><th>I値</th><th>震度</th></tr>
+                    </thead>
+                    <tbody id="events-tbody">
+                        <tr>
+                            <td style="color:#8b949e;">14:07:10</td>
+                            <td style="color:#58a6ff;">4.87</td>
+                            <td class="scale-cell scale-5w">５<span class="scale-suffix">弱</span></td>
+                        </tr>
+                        <tr>
+                            <td style="color:#8b949e;">13:42:05</td>
+                            <td style="color:#58a6ff;">2.31</td>
+                            <td class="scale-cell scale-2">２</td>
+                        </tr>
+                        <tr>
+                            <td style="color:#8b949e;">11:15:48</td>
+                            <td style="color:#58a6ff;">1.04</td>
+                            <td class="scale-cell scale-1">１</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /col-left -->
+
+    <!-- 中央カラム -->
+    <div id="col-center">
+
+        <!-- 震源地図 -->
+        <div class="panel" id="map-panel">
+            <div class="panel-title">震源地図 (P2P)</div>
+            <div id="map"></div>
+        </div>
+
+        <!-- 推移グラフ -->
+        <div id="charts-row">
+            <div class="panel" id="history-panel">
+                <div class="panel-title">I値・STA/LTA推移 (直近5分)</div>
+                <div class="chart-wrap">
+                    <canvas id="historyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /col-center -->
+
+    <!-- 右カラム -->
+    <div id="col-right">
+
+        <!-- P2P地震情報 -->
+        <div class="panel" id="p2p-panel">
+            <div class="panel-title">最新地震情報 (P2P)</div>
+            <div id="p2p-table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>発生時刻</th><th>震源</th><th>M</th><th>深さ</th><th>震度</th></tr>
+                    </thead>
+                    <tbody id="p2p-tbody">
+                        <tr>
+                            <td style="color:#8b949e;">05-23 14:07</td>
+                            <td>千葉県北西部</td>
+                            <td style="color:#58a6ff;">5.2</td>
+                            <td style="color:#8b949e;">40km</td>
+                            <td class="scale-cell scale-4">４</td>
+                        </tr>
+                        <tr>
+                            <td style="color:#8b949e;">05-23 11:30</td>
+                            <td>茨城県南部</td>
+                            <td style="color:#58a6ff;">3.8</td>
+                            <td style="color:#8b949e;">70km</td>
+                            <td class="scale-cell scale-2">２</td>
+                        </tr>
+                        <tr>
+                            <td style="color:#8b949e;">05-22 22:15</td>
+                            <td>福島県沖</td>
+                            <td style="color:#58a6ff;">4.1</td>
+                            <td style="color:#8b949e;">50km</td>
+                            <td class="scale-cell scale-3">３</td>
+                        </tr>
+                        <tr>
+                            <td style="color:#8b949e;">05-22 18:44</td>
+                            <td>岩手県沖</td>
+                            <td style="color:#58a6ff;">3.5</td>
+                            <td style="color:#8b949e;">30km</td>
+                            <td class="scale-cell scale-1">１<span class="tsunami-warn">津波</span></td>
+                        </tr>
+                        <tr>
+                            <td style="color:#8b949e;">05-22 09:02</td>
+                            <td>紀伊水道</td>
+                            <td style="color:#58a6ff;">2.9</td>
+                            <td style="color:#8b949e;">20km</td>
+                            <td class="scale-cell scale-1">１</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /col-right -->
+
+</div><!-- /main -->
+
+<script>
+// ===== 時計 =====
+function updateClock() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    document.getElementById('clock').textContent =
+        `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} `+
+        `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== モックアップ用ダミーデータ生成 =====
+function makeHistoryData(n, base, range) {
+    let v = base;
+    return Array.from({length: n}, () => {
+        v += (Math.random() - 0.5) * range;
+        v = Math.max(0, Math.min(7, v));
+        return +v.toFixed(2);
+    });
+}
+
+// ===== 推移グラフ =====
+const N_HIST = 60;
+const histLabels = Array.from({length: N_HIST}, (_, i) => i % 10 === 0 ? `-${(N_HIST-i)*5}s` : '');
+const histCtx = document.getElementById('historyChart').getContext('2d');
+const historyChart = new Chart(histCtx, {
+    type: 'line',
+    data: {
+        labels: histLabels,
+        datasets: [
+            {
+                label: 'I値',
+                data: makeHistoryData(N_HIST, 1.5, 0.8),
+                borderColor: '#f97316',
+                backgroundColor: 'rgba(249,115,22,0.08)',
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: true,
+                tension: 0.4,
+                yAxisID: 'yI',
+            },
+            {
+                label: 'STA/LTA',
+                data: makeHistoryData(N_HIST, 1.5, 1.2).map(v => Math.min(v * 2, 7)),
+                borderColor: '#58a6ff',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                fill: false,
+                tension: 0.4,
+                yAxisID: 'yR',
+            },
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: { color: '#8b949e', boxWidth: 12, font: { size: 11 } }
+            },
+            tooltip: { mode: 'index', intersect: false },
+            annotation: {
+                annotations: {
+                    thrLine: {
+                        type: 'line',
+                        yScaleID: 'yR',
+                        yMin: 3.5, yMax: 3.5,
+                        borderColor: '#f97316',
+                        borderWidth: 1,
+                        borderDash: [4, 4],
+                        label: {
+                            display: true,
+                            content: 'thr=3.5',
+                            color: '#f97316',
+                            font: { size: 10 },
+                            position: 'end',
+                        }
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                ticks: { color: '#8b949e', font: { size: 10 }, maxRotation: 0 },
+                grid: { color: '#21262d' },
+            },
+            yI: {
+                type: 'linear',
+                position: 'left',
+                min: 0, max: 7,
+                ticks: { color: '#f97316', font: { size: 10 } },
+                grid: { color: '#21262d' },
+                title: { display: true, text: 'I値', color: '#f97316', font: { size: 10 } },
+            },
+            yR: {
+                type: 'linear',
+                position: 'right',
+                min: 0,
+                ticks: { color: '#58a6ff', font: { size: 10 } },
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: 'STA/LTA', color: '#58a6ff', font: { size: 10 } },
+            }
+        }
+    }
+});
+
+// ===== 震源地図 =====
+const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([36.5, 137.5], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 10,
+}).addTo(map);
+
+// モックアップ用マーカー
+const quakes = [
+    { lat: 35.7, lng: 140.1, mag: 5.2, name: '千葉県北西部', scale: '4' },
+    { lat: 36.1, lng: 140.4, mag: 3.8, name: '茨城県南部',   scale: '2' },
+    { lat: 37.5, lng: 141.2, mag: 4.1, name: '福島県沖',      scale: '3' },
+];
+
+const scaleColors = {
+    '0':'#8b949e','1':'#3fb950','2':'#3fb950','3':'#f97316',
+    '4':'#f97316','5弱':'#f85149','5強':'#f85149','6弱':'#f85149','6強':'#f85149','7':'#f85149'
+};
+
+quakes.forEach((q, i) => {
+    const color = scaleColors[q.scale] || '#8b949e';
+    const r = Math.max(8, Math.min(20, q.mag * 4));
+    const marker = L.circleMarker([q.lat, q.lng], {
+        radius: r,
+        color: color,
+        fillColor: color,
+        fillOpacity: i === 0 ? 0.7 : 0.35,
+        weight: i === 0 ? 2 : 1,
+    }).addTo(map);
+    marker.bindPopup(
+        `<b>${q.name}</b><br>M${q.mag} / 震度${q.scale}`,
+        { closeButton: false }
+    );
+    if (i === 0) marker.openPopup();
+});
+
+</script>
+<!-- Copyright (c) 2026 株式会社リバーランズ・コンサルティング -->
+</body>
+</html>

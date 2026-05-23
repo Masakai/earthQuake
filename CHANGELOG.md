@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [0.3.0] - 2026-05-23
+
+### Added
+- `jma_intensity_web.py`: FastAPI + WebSocket によるブラウザ版ダッシュボード
+  - 1秒ごと WebSocket ブロードキャスト
+  - Leaflet.js による震源地図（×印マーカー、M比例サイズ）
+  - 市区町村単位の震度色分け表示（都道府県別 GeoJSON を並列 fetch・キャッシュ）
+  - 震度カラー凡例（気象庁10段階準拠）
+  - `navigator.geolocation` による震源までの直線距離表示（ハバーサイン公式）
+  - トリガ履歴クリック時に P2P 地震情報と時刻照合してズーム表示
+  - バックグラウンドタブ離脱時に WebSocket 自動切断・復帰時再接続
+  - `requestAnimationFrame` デバウンスによる連続メッセージの1フレーム集約
+- 全ソースファイルに著作権表示を追加
+- TUI フッターに著作権表示を追加
+
 ## [Unreleased]
 
 ### Added
@@ -41,3 +56,7 @@
 - `simulate_udp.py`: 任意震度の合成 UDP パケット送出シミュレーター
 - `verify_filter.py`: JMA フィルタ特性の検証スクリプト（5 項目）
 - `data/R38DC.xml`: StationXML
+
+---
+
+Copyright (c) 2026 株式会社リバーランズ・コンサルティング

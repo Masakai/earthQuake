@@ -8,6 +8,8 @@
 
 別ターミナルでTUIを起動しておく:
     .venv/bin/python3 jma_intensity_tui.py --station R38DC --rt-window 30 --lta 10
+
+Copyright (c) 2026 株式会社リバーランズ・コンサルティング
 """
 
 import argparse

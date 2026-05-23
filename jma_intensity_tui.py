@@ -4,6 +4,8 @@
 Raspberry Shake UDP リアルタイム計測震度 TUI ダッシュボード
 - rich.Live を使ったターミナルUI
 - 3層構成: recv_loop → compute_loop → 描画(main)
+
+Copyright (c) 2026 株式会社リバーランズ・コンサルティング
 """
 
 import argparse
@@ -558,6 +560,7 @@ def build_display(state: dict, station: str, network: str, trig_thr: float = 3.5
         Layout(name="stalta", size=5),
         Layout(name="eew", size=3),
         Layout(name="bottom", size=9),
+        Layout(name="footer", size=1),
     )
     layout["bottom"].split_row(
         Layout(name="events", minimum_size=30),
@@ -570,6 +573,10 @@ def build_display(state: dict, station: str, network: str, trig_thr: float = 3.5
     layout["eew"].update(eew_panel)
     layout["events"].update(Panel(event_table, title="[bold]トリガ履歴[/bold]", border_style="yellow"))
     layout["p2p"].update(Panel(p2p_table, title="[bold]最新地震情報 (P2P)[/bold]", border_style="magenta"))
+    layout["footer"].update(Text.from_markup(
+        "[dim]Copyright (c) 2026 株式会社リバーランズ・コンサルティング[/dim]",
+        justify="center",
+    ))
 
     triggered_style = "bold red on white" if state["triggered"] else "bold blue"
     status = "⚠ トリガ" if state["triggered"] else " 監視中"
