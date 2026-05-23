@@ -9,15 +9,15 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-        --bg: #0d1117;
-        --surface: #161b22;
-        --border: #30363d;
-        --text: #e6edf3;
-        --muted: #8b949e;
-        --accent: #58a6ff;
-        --green: #3fb950;
-        --orange: #f97316;
-        --red: #f85149;
+        --bg: #ffffff;
+        --surface: #f6f8fa;
+        --border: #d0d7de;
+        --text: #1f2328;
+        --muted: #656d76;
+        --accent: #0969da;
+        --green: #1a7f37;
+        --orange: #bc4c00;
+        --red: #cf222e;
     }
 
     html { scroll-behavior: smooth; }
@@ -34,7 +34,7 @@
         position: sticky;
         top: 0;
         z-index: 100;
-        background: rgba(13, 17, 23, 0.9);
+        background: rgba(255, 255, 255, 0.92);
         backdrop-filter: blur(8px);
         border-bottom: 1px solid var(--border);
         padding: 0 2rem;
@@ -91,7 +91,7 @@
     }
     .hero h1 em {
         font-style: normal;
-        background: linear-gradient(90deg, var(--accent), var(--green));
+        background: linear-gradient(90deg, #0969da, #1a7f37);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -316,17 +316,17 @@
     .qs-step-body h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; }
     .qs-step-body p { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.5rem; }
     pre {
-        background: #010409;
+        background: #f6f8fa;
         border: 1px solid var(--border);
         border-radius: 6px;
         padding: 1rem 1.2rem;
         font-size: 0.83rem;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        color: #c9d1d9;
+        color: #1f2328;
         overflow-x: auto;
         line-height: 1.6;
     }
-    pre .comment { color: #484f58; }
+    pre .comment { color: #8c959f; }
     pre .cmd { color: var(--green); }
 
     /* ── リンクバー ── */
