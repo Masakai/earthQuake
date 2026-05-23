@@ -8,3 +8,5 @@ build/
 .playwright-mcp/
 web-dashboard-*.png
 raspberry-shake-jma-intensity-web-*.png
+!docs/web-dashboard-*.png
+!docs/raspberry-shake-jma-intensity-web-*.png
