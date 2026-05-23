@@ -106,7 +106,7 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
     """WebSocket でP2P地震情報をリアルタイム受信（Web版: points付き）。自動再接続あり。"""
     WS_URL = "wss://api.p2pquake.net/v2/ws"
 
-    initial = _fetch_p2p_quakes_http_web(5)
+    initial = _fetch_p2p_quakes_http_web(10)
     seen_ids: set[str] = {q["id"] for q in initial}
     with shared._lock:
         shared.p2p_quakes = initial
@@ -114,7 +114,7 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
 
     if not _websocket_ok:
         while not stop_event.is_set():
-            quakes = _fetch_p2p_quakes_http_web(5)
+            quakes = _fetch_p2p_quakes_http_web(10)
             shared.update(p2p_quakes=quakes)
             stop_event.wait(60)
         return
@@ -137,7 +137,7 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
             parsed = _parse_quake_item_web(item)
             if parsed:
                 with shared._lock:
-                    shared.p2p_quakes = ([parsed] + list(shared.p2p_quakes))[:5]
+                    shared.p2p_quakes = ([parsed] + list(shared.p2p_quakes))[:10]
         elif code == 556:
             parsed_eew = _parse_eew_item(item)
             with shared._lock:
@@ -804,8 +804,10 @@ const historyChart = new Chart(histCtx, {{
 
 // ===== 震源地図 =====
 const quakeMap = L.map('map', {{ zoomControl: true, attributionControl: false }}).setView([36.5, 137.5], 5);
-L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-    maxZoom: 12,
+L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
+    maxZoom: 19,
+    subdomains: 'abcd',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
 }}).addTo(quakeMap);
 let _mapMarkers = [];
 let _mapQuakeKey = null;

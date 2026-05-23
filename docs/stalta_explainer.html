@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>STA/LTA 地震検出 — インタラクティブ説明</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    padding: 24px;
+  }
+  h1 { font-size: 1.4em; margin-bottom: 4px; color: #58a6ff; }
+  .subtitle { color: #8b949e; margin-bottom: 20px; font-size: 0.9em; }
+
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+
+  canvas { display: block; width: 100%; border-radius: 8px; background: #161b22; }
+  #waveCanvas { height: 180px; }
+  #ratioCanvas { height: 140px; }
+
+  .panel {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .panel h2 { font-size: 0.85em; color: #8b949e; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; }
+
+  .param { margin-bottom: 14px; }
+  .param label { display: flex; justify-content: space-between; font-size: 0.88em; margin-bottom: 4px; }
+  .param label span { color: #58a6ff; font-weight: bold; font-family: monospace; }
+  input[type=range] {
+    width: 100%;
+    accent-color: #58a6ff;
+    cursor: pointer;
+  }
+  .param .desc { font-size: 0.78em; color: #8b949e; margin-top: 3px; }
+
+  .divider { border: none; border-top: 1px solid #30363d; margin: 14px 0; }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.82em;
+    font-weight: bold;
+  }
+  .badge.watch { background: #1f6feb33; color: #58a6ff; border: 1px solid #1f6feb; }
+  .badge.trigger { background: #da363333; color: #f85149; border: 1px solid #da3633; animation: blink .6s step-start infinite; }
+  @keyframes blink { 50% { opacity: .3; } }
+
+  .metric { margin-top: 10px; }
+  .metric .row { display: flex; justify-content: space-between; align-items: center; font-size: 0.88em; margin-bottom: 6px; }
+  .metric .val { font-family: monospace; font-size: 1em; font-weight: bold; }
+  .sta-val { color: #3fb950; }
+  .lta-val { color: #f97316; }
+  .ratio-val { color: #d2a8ff; }
+
+  .ratio-bar-wrap { margin-top: 8px; }
+  .ratio-bar-bg { background: #21262d; border-radius: 4px; height: 10px; position: relative; overflow: hidden; }
+  .ratio-bar-fill { height: 100%; border-radius: 4px; transition: width .15s, background .15s; }
+  .ratio-bar-thresh { position: absolute; top: 0; height: 100%; width: 2px; background: #f85149; }
+
+  .explain {
+    margin-top: 16px;
+    background: #21262d;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 0.82em;
+    line-height: 1.7;
+    color: #c9d1d9;
+  }
+  .explain code { background: #30363d; padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.95em; }
+  .explain .hl { color: #58a6ff; }
+
+  .btn-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  button {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: background .15s;
+  }
+  button:hover { background: #30363d; }
+  button.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+
+  .canvas-label {
+    font-size: 0.78em;
+    color: #8b949e;
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+  .legend { display: flex; gap: 16px; font-size: 0.78em; margin-top: 6px; color: #8b949e; }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend .dot { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<h1>STA/LTA 地震検出 — インタラクティブ説明</h1>
+<p class="subtitle">Raspberry Shake 地震計の波形をシミュレートして STA/LTA 比の動きを可視化します</p>
+
+<div class="layout">
+  <!-- 左: キャンバス群 -->
+  <div>
+    <div class="btn-row">
+      <button id="btnPlay" class="active">▶ 再生</button>
+      <button id="btnReset">↺ リセット</button>
+      <button id="btnScene0">シーン①: 静穏</button>
+      <button id="btnScene1">シーン②: P波到着</button>
+      <button id="btnScene2">シーン③: 余震</button>
+    </div>
+
+    <div class="canvas-label">波形（3成分合成・DC除去）</div>
+    <canvas id="waveCanvas"></canvas>
+    <div class="legend">
+      <span><span class="dot" style="background:#58a6ff"></span>波形 vec_raw</span>
+      <span><span class="dot" style="background:#3fb950;height:10px;width:10px;border-radius:2px"></span>STA窓</span>
+      <span><span class="dot" style="background:#f97316;height:10px;width:10px;border-radius:2px"></span>LTA窓</span>
+      <span><span class="dot" style="background:#f85149"></span>閾値ライン</span>
+    </div>
+
+    <div class="canvas-label" style="margin-top:14px">STA/LTA 比の推移</div>
+    <canvas id="ratioCanvas"></canvas>
+    <div class="legend">
+      <span><span class="dot" style="background:#d2a8ff"></span>ratio = STA/LTA</span>
+      <span><span class="dot" style="background:#f85149"></span>trig閾値</span>
+    </div>
+
+    <div class="explain">
+      <p id="explainText">▶ 再生ボタンを押すか、シーンを選んでください。</p>
+    </div>
+  </div>
+
+  <!-- 右: パラメータパネル -->
+  <div>
+    <div class="panel">
+      <h2>パラメータ</h2>
+
+      <div class="param">
+        <label>STA 窓長 <span id="staVal">1.0</span> 秒</label>
+        <input type="range" id="staSlider" min="0.5" max="5" step="0.5" value="1.0">
+        <div class="desc">Short-Term Average — 直近の地震波エネルギー</div>
+      </div>
+      <div class="param">
+        <label>LTA 窓長 <span id="ltaVal">20</span> 秒</label>
+        <input type="range" id="ltaSlider" min="5" max="60" step="5" value="20">
+        <div class="desc">Long-Term Average — 背景雑音のベースライン</div>
+      </div>
+      <div class="param">
+        <label>トリガ閾値 <span id="trigVal">3.5</span></label>
+        <input type="range" id="trigSlider" min="1.5" max="8" step="0.5" value="3.5">
+        <div class="desc">ratio がこの値を超えるとトリガ発報</div>
+      </div>
+
+      <hr class="divider">
+      <h2>現在値</h2>
+      <div class="metric">
+        <div class="row"><span>STA（直近エネルギー）</span><span class="val sta-val" id="staLive">—</span></div>
+        <div class="row"><span>LTA（背景雑音）</span><span class="val lta-val" id="ltaLive">—</span></div>
+        <div class="row"><span>STA / LTA 比</span><span class="val ratio-val" id="ratioLive">—</span></div>
+      </div>
+      <div class="ratio-bar-wrap" style="margin-top:8px">
+        <div style="font-size:0.78em;color:#8b949e;margin-bottom:4px">ratio（0 〜 <span id="barMax">8</span>）</div>
+        <div class="ratio-bar-bg">
+          <div class="ratio-bar-fill" id="ratioBar" style="width:0%;background:#3fb950"></div>
+          <div class="ratio-bar-thresh" id="ratioBarThresh" style="left:43.75%"></div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <h2>状態</h2>
+      <div id="statusBadge" class="badge watch">監視中</div>
+
+      <hr class="divider">
+      <div class="explain" style="margin-top:0">
+        <p><span class="hl">STA</span> = <code>mean(vec[-nsta:]²)</code></p>
+        <p><span class="hl">LTA</span> = <code>mean(vec[-nlta:-nsta]²)</code></p>
+        <p style="margin-top:6px">LTAはSTAの<em>直前</em>を使うため、<br>P波到着がLTAに混入しにくい設計です。</p>
+      </div>
+
+      <hr class="divider">
+      <h2>この設定の意味</h2>
+      <div class="explain" style="margin-top:0;line-height:1.9" id="paramExplain">
+        —
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== パラメータ =====================
+const FS = 50;           // シミュレーション用サンプリングレート(Hz)
+const DISP_SECS = 30;    // 波形表示秒数
+const N_DISP = DISP_SECS * FS;
+
+// ===================== 状態 =====================
+let sta_s = 1.0, lta_s = 20.0, trig_thr = 3.5;
+let buf = new Float32Array(0);  // 波形バッファ
+let ratioHistory = [];
+let playing = false;
+let animId = null;
+let t = 0;              // 経過時間(秒)
+let scene = 0;          // 0=静穏, 1=P波, 2=余震
+let sceneQueue = [];    // [{time, type}]
+let triggered = false;
+let triggerTime = -999;
+const DET_HOLD = 60;
+
+// ===================== シーンキュー =====================
+function setScene(s) {
+    scene = s;
+    buf = new Float32Array(0);
+    ratioHistory = [];
+    t = 0;
+    triggered = false;
+    triggerTime = -999;
+    if (s === 0) {
+        sceneQueue = [];
+        setExplain('① 静穏時のノイズ。STA も LTA もほぼ同じエネルギーで <strong>ratio ≈ 1</strong> をキープします。');
+    } else if (s === 1) {
+        sceneQueue = [{ time: 25, type: 'quake', mag: 6 }];
+        setExplain('② 25秒後に P 波が到着します。STA 窓（緑）だけがエネルギー急増し、LTA 窓（橙）はほぼ変わらず → <strong>ratio が閾値を突破</strong>してトリガ発報します。');
+    } else {
+        sceneQueue = [
+            { time: 25, type: 'quake', mag: 6 },
+            { time: 55, type: 'quake', mag: 4 },
+        ];
+        setExplain('③ 本震 (M6) の後、30秒後に余震 (M4) が来ます。<strong>det_hold (60秒)</strong> 内の余震はトリガを無視してノイズと見なします。');
+    }
+}
+
+// ===================== 波形生成 =====================
+function noise(scale) {
+    // ガウス近似
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return scale * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function makeQuakeSamples(mag, fs) {
+    const amp = Math.pow(10, mag / 2) * 0.0002;
+    const dur = Math.min(mag * 3, 20); // 秒
+    const n = Math.round(dur * fs);
+    const out = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+        const env = Math.exp(-i / (fs * dur * 0.3)) * Math.sin(i / (fs * 0.5)) * amp;
+        out[i] = env + noise(amp * 0.1);
+    }
+    return out;
+}
+
+// ===================== STA/LTA計算 =====================
+function computeRatio(vec, fs, sta_s, lta_s) {
+    const nsta = Math.max(1, Math.round(sta_s * fs));
+    const nlta = Math.max(nsta + 1, Math.round(lta_s * fs));
+    if (vec.length < nlta) return 0;
+    let s_sta = 0, s_lta = 0;
+    for (let i = vec.length - nsta; i < vec.length; i++) s_sta += vec[i] * vec[i];
+    for (let i = vec.length - nlta; i < vec.length - nsta; i++) s_lta += vec[i] * vec[i];
+    s_sta /= nsta;
+    s_lta /= (nlta - nsta);
+    s_lta = Math.max(s_lta, 1e-18);
+    return s_sta / s_lta;
+}
+
+// ===================== 更新ループ =====================
+const STEP_SECS = 0.5;   // 1フレームあたりの進行秒数
+const STEP_N = Math.round(STEP_SECS * FS);
+
+let pendingQuake = null;  // Float32Array of quake samples remaining
+
+function step() {
+    // シーンキューからイベント追加
+    for (let i = sceneQueue.length - 1; i >= 0; i--) {
+        if (t >= sceneQueue[i].time && !sceneQueue[i].done) {
+            pendingQuake = makeQuakeSamples(sceneQueue[i].mag, FS);
+            sceneQueue[i].done = true;
+        }
+    }
+
+    // サンプル生成
+    const chunk = new Float32Array(STEP_N);
+    for (let i = 0; i < STEP_N; i++) {
+        let v = noise(0.05);  // 背景ノイズ
+        if (pendingQuake && pendingQuake.length > 0) {
+            const take = Math.min(pendingQuake.length, STEP_N - i);
+            for (let j = 0; j < take; j++) {
+                chunk[i + j] += pendingQuake[j];
+            }
+            pendingQuake = pendingQuake.slice(STEP_N - i > take ? take : STEP_N - i);
+            if (pendingQuake.length === 0) pendingQuake = null;
+        }
+        chunk[i] = v + chunk[i];
+    }
+
+    // バッファ追記
+    const need = Math.round((lta_s + sta_s) * FS) + N_DISP + STEP_N;
+    const newBuf = new Float32Array(buf.length + STEP_N);
+    newBuf.set(buf);
+    newBuf.set(chunk, buf.length);
+    buf = newBuf.slice(-need);
+
+    // ratio計算
+    const ratio = computeRatio(buf, FS, sta_s, lta_s);
+    ratioHistory.push(ratio);
+    if (ratioHistory.length > N_DISP / STEP_N + 10) ratioHistory.shift();
+
+    // トリガ判定
+    const now_triggered = ratio >= trig_thr && (t - triggerTime) > DET_HOLD;
+    if (now_triggered) {
+        triggered = true;
+        triggerTime = t;
+        setTimeout(() => { triggered = false; }, 3000);
+    }
+
+    t += STEP_SECS;
+
+    // 表示更新
+    updateMetrics(ratio);
+    drawWave();
+    drawRatio();
+}
+
+// ===================== 描画 =====================
+function getCanvas(id) {
+    const c = document.getElementById(id);
+    c.width = c.offsetWidth * devicePixelRatio;
+    c.height = c.offsetHeight * devicePixelRatio;
+    const ctx = c.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    return [c, ctx, c.offsetWidth, c.offsetHeight];
+}
+
+function drawWave() {
+    const [c, ctx, W, H] = getCanvas('waveCanvas');
+    ctx.clearRect(0, 0, W, H);
+
+    // 表示用バッファ (直近 N_DISP サンプル)
+    const disp = buf.length >= N_DISP ? buf.slice(buf.length - N_DISP) : buf;
+    const nsta = Math.max(1, Math.round(sta_s * FS));
+    const nlta = Math.max(nsta + 1, Math.round(lta_s * FS));
+
+    // スケール
+    let mx = 0.01;
+    for (let i = 0; i < disp.length; i++) mx = Math.max(mx, Math.abs(disp[i]));
+
+    const toY = v => H / 2 - (v / mx) * (H / 2 - 10);
+    const toX = i => (i / N_DISP) * W;
+
+    // LTA窓背景
+    if (disp.length >= nlta) {
+        const ltaStart = disp.length - nlta;
+        const ltaEnd = disp.length - nsta;
+        ctx.fillStyle = '#f9731620';
+        ctx.fillRect(toX(ltaStart), 0, toX(ltaEnd) - toX(ltaStart), H);
+    }
+    // STA窓背景
+    if (disp.length >= nsta) {
+        const staStart = disp.length - nsta;
+        ctx.fillStyle = '#3fb95025';
+        ctx.fillRect(toX(staStart), 0, toX(disp.length) - toX(staStart), H);
+    }
+
+    // ゼロライン
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, H / 2);
+    ctx.lineTo(W, H / 2);
+    ctx.stroke();
+
+    // 波形
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let i = 0; i < disp.length; i++) {
+        const x = toX(i);
+        const y = toY(disp[i]);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // 窓ラベル
+    ctx.font = '11px system-ui';
+    if (disp.length >= nlta) {
+        const ltaStart = disp.length - nlta;
+        const ltaEnd = disp.length - nsta;
+        ctx.fillStyle = '#f97316aa';
+        ctx.fillText(`LTA ${lta_s}s`, toX((ltaStart + ltaEnd) / 2) - 20, 14);
+    }
+    if (disp.length >= nsta) {
+        const staStart = disp.length - nsta;
+        ctx.fillStyle = '#3fb950aa';
+        ctx.fillText(`STA ${sta_s}s`, toX(staStart) + 4, 14);
+    }
+}
+
+function drawRatio() {
+    const [c, ctx, W, H] = getCanvas('ratioCanvas');
+    ctx.clearRect(0, 0, W, H);
+
+    const maxRatio = Math.max(trig_thr * 2, 8);
+    const toY = v => H - 10 - (v / maxRatio) * (H - 20);
+    const N = ratioHistory.length;
+
+    // グリッド
+    ctx.strokeStyle = '#21262d';
+    ctx.lineWidth = 1;
+    for (let r of [1, 2, 4, 6, 8].filter(v => v <= maxRatio)) {
+        const y = toY(r);
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '10px system-ui';
+        ctx.fillText(r, 3, y - 2);
+    }
+
+    // 閾値ライン
+    const ty = toY(trig_thr);
+    ctx.strokeStyle = '#f85149';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(W, ty); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#f85149';
+    ctx.font = '10px system-ui';
+    ctx.fillText(`trig ${trig_thr}`, W - 56, ty - 3);
+
+    // ratio曲線
+    ctx.strokeStyle = '#d2a8ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+        const x = (i / Math.max(N - 1, 1)) * W;
+        const y = toY(ratioHistory[i]);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // トリガ塗り
+    for (let i = 0; i < N; i++) {
+        if (ratioHistory[i] >= trig_thr) {
+            const x = (i / Math.max(N - 1, 1)) * W;
+            ctx.fillStyle = '#f8514940';
+            ctx.fillRect(x - 1, toY(ratioHistory[i]), 3, toY(trig_thr) - toY(ratioHistory[i]));
+        }
+    }
+}
+
+// ===================== UI更新 =====================
+function updateMetrics(ratio) {
+    // STA/LTA実値
+    const nsta = Math.max(1, Math.round(sta_s * FS));
+    const nlta = Math.max(nsta + 1, Math.round(lta_s * FS));
+    let s_sta = 0, s_lta = 0;
+    if (buf.length >= nlta) {
+        for (let i = buf.length - nsta; i < buf.length; i++) s_sta += buf[i] * buf[i];
+        for (let i = buf.length - nlta; i < buf.length - nsta; i++) s_lta += buf[i] * buf[i];
+        s_sta /= nsta; s_lta /= (nlta - nsta);
+    }
+    document.getElementById('staLive').textContent = s_sta.toExponential(2);
+    document.getElementById('ltaLive').textContent = s_lta.toExponential(2);
+    document.getElementById('ratioLive').textContent = ratio.toFixed(3);
+
+    const maxRatio = Math.max(trig_thr * 2, 8);
+    const pct = Math.min(ratio / maxRatio * 100, 100);
+    const bar = document.getElementById('ratioBar');
+    bar.style.width = pct + '%';
+    bar.style.background = ratio >= trig_thr ? '#f85149' : ratio > trig_thr * 0.7 ? '#f97316' : '#3fb950';
+
+    const threshPct = trig_thr / maxRatio * 100;
+    document.getElementById('ratioBarThresh').style.left = threshPct + '%';
+    document.getElementById('barMax').textContent = maxRatio;
+
+    const badge = document.getElementById('statusBadge');
+    if (triggered || ratio >= trig_thr) {
+        badge.className = 'badge trigger';
+        badge.textContent = '⚠ トリガ発報';
+    } else {
+        badge.className = 'badge watch';
+        badge.textContent = '監視中';
+    }
+}
+
+function setExplain(html) {
+    document.getElementById('explainText').innerHTML = html;
+}
+
+// ===================== アニメーション =====================
+let lastFrame = 0;
+const FPS = 20;
+
+function loop(ts) {
+    if (!playing) return;
+    if (ts - lastFrame > 1000 / FPS) {
+        lastFrame = ts;
+        step();
+    }
+    animId = requestAnimationFrame(loop);
+}
+
+function startPlay() {
+    if (playing) return;
+    playing = true;
+    document.getElementById('btnPlay').classList.add('active');
+    document.getElementById('btnPlay').textContent = '⏸ 一時停止';
+    animId = requestAnimationFrame(loop);
+}
+
+function stopPlay() {
+    playing = false;
+    cancelAnimationFrame(animId);
+    document.getElementById('btnPlay').classList.remove('active');
+    document.getElementById('btnPlay').textContent = '▶ 再生';
+}
+
+// ===================== イベント =====================
+document.getElementById('btnPlay').addEventListener('click', () => {
+    playing ? stopPlay() : startPlay();
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+    stopPlay();
+    setScene(scene);
+    drawWave();
+    drawRatio();
+});
+document.getElementById('btnScene0').addEventListener('click', () => { stopPlay(); setScene(0); startPlay(); });
+document.getElementById('btnScene1').addEventListener('click', () => { stopPlay(); setScene(1); startPlay(); });
+document.getElementById('btnScene2').addEventListener('click', () => { stopPlay(); setScene(2); startPlay(); });
+
+document.getElementById('staSlider').addEventListener('input', e => {
+    sta_s = parseFloat(e.target.value);
+    document.getElementById('staVal').textContent = sta_s.toFixed(1);
+    updateParamExplain();
+});
+document.getElementById('ltaSlider').addEventListener('input', e => {
+    lta_s = parseFloat(e.target.value);
+    document.getElementById('ltaVal').textContent = lta_s;
+    updateParamExplain();
+});
+document.getElementById('trigSlider').addEventListener('input', e => {
+    trig_thr = parseFloat(e.target.value);
+    document.getElementById('trigVal').textContent = trig_thr.toFixed(1);
+    updateParamExplain();
+});
+
+function updateParamExplain() {
+    const lines = [];
+
+    // STA の解説
+    if (sta_s <= 1.0) {
+        lines.push(`<b>STA ${sta_s}s（短い）</b>：ごく直近だけを見るので、P波の立ち上がりに素早く反応します。ただし一瞬の雑音スパイクにも反応しやすくなります。`);
+    } else if (sta_s <= 2.5) {
+        lines.push(`<b>STA ${sta_s}s（中程度）</b>：P波の立ち上がりをある程度平均するので、スパイクへの過反応を抑えつつ変化を捉えられます。`);
+    } else {
+        lines.push(`<b>STA ${sta_s}s（長い）</b>：到着した地震波を数秒間引き延ばして平均するため、P波の鋭い立ち上がりが薄まります。反応が遅れ、S波が来てから初めてトリガすることがあります。`);
+    }
+
+    // LTA の解説
+    if (lta_s <= 10) {
+        lines.push(`<b>LTA ${lta_s}s（短い）</b>：背景雑音の推定窓が短いため、余震や交通振動など直前の揺れを「普通の状態」と学習してしまいます。続けて揺れが来ると ratio が上がりにくくなります。`);
+    } else if (lta_s <= 30) {
+        lines.push(`<b>LTA ${lta_s}s（標準）</b>：数十秒の背景雑音を平均するため、短期的な変動に引きずられにくい安定したベースラインになります。`);
+    } else {
+        lines.push(`<b>LTA ${lta_s}s（長い）</b>：長期間の平均なので非常に安定したベースラインになります。ただし窓が蓄まるまでの起動時間が長くなり、起動直後は ratio が正しく計算されません。`);
+    }
+
+    // STA/LTA 比の関係
+    const ratio_sensitivity = (lta_s / sta_s).toFixed(1);
+    lines.push(`<b>LTA÷STA = ${ratio_sensitivity}</b>：この比が大きいほど、地震波が来たときに ratio が大きく跳ね上がりやすくなります。`);
+
+    // 閾値の解説
+    if (trig_thr <= 2.0) {
+        lines.push(`<b>閾値 ${trig_thr}（低すぎ）</b>：少しの雑音でもトリガします。誤検知が多発しやすい設定です。`);
+    } else if (trig_thr <= 3.0) {
+        lines.push(`<b>閾値 ${trig_thr}（やや低め）</b>：微小地震も拾いやすくなりますが、騒がしい環境では誤検知が増えます。`);
+    } else if (trig_thr <= 4.5) {
+        lines.push(`<b>閾値 ${trig_thr}（標準）</b>：Raspberry Shake の推奨付近。有感地震を確実に捉えつつ誤検知を抑えるバランスです。`);
+    } else if (trig_thr <= 6.0) {
+        lines.push(`<b>閾値 ${trig_thr}（高め）</b>：揺れが相当大きくないとトリガしません。微小地震や遠方の地震を見逃す可能性があります。`);
+    } else {
+        lines.push(`<b>閾値 ${trig_thr}（高すぎ）</b>：実用上ほぼトリガしない設定です。強震のみ検出したい特殊用途向けです。`);
+    }
+
+    // 総合判定
+    let overall;
+    if (sta_s <= 1.5 && lta_s >= 15 && trig_thr >= 3.0 && trig_thr <= 4.5) {
+        overall = `<span style="color:#3fb950">✓ P波を素早く捉えやすい、バランスの取れた設定です。</span>`;
+    } else if (sta_s >= 3.0 || lta_s <= 10) {
+        overall = `<span style="color:#f97316">△ S波到着後にトリガする可能性が高い設定です。</span>`;
+    } else if (trig_thr <= 2.0) {
+        overall = `<span style="color:#f85149">✗ 誤検知が多発しやすい設定です。</span>`;
+    } else if (trig_thr >= 6.0) {
+        overall = `<span style="color:#f85149">✗ 地震を見逃しやすい設定です。</span>`;
+    } else {
+        overall = `<span style="color:#8b949e">— 動作しますが最適ではない設定です。</span>`;
+    }
+    lines.push(overall);
+
+    document.getElementById('paramExplain').innerHTML =
+        lines.map(l => `<p style="margin-bottom:8px">${l}</p>`).join('');
+}
+
+updateParamExplain();
+
+// ===================== 初期化 =====================
+setScene(1);
+startPlay();
+</script>
+</body>
+</html>

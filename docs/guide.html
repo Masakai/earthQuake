@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地震計プログラム やさしい解説書</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --surface: #f6f8fa;
+    --surface2: #eaeef2;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #636c76;
+    --blue: #0969da;
+    --green: #1a7f37;
+    --orange: #bc4c00;
+    --red: #cf222e;
+    --purple: #6639ba;
+    --yellow: #7d4e00;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+    font-size: 15px;
+    line-height: 1.8;
+  }
+
+  /* ===== レイアウト ===== */
+  .wrapper { display: flex; min-height: 100vh; }
+
+  nav {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  nav .logo {
+    padding: 0 20px 20px;
+    font-size: 0.85em;
+    color: var(--blue);
+    font-weight: bold;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  nav a {
+    display: block;
+    padding: 6px 20px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85em;
+    transition: color .15s, background .15s;
+    border-left: 2px solid transparent;
+  }
+  nav a:hover { color: var(--text); background: var(--surface2); }
+  nav a.active { color: var(--blue); border-left-color: var(--blue); }
+  nav .nav-section {
+    font-size: 0.72em;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 16px 20px 4px;
+  }
+
+  main {
+    flex: 1;
+    max-width: 760px;
+    padding: 48px 48px 120px;
+  }
+
+  /* ===== タイポグラフィ ===== */
+  h1 { font-size: 2em; color: var(--blue); margin-bottom: 8px; }
+  h2 {
+    font-size: 1.4em;
+    margin: 56px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    scroll-margin-top: 24px;
+  }
+  h3 { font-size: 1.1em; margin: 28px 0 10px; color: var(--yellow); }
+  p { margin-bottom: 14px; }
+  strong { color: var(--text); }
+
+  .lead {
+    color: var(--muted);
+    font-size: 1em;
+    margin-bottom: 32px;
+    line-height: 1.7;
+  }
+
+  /* ===== カード ===== */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 20px 0;
+  }
+  .card.blue  { border-left: 3px solid var(--blue); }
+  .card.green { border-left: 3px solid var(--green); }
+  .card.orange{ border-left: 3px solid var(--orange); }
+  .card.red   { border-left: 3px solid var(--red); }
+  .card.purple{ border-left: 3px solid var(--purple); }
+
+  .card-title {
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: 8px;
+  }
+  .card.blue   .card-title { color: var(--blue); }
+  .card.green  .card-title { color: var(--green); }
+  .card.orange .card-title { color: var(--orange); }
+  .card.red    .card-title { color: var(--red); }
+  .card.purple .card-title { color: var(--purple); }
+
+  /* ===== コードブロック風 ===== */
+  .diagram {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: 'Courier New', 'Menlo', monospace;
+    font-size: 0.85em;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.6;
+    margin: 16px 0;
+    color: #c9d1d9;
+  }
+
+  /* ===== 用語バッジ ===== */
+  .term {
+    display: inline-block;
+    background: #1f6feb33;
+    border: 1px solid #1f6feb66;
+    color: var(--blue);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 0.88em;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  /* ===== 表 ===== */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.9em; }
+  th {
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+
+  /* ===== アコーディオン（Q&A） ===== */
+  details {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 10px 0;
+    overflow: hidden;
+  }
+  summary {
+    padding: 14px 18px;
+    cursor: pointer;
+    font-weight: bold;
+    background: var(--surface);
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '＋'; color: var(--muted); font-weight: normal; }
+  details[open] summary::after { content: '－'; }
+  details[open] summary { border-bottom: 1px solid var(--border); }
+  .details-body { padding: 16px 18px; background: var(--surface2); line-height: 1.8; }
+
+  /* ===== 波形アニメーション ===== */
+  .wave-demo { margin: 20px 0; }
+  canvas.mini { width: 100%; height: 80px; background: var(--surface2); border-radius: 8px; display: block; }
+
+  /* ===== 震度カラー ===== */
+  .scale-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin: 16px 0; }
+  .scale-cell {
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.1em;
+  }
+
+  /* ===== 区切り ===== */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* ===== タグ ===== */
+  .tag {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .tag.wave { background: #58a6ff22; color: var(--blue); }
+  .tag.algo { background: #3fb95022; color: var(--green); }
+  .tag.unit { background: #d2a8ff22; color: var(--purple); }
+
+  /* ===== レスポンシブ ===== */
+  @media (max-width: 700px) {
+    nav { display: none; }
+    main { padding: 24px 20px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+<!-- ===== サイドナビ ===== -->
+<nav>
+  <div class="logo">地震計 やさしい解説書</div>
+  <div class="nav-section">基礎知識</div>
+  <a href="#seismic-wave">地震波とは</a>
+  <a href="#p-s-wave">P波とS波</a>
+  <a href="#intensity">震度とは</a>
+  <a href="#gal">単位：ガル（gal）</a>
+  <div class="nav-section">検出アルゴリズム</div>
+  <a href="#stalta">STA/LTA とは</a>
+  <a href="#sta">STA（短期平均）</a>
+  <a href="#lta">LTA（長期平均）</a>
+  <a href="#ratio">ratio（比）</a>
+  <a href="#trigger">トリガ発報</a>
+  <div class="nav-section">パラメータ</div>
+  <a href="#params">設定値一覧</a>
+  <a href="#tuning">チューニングの考え方</a>
+  <div class="nav-section">緊急地震速報</div>
+  <a href="#eew-what">EEWとは</a>
+  <a href="#eew-how">どうやって予測する？</a>
+  <a href="#eew-lead">猶予時間のしくみ</a>
+  <a href="#eew-limit">EEWの限界</a>
+  <a href="#eew-p2p">P2P地震情報との違い</a>
+  <div class="nav-section">Q&amp;A</div>
+  <a href="#faq">よくある疑問</a>
+</nav>
+
+<!-- ===== 本文 ===== -->
+<main>
+
+<h1>地震計プログラム<br>やさしい解説書</h1>
+<p class="lead">Raspberry Shake という小さな地震計と、そのデータを表示するプログラムで使われる言葉・数値・しくみを、わかりやすく説明します。むずかしい知識がなくても読めます。</p>
+
+<!-- ==================== 地震波 ==================== -->
+<h2 id="seismic-wave">地震波とは <span class="tag wave">基礎</span></h2>
+
+<p>地震が起きると、地面の中を「波」が四方八方に広がっていきます。これを<strong>地震波</strong>といいます。池に石を投げたときの波紋に似ていますが、地面の中を伝わる点が違います。</p>
+
+<div class="card blue">
+  <div class="card-title">地震計が記録しているもの</div>
+  地震計は、この「地面のゆれ」を時間の順に記録しています。グラフで見ると、横軸が時間・縦軸が「どのくらいゆれたか（大きさ）」になります。
+</div>
+
+<p>地震波には大きく分けて2種類あります。次で説明します。</p>
+
+<!-- ==================== P波S波 ==================== -->
+<h2 id="p-s-wave">P波とS波 <span class="tag wave">基礎</span></h2>
+
+<h3>P波</h3>
+<p>震源から最初に届く波です。「P」は英語で「最初」を意味する Primary の頭文字です。揺れは比較的小さく、建物が大きく壊れることはほとんどありません。</p>
+
+<h3>S波</h3>
+<p>P波より遅れて届く波です。「S」は Secondary（2番目）の頭文字です。揺れが大きく、建物に被害を与えるのは主にこのS波です。緊急地震速報は「P波を捉えて、S波が来る前に知らせる」という仕組みで動いています。</p>
+
+<svg viewBox="0 0 660 220" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <!-- 震源ツリー -->
+  <text x="20" y="24" font-size="13" fill="#1f2328" font-weight="bold">震源</text>
+  <line x1="32" y1="30" x2="32" y2="90" stroke="#636c76" stroke-width="1.5"/>
+  <line x1="32" y1="50" x2="50" y2="50" stroke="#636c76" stroke-width="1.5"/>
+  <line x1="32" y1="90" x2="50" y2="90" stroke="#636c76" stroke-width="1.5"/>
+  <text x="54" y="54" font-size="12" fill="#0969da">P波（縦波・速い）</text>
+  <text x="54" y="94" font-size="12" fill="#bc4c00">S波（横波・遅い）</text>
+
+  <!-- P波矢印 -->
+  <line x1="175" y1="50" x2="255" y2="50" stroke="#0969da" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+  <text x="260" y="54" font-size="12" fill="#0969da">先に到着　揺れ小さい</text>
+
+  <!-- S波矢印 -->
+  <line x1="175" y1="90" x2="255" y2="90" stroke="#bc4c00" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-orange)"/>
+  <text x="260" y="94" font-size="12" fill="#bc4c00">後から到着　揺れ大きい</text>
+
+  <!-- 時間軸 -->
+  <line x1="20" y1="130" x2="640" y2="130" stroke="#d0d7de" stroke-width="1.5" marker-end="url(#arr-gray)"/>
+  <text x="20" y="148" font-size="11" fill="#636c76">時間軸</text>
+
+  <!-- P波到着ライン -->
+  <line x1="230" y1="125" x2="230" y2="200" stroke="#0969da" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="200" y="122" font-size="11" fill="#0969da">P波到着</text>
+
+  <!-- S波到着ライン -->
+  <line x1="430" y1="125" x2="430" y2="200" stroke="#bc4c00" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="400" y="122" font-size="11" fill="#bc4c00">S波到着</text>
+
+  <!-- 波形イメージ -->
+  <rect x="20" y="155" width="210" height="30" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1" rx="3"/>
+  <text x="80" y="175" font-size="11" fill="#636c76">静穏</text>
+
+  <rect x="230" y="155" width="200" height="30" fill="#ddf4ff" stroke="#0969da" stroke-width="1" rx="3"/>
+  <text x="270" y="175" font-size="11" fill="#0969da">小さな縦ゆれ（P波）</text>
+
+  <rect x="430" y="155" width="200" height="30" fill="#fff8e1" stroke="#bc4c00" stroke-width="1.5" rx="3"/>
+  <text x="460" y="175" font-size="11" fill="#bc4c00" font-weight="bold">大きな横ゆれ（S波・本番）</text>
+
+  <!-- 猶予時間矢印 -->
+  <line x1="230" y1="210" x2="430" y2="210" stroke="#1a7f37" stroke-width="1.5" marker-start="url(#arr-green-l)" marker-end="url(#arr-green)"/>
+  <text x="275" y="207" font-size="11" fill="#1a7f37">猶予時間（緊急地震速報のしくみ）</text>
+
+  <defs>
+    <marker id="arr-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#0969da"/>
+    </marker>
+    <marker id="arr-orange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#bc4c00"/>
+    </marker>
+    <marker id="arr-gray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#636c76"/>
+    </marker>
+    <marker id="arr-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#1a7f37"/>
+    </marker>
+    <marker id="arr-green-l" markerWidth="8" markerHeight="8" refX="2" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L0,6 L8,3 z" fill="#1a7f37"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="card green">
+  <div class="card-title">速さのちがい</div>
+  P波は1秒間に約6〜7km、S波は約3〜4km進みます。震源から100km離れた場所では、P波が届いてから約15〜20秒後にS波が来ます。緊急地震速報はこの「15〜20秒」を使って警報を出しています。
+</div>
+
+<p>このプログラムの地震検出は、P波かS波かを区別しません。「急にエネルギーが大きくなった」という変化を捉えて反応します。設定によってはP波の時点で反応できますが、設定値によってはS波が来てやっと反応するケースもあります。</p>
+
+<!-- ==================== 震度 ==================== -->
+<h2 id="intensity">震度とは <span class="tag unit">単位</span></h2>
+
+<p>震度は「ある場所でどのくらいゆれたか」を数値で表したものです。同じ地震でも、震源に近い場所は震度が大きく、遠い場所は小さくなります。気象庁が決めたルールで計算した値（<strong>計測震度・I値</strong>）をもとに、震度０〜７の階級に分けています。</p>
+
+<div class="scale-grid">
+  <div class="scale-cell" style="background:#3fb95022;border:1px solid #3fb950;color:#3fb950">震度０</div>
+  <div class="scale-cell" style="background:#3fb95022;border:1px solid #3fb950;color:#3fb950">震度１</div>
+  <div class="scale-cell" style="background:#3fb95022;border:1px solid #3fb950;color:#3fb950">震度２</div>
+  <div class="scale-cell" style="background:#f9731622;border:1px solid #f97316;color:#f97316">震度３</div>
+  <div class="scale-cell" style="background:#f9731622;border:1px solid #f97316;color:#f97316">震度４</div>
+  <div class="scale-cell" style="background:#f8514922;border:1px solid #f85149;color:#f85149">震度５弱</div>
+  <div class="scale-cell" style="background:#f8514922;border:1px solid #f85149;color:#f85149">震度５強</div>
+  <div class="scale-cell" style="background:#f8514922;border:1px solid #f85149;color:#f85149">震度６弱</div>
+  <div class="scale-cell" style="background:#f8514922;border:1px solid #f85149;color:#f85149">震度６強</div>
+  <div class="scale-cell" style="background:#f8514922;border:1px solid #f85149;color:#f85149">震度７</div>
+</div>
+
+<h3>計測震度（I値）の計算式</h3>
+<p>気象庁の方法では、地面のゆれの加速度（ガル）をもとに、次の式でI値を計算します（実際には波形にいくつかの補正処理を加えますが、基本的な考え方はこの式です）。I値が大きいほど強いゆれです。</p>
+
+<svg viewBox="0 0 480 48" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <rect x="0" y="0" width="480" height="48" fill="#f6f8fa" rx="8" stroke="#d0d7de" stroke-width="1"/>
+  <text x="24" y="30" font-size="16" fill="#6639ba" font-weight="bold">I</text>
+  <text x="40" y="30" font-size="15" fill="#1f2328"> ＝ 2 × log</text>
+  <text x="153" y="36" font-size="10" fill="#1f2328">10</text>
+  <text x="167" y="30" font-size="15" fill="#1f2328">（加速度 [gal]） ＋ 0.94</text>
+</svg>
+
+<table>
+  <tr><th>I値の範囲</th><th>震度階級</th></tr>
+  <tr><td>0.5 未満</td><td>震度０</td></tr>
+  <tr><td>0.5 〜 1.5</td><td>震度１</td></tr>
+  <tr><td>1.5 〜 2.5</td><td>震度２</td></tr>
+  <tr><td>2.5 〜 3.5</td><td>震度３</td></tr>
+  <tr><td>3.5 〜 4.5</td><td>震度４</td></tr>
+  <tr><td>4.5 〜 5.0</td><td>震度５弱</td></tr>
+  <tr><td>5.0 〜 5.5</td><td>震度５強</td></tr>
+  <tr><td>5.5 〜 6.0</td><td>震度６弱</td></tr>
+  <tr><td>6.0 〜 6.5</td><td>震度６強</td></tr>
+  <tr><td>6.5 以上</td><td>震度７</td></tr>
+</table>
+
+<!-- ==================== ガル ==================== -->
+<h2 id="gal">単位：ガル（gal） <span class="tag unit">単位</span></h2>
+
+<p>地震のゆれの強さは<strong>加速度</strong>（どのくらい速く動き始めるか）で表します。その単位が<strong>ガル（gal）</strong>です。</p>
+
+<div class="card purple">
+  <div class="card-title">ガルってどのくらい？</div>
+  1 gal ＝ 1秒間に 1cm ずつ速くなる速さの変化（1 cm/s²）<br><br>
+  地球の重力は約 980 gal です。震度７クラスの大地震では 1,000 gal を超えることもあります。<br>
+  ふだんの静かなときは 0.001〜0.1 gal 程度のごくわずかなゆれです。
+</div>
+
+<p>Raspberry Shake から送られてくる生データは「カウント値」という数字です。これを機種ごとに決まった<strong>感度（sensitivity）</strong>という数で割り、さらに100倍するとガル（gal）になります。</p>
+
+<svg viewBox="0 0 480 48" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <rect x="0" y="0" width="480" height="48" fill="#f6f8fa" rx="8" stroke="#d0d7de" stroke-width="1"/>
+  <text x="24" y="30" font-size="15" fill="#1f2328">加速度 [gal] ＝ カウント値 ÷ </text>
+  <text x="280" y="30" font-size="15" fill="#6639ba" font-weight="bold">sensitivity</text>
+  <text x="390" y="30" font-size="15" fill="#1f2328"> × 100</text>
+</svg>
+
+<!-- ==================== STA/LTA ==================== -->
+<h2 id="stalta">STA/LTA とは <span class="tag algo">アルゴリズム</span></h2>
+
+<p>地震を自動で見つけるために使われている方法で、「アルゴリズム（計算の手順）」と呼びます。1970年代から世界中の地震計で使われている、とてもシンプルで確かな方法です。</p>
+
+<p>考え方は一言でいうと「<strong>今この瞬間のゆれ</strong>が、<strong>ふだんのゆれ</strong>より大きく跳ね上がったら地震だ」というものです。</p>
+
+<svg viewBox="0 0 620 90" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <rect x="0" y="0" width="620" height="90" fill="#f6f8fa" rx="8" stroke="#d0d7de" stroke-width="1"/>
+  <!-- 式 -->
+  <text x="24" y="30" font-size="14" fill="#1f2328" font-weight="bold">ratio（比） ＝</text>
+  <text x="160" y="22" font-size="13" fill="#0969da" font-weight="bold">STA（今の揺れ）</text>
+  <line x1="158" y1="28" x2="320" y2="28" stroke="#1f2328" stroke-width="1.5"/>
+  <text x="158" y="44" font-size="13" fill="#bc4c00" font-weight="bold">LTA（いつもの揺れ）</text>
+  <!-- 静穏 -->
+  <rect x="24" y="58" width="176" height="24" fill="#ddf4ff" rx="4"/>
+  <text x="34" y="75" font-size="12" fill="#0969da">静穏時：ratio ≈ 1（今 ≈ いつも）</text>
+  <!-- 地震 -->
+  <rect x="212" y="58" width="392" height="24" fill="#fff1e0" rx="4"/>
+  <text x="222" y="75" font-size="12" fill="#bc4c00">地震波：ratio ＞＞ 1（今 ＞＞ いつも）→ トリガ発報</text>
+</svg>
+
+<!-- ==================== STA ==================== -->
+<h2 id="sta">STA（今この瞬間のゆれの大きさ） <span class="tag algo">アルゴリズム</span></h2>
+
+<p><strong>STA</strong>は「直近ほんの数秒間のゆれの大きさの平均」です。Short-Term Average（短い時間の平均）の頭文字です。</p>
+
+<svg viewBox="0 0 480 52" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <rect x="0" y="0" width="480" height="52" fill="#f6f8fa" rx="8" stroke="#d0d7de" stroke-width="1"/>
+  <text x="24" y="22" font-size="14" fill="#0969da" font-weight="bold">STA</text>
+  <text x="64" y="22" font-size="14" fill="#1f2328"> ＝ mean(</text>
+  <text x="158" y="14" font-size="13" fill="#1f2328">直近 N 秒間の波形の振幅</text>
+  <text x="336" y="8" font-size="11" fill="#1f2328">2</text>
+  <text x="346" y="14" font-size="13" fill="#1f2328"> )</text>
+  <text x="24" y="42" font-size="11" fill="#636c76">「直近 N 秒分のサンプルを全部二乗して平均する」</text>
+</svg>
+
+<h3>なぜ「二乗」するの？</h3>
+<p>地震の波形はプラスにもマイナスにもゆれます。プラスとマイナスをそのまま足すと打ち消し合ってほぼゼロになってしまいます。二乗（×自分自身）すると必ずプラスになるので、「ゆれの大きさだけ」を正しく取り出せます。これは音響や電気でも使われる「エネルギーの計算方法」と同じ考え方です。</p>
+
+<svg viewBox="0 0 620 80" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <rect x="0" y="0" width="620" height="80" fill="#f6f8fa" rx="8" stroke="#d0d7de" stroke-width="1"/>
+  <!-- ヘッダ -->
+  <text x="24" y="20" font-size="11" fill="#636c76" font-weight="bold">サンプル</text>
+  <text x="120" y="20" font-size="11" fill="#636c76" font-weight="bold">値</text>
+  <text x="320" y="20" font-size="11" fill="#636c76" font-weight="bold">平均</text>
+  <text x="450" y="20" font-size="11" fill="#636c76" font-weight="bold">評価</text>
+  <line x1="12" y1="25" x2="608" y2="25" stroke="#d0d7de" stroke-width="1"/>
+  <!-- 振幅そのまま -->
+  <text x="24" y="46" font-size="12" fill="#1f2328">振幅をそのまま</text>
+  <text x="120" y="46" font-size="12" fill="#1f2328" font-family="monospace">−3,  +5,  −4,  +6</text>
+  <text x="320" y="46" font-size="12" fill="#bc4c00" font-weight="bold">= 1.0</text>
+  <text x="450" y="46" font-size="12" fill="#bc4c00">揺れを過小評価</text>
+  <!-- 二乗 -->
+  <text x="24" y="68" font-size="12" fill="#1f2328">振幅を二乗</text>
+  <text x="120" y="68" font-size="12" fill="#1f2328" font-family="monospace"> 9,  25,  16,  36</text>
+  <text x="320" y="68" font-size="12" fill="#1a7f37" font-weight="bold">= 21.5</text>
+  <text x="450" y="68" font-size="12" fill="#1a7f37">エネルギーを正しく表現</text>
+</svg>
+
+<h3>STAの時間を変えるとどうなる？</h3>
+<div class="card blue">
+  <div class="card-title">STAを短くする（0.5〜1秒）</div>
+  P波（前ぶれ）の急なゆれをすばやく捉えられます。ただし、一瞬だけのノイズ（車の振動など）にも反応しやすくなります。
+</div>
+<div class="card orange">
+  <div class="card-title">STAを長くする（3〜5秒）</div>
+  短い時間のゆれが「薄められて」平均されるため、P波では反応しにくくなります。大きなS波が来て初めて反応するケースが増えます。
+</div>
+
+<!-- ==================== LTA ==================== -->
+<h2 id="lta">LTA（ふだんのゆれの大きさ） <span class="tag algo">アルゴリズム</span></h2>
+
+<p><strong>LTA</strong>は「ふだんの静かなときのゆれの大きさの平均」です。Long-Term Average（長い時間の平均）の頭文字です。STAと比べる「基準」として使います。</p>
+
+<div class="card green">
+  <div class="card-title">大事なポイント</div>
+  LTAは <strong>STA（今の時間帯）より前</strong> のデータだけを使います。<br><br>
+  こうすることで、地震が来てSTAが急増しても、LTAはすぐには変わりません。「さっきまで静かだったのに今急に大きくなった」という変化をしっかり見つけられます。
+</div>
+
+<svg viewBox="0 0 640 140" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <!-- 時間軸 -->
+  <line x1="20" y1="30" x2="620" y2="30" stroke="#d0d7de" stroke-width="1.5" marker-end="url(#tarr)"/>
+  <text x="20" y="20" font-size="11" fill="#636c76">時間軸</text>
+  <text x="606" y="20" font-size="11" fill="#636c76">現在</text>
+
+  <!-- LTA窓 -->
+  <rect x="20" y="45" width="480" height="44" fill="#fff1e0" stroke="#bc4c00" stroke-width="1.5" rx="4"/>
+  <text x="30" y="62" font-size="12" fill="#bc4c00" font-weight="bold">LTA窓（例：過去20秒）</text>
+  <text x="30" y="80" font-size="11" fill="#bc4c00">ふだんのゆれだけ　← P波が来てもここはすぐには変わらない</text>
+
+  <!-- STA窓 -->
+  <rect x="500" y="45" width="120" height="44" fill="#ddf4ff" stroke="#0969da" stroke-width="2" rx="4"/>
+  <text x="510" y="62" font-size="12" fill="#0969da" font-weight="bold">STA窓</text>
+  <text x="510" y="80" font-size="11" fill="#0969da">今この瞬間</text>
+
+  <!-- 注釈矢印 -->
+  <line x1="200" y1="89" x2="200" y2="115" stroke="#bc4c00" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#tarr-o)"/>
+  <text x="100" y="130" font-size="11" fill="#bc4c00">P波到着の影響を受けない</text>
+
+  <line x1="560" y1="89" x2="560" y2="115" stroke="#0969da" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#tarr-b)"/>
+  <text x="490" y="130" font-size="11" fill="#0969da">ここだけ急増する</text>
+
+  <defs>
+    <marker id="tarr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#636c76"/>
+    </marker>
+    <marker id="tarr-o" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#bc4c00"/>
+    </marker>
+    <marker id="tarr-b" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#0969da"/>
+    </marker>
+  </defs>
+</svg>
+
+<h3>LTAの時間を変えるとどうなる？</h3>
+<div class="card blue">
+  <div class="card-title">LTAを長くする（30〜60秒）</div>
+  長い時間で平均するので、電車の通過や工事の振動などの一時的なノイズに引きずられにくくなります。ただし、プログラムを起動したばかりのときはLTAが計算されるまでしばらくかかります。
+</div>
+<div class="card orange">
+  <div class="card-title">LTAを短くする（5〜10秒）</div>
+  直前の揺れをすぐに「ふだんの状態」と判断してしまいます。大きな地震の直後に余震が来ても「ふだんと同じくらい」と誤判断して見逃すことがあります。
+</div>
+
+<!-- ==================== ratio ==================== -->
+<h2 id="ratio">ratio（STA ÷ LTA） <span class="tag algo">アルゴリズム</span></h2>
+
+<p>STAをLTAで割った値を<strong>ratio（レシオ）</strong>といいます。「今のゆれがふだんの何倍か」を表す数です。この数があらかじめ決めたレベル（<strong>閾値・しきい値</strong>）を超えたら「地震波が来た！」と判断します。</p>
+
+<svg viewBox="0 0 620 180" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <!-- Y軸 -->
+  <line x1="60" y1="10" x2="60" y2="155" stroke="#d0d7de" stroke-width="1.5" marker-end="url(#rarr-g)"/>
+  <text x="62" y="10" font-size="10" fill="#636c76">ratio</text>
+  <!-- Y軸目盛 -->
+  <text x="44" y="155" font-size="11" fill="#636c76">0</text>
+  <text x="44" y="115" font-size="11" fill="#636c76">1</text>
+  <text x="37" y="68"  font-size="11" fill="#bc4c00" font-weight="bold">3.5</text>
+  <line x1="56" y1="115" x2="64" y2="115" stroke="#636c76" stroke-width="1"/>
+  <line x1="56" y1="68"  x2="64" y2="68"  stroke="#bc4c00" stroke-width="1"/>
+  <!-- X軸 -->
+  <line x1="60" y1="155" x2="610" y2="155" stroke="#d0d7de" stroke-width="1.5" marker-end="url(#rarr-g)"/>
+  <text x="590" y="168" font-size="10" fill="#636c76">時間</text>
+
+  <!-- 閾値破線 -->
+  <line x1="60" y1="68" x2="610" y2="68" stroke="#bc4c00" stroke-width="1.2" stroke-dasharray="5,4"/>
+  <text x="510" y="63" font-size="11" fill="#bc4c00">閾値 3.5（trig）</text>
+
+  <!-- 静穏期のratio（≈1） -->
+  <polyline points="60,115 280,115 280,115" fill="none" stroke="#0969da" stroke-width="2.5"/>
+
+  <!-- P波到着→急上昇→下降 -->
+  <polyline points="280,115 310,30 380,90 450,105 560,110" fill="none" stroke="#0969da" stroke-width="2.5"/>
+
+  <!-- P波到着ライン -->
+  <line x1="280" y1="68" x2="280" y2="155" stroke="#636c76" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="258" y="168" font-size="11" fill="#636c76">P波到着</text>
+
+  <!-- トリガ点 -->
+  <circle cx="295" cy="68" r="5" fill="#bc4c00"/>
+  <text x="302" y="62" font-size="11" fill="#bc4c00" font-weight="bold">トリガ発報</text>
+
+  <!-- 静穏期ラベル -->
+  <text x="120" y="108" font-size="11" fill="#0969da">ratio ≈ 1（静穏）</text>
+
+  <defs>
+    <marker id="rarr-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#636c76"/>
+    </marker>
+  </defs>
+</svg>
+
+<p>LTAの時間がSTAより長いほど（例：LTA=20秒、STA=1秒）、地震波が来たときにratioが大きく跳ね上がりやすくなります。ふだん静かな場所ほど、ratio が劇的に変化するので検出しやすくなります。</p>
+
+<!-- ==================== トリガ ==================== -->
+<h2 id="trigger">地震を検出してから震度を確定するまで <span class="tag algo">アルゴリズム</span></h2>
+
+<p>ratioが大きくなっただけで即座に震度は確定しません。次の2段階で処理されます。</p>
+
+<svg viewBox="0 0 560 180" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <!-- ステップ1 -->
+  <rect x="20" y="10" width="520" height="36" rx="6" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+  <text x="36" y="25" font-size="13" fill="#0969da" font-weight="bold">① ratio ≥ trig（閾値）</text>
+  <text x="36" y="40" font-size="11" fill="#0969da">「地震波が来た！」と判断 → トリガ発報</text>
+  <!-- 矢印1 -->
+  <line x1="280" y1="46" x2="280" y2="72" stroke="#636c76" stroke-width="1.5" marker-end="url(#farr)"/>
+  <text x="286" y="64" font-size="11" fill="#636c76">rt_window 秒間（60秒）待機</text>
+  <!-- ステップ2 -->
+  <rect x="20" y="72" width="520" height="36" rx="6" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+  <text x="36" y="87" font-size="13" fill="#636c76" font-weight="bold">S波が十分来るまで待つ</text>
+  <text x="36" y="102" font-size="11" fill="#636c76">この間も揺れを記録し続ける</text>
+  <!-- 矢印2 -->
+  <line x1="280" y1="108" x2="280" y2="134" stroke="#636c76" stroke-width="1.5" marker-end="url(#farr)"/>
+  <!-- ステップ3 -->
+  <rect x="20" y="134" width="520" height="36" rx="6" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="36" y="149" font-size="13" fill="#1a7f37" font-weight="bold">② I値（計測震度）を確定</text>
+  <text x="36" y="164" font-size="11" fill="#1a7f37">記録 ＋ 音声アラート（VoiceVox / say）</text>
+  <defs>
+    <marker id="farr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#636c76"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="card blue">
+  <div class="card-title">なぜ待つの？</div>
+  気象庁の震度は、最初の前ぶれ（P波）だけでなく<strong>本番のゆれ（S波）も含めた全体</strong>で決まります。P波で反応しても、すぐに震度を決めると小さすぎる値になってしまいます。だから S波が十分来るまで待ってから確定します。
+</div>
+
+<h3>同じ地震を二重に記録しないようにする</h3>
+<p>一度地震を検出した後は、<strong>しばらくの間（det-hold秒間）</strong>は次の検出をしません。S波や余震でもう一度反応して「また別の地震が来た！」と誤って記録するのを防ぐためです。</p>
+
+<svg viewBox="0 0 580 80" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <!-- 時間軸 -->
+  <line x1="20" y1="40" x2="560" y2="40" stroke="#d0d7de" stroke-width="1.5" marker-end="url(#drarr)"/>
+  <!-- 本震トリガ -->
+  <circle cx="80" cy="40" r="7" fill="#bc4c00"/>
+  <text x="50" y="28" font-size="11" fill="#bc4c00" font-weight="bold">地震を検出</text>
+  <!-- det-hold区間 -->
+  <rect x="80" y="30" width="300" height="20" fill="#fff1e0" stroke="#bc4c00" stroke-width="1" rx="2"/>
+  <text x="160" y="44" font-size="11" fill="#bc4c00">det-hold 20秒間は再トリガしない</text>
+  <!-- S波バツ印 -->
+  <line x1="200" y1="55" x2="200" y2="68" stroke="#636c76" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="170" y="78" font-size="10" fill="#636c76">S波・尾振れ → 無視</text>
+  <!-- 解除後 -->
+  <circle cx="380" cy="40" r="7" fill="#1a7f37" stroke="#1a7f37"/>
+  <text x="355" y="28" font-size="11" fill="#1a7f37" font-weight="bold">det-hold解除</text>
+  <text x="355" y="68" font-size="10" fill="#1a7f37">再トリガ可能</text>
+  <defs>
+    <marker id="drarr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#636c76"/>
+    </marker>
+  </defs>
+</svg>
+
+<!-- ==================== パラメータ ==================== -->
+<h2 id="params">設定値一覧 <span class="tag algo">設定</span></h2>
+
+<table>
+  <tr>
+    <th>設定名</th>
+    <th>初期値</th>
+    <th>意味</th>
+  </tr>
+  <tr>
+    <td><code>--sta</code></td>
+    <td>1.0 秒</td>
+    <td>「今のゆれ」を見る時間の長さ。短いほどP波（前ぶれ）に素早く反応する</td>
+  </tr>
+  <tr>
+    <td><code>--lta</code></td>
+    <td>20.0 秒</td>
+    <td>「ふだんのゆれ」を見る時間の長さ。長いほど周辺の雑音に惑わされにくくなる</td>
+  </tr>
+  <tr>
+    <td><code>--trig</code></td>
+    <td>3.5</td>
+    <td>「ふだんの何倍になったら地震と判断するか」のレベル。低いと反応しやすい分、誤検知も増える</td>
+  </tr>
+  <tr>
+    <td><code>--det-hold</code></td>
+    <td>20.0 秒</td>
+    <td>地震を検出した後、次の検出をしない時間。余震などの二重記録を防ぐ</td>
+  </tr>
+  <tr>
+    <td><code>--rt-window</code></td>
+    <td>60 秒</td>
+    <td>地震を検出してから震度を確定するまで待つ時間。S波が十分来るまで待つ</td>
+  </tr>
+  <tr>
+    <td><code>--sensitivity</code></td>
+    <td>機種によって異なる</td>
+    <td>カウント値→加速度（gal）に変換するための数。機種ごとに決まっている</td>
+  </tr>
+</table>
+
+<!-- ==================== チューニング ==================== -->
+<h2 id="tuning">設定の調整方法</h2>
+
+<p>設定を変えると「反応しやすさ」と「誤検知のしにくさ」が変わります。どちらかを上げるともう一方が下がる関係（トレードオフ）です。</p>
+
+<table>
+  <tr>
+    <th>こんな場所・状況</th>
+    <th>おすすめの調整</th>
+    <th>理由</th>
+  </tr>
+  <tr>
+    <td>道路沿い・騒がしい場所</td>
+    <td>LTAを長めに（30〜60秒）<br>trigを高めに（4〜5）</td>
+    <td>車や工事の振動で誤反応しにくくする</td>
+  </tr>
+  <tr>
+    <td>静かな場所・近くの地震を早く捉えたい</td>
+    <td>STAを短めに（0.5秒）<br>trigを低めに（3.0）</td>
+    <td>P波（前ぶれ）の弱いゆれにも素早く反応できる</td>
+  </tr>
+  <tr>
+    <td>余震が多い状況</td>
+    <td>det-holdを長めに（60秒）</td>
+    <td>同じ地震を何度も記録してしまうのを防ぐ</td>
+  </tr>
+</table>
+
+<div class="card green">
+  <div class="card-title">最初はそのまま使ってOK</div>
+  初期値のSTA=1秒・LTA=20秒・trig=3.5 は、地震学の教科書でよく使われている定番の値です。まずはそのまま使ってみて、「誤反応が多い」「見逃している」と感じてから調整するのがおすすめです。
+</div>
+
+<!-- ==================== EEW ==================== -->
+<h2 id="eew-what">緊急地震速報（EEW）とは <span class="tag wave">EEW</span></h2>
+
+<p>テレビやスマートフォンから突然「緊急地震速報」という音が鳴ることがありますね。これは「もうすぐ大きなゆれが来るよ！」と知らせてくれるシステムです。正式名称は<strong>緊急地震速報（EEW）</strong>といいます。</p>
+
+<div class="card red">
+  <div class="card-title">大切なポイント</div>
+  EEWは「地震を予言している」のではありません。<br>
+  すでに起きた地震の「前ぶれの波（P波）」をキャッチして、「本番のゆれ（S波）」が届く前にあわてて知らせているのです。
+</div>
+
+<p>気象庁は全国に約1,000か所の地震計を置いています。どこかで地震が起きると、そのデータがすぐに集まり、数秒のうちに警報を出します。</p>
+
+<!-- ==================== EEW how ==================== -->
+<h2 id="eew-how">どうやって警報を出すの？ <span class="tag algo">しくみ</span></h2>
+
+<p>警報が出るまでの流れを見てみましょう。</p>
+
+<svg viewBox="0 0 640 200" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <!-- Step 1 -->
+  <rect x="20" y="30" width="160" height="80" rx="10" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="100" y="58" text-anchor="middle" font-size="13" font-weight="bold" fill="#1e40af">① 前ぶれ波を検知</text>
+  <text x="100" y="76" text-anchor="middle" font-size="11" fill="#1e40af">全国の地震計が</text>
+  <text x="100" y="92" text-anchor="middle" font-size="11" fill="#1e40af">P波（前ぶれ）を</text>
+  <text x="100" y="108" text-anchor="middle" font-size="11" fill="#1e40af">キャッチする</text>
+
+  <!-- Arrow 1→2 -->
+  <line x1="180" y1="70" x2="228" y2="70" stroke="#94a3b8" stroke-width="2" marker-end="url(#earr)"/>
+
+  <!-- Step 2 -->
+  <rect x="230" y="30" width="180" height="80" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
+  <text x="320" y="58" text-anchor="middle" font-size="13" font-weight="bold" fill="#78350f">② 場所と大きさを計算</text>
+  <text x="320" y="76" text-anchor="middle" font-size="11" fill="#78350f">どこで起きたか・</text>
+  <text x="320" y="92" text-anchor="middle" font-size="11" fill="#78350f">どのくらい大きいかを</text>
+  <text x="320" y="108" text-anchor="middle" font-size="11" fill="#78350f">数秒で計算する</text>
+
+  <!-- Arrow 2→3 -->
+  <line x1="410" y1="70" x2="458" y2="70" stroke="#94a3b8" stroke-width="2" marker-end="url(#earr)"/>
+
+  <!-- Step 3 -->
+  <rect x="460" y="30" width="160" height="80" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="540" y="58" text-anchor="middle" font-size="13" font-weight="bold" fill="#14532d">③ 各地に警報を配信</text>
+  <text x="540" y="76" text-anchor="middle" font-size="11" fill="#14532d">各地でどのくらい</text>
+  <text x="540" y="92" text-anchor="middle" font-size="11" fill="#14532d">ゆれるかを予測して</text>
+  <text x="540" y="108" text-anchor="middle" font-size="11" fill="#14532d">テレビ・スマホに送信</text>
+
+  <!-- Time label -->
+  <text x="320" y="152" text-anchor="middle" font-size="12" fill="#64748b">① → ③ まで かかる時間は わずか数秒！</text>
+
+  <defs>
+    <marker id="earr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+</svg>
+
+<h3>なぜ間に合うの？　波の速さのちがい</h3>
+<p>地震の波には「P波（前ぶれ）」と「S波（本番のゆれ）」の2種類があり、速さがちがいます。さらに警報を届ける「電波」はもっとずっと速いのです。</p>
+
+<table>
+  <tr>
+    <th>種類</th>
+    <th>速さ（だいたい）</th>
+    <th>どんなゆれ？</th>
+  </tr>
+  <tr>
+    <td>P波（前ぶれの波）</td>
+    <td>1秒間に 5〜7 km</td>
+    <td>小さい・縦にゆれる</td>
+  </tr>
+  <tr>
+    <td>S波（本番のゆれ）</td>
+    <td>1秒間に 3〜4 km</td>
+    <td>大きい・横にゆれる（建物を壊す主な原因）</td>
+  </tr>
+  <tr>
+    <td>電波（警報の信号）</td>
+    <td>1秒間に 30万 km（光と同じ）</td>
+    <td>—（揺れではなく情報）</td>
+  </tr>
+</table>
+
+<div class="card blue">
+  <div class="card-title">電波の速さがカギ</div>
+  S波が「1秒1kmに満たない速さ」でじわじわ近づいてくる間に、電波の警報は「光の速さ」で日本中に届きます。この速さのちがいがあるから、ゆれる前に知らせることができるのです。
+</div>
+
+<!-- ==================== EEW lead ==================== -->
+<h2 id="eew-lead">警報が届いてからゆれるまでの時間 <span class="tag wave">しくみ</span></h2>
+
+<p>警報が来てから本番のゆれが来るまでの時間（「猶予時間」といいます）は、震源からどのくらい離れているかによって変わります。</p>
+
+<svg viewBox="0 0 640 190" width="100%" style="display:block;margin:16px 0;font-family:'Helvetica Neue','Hiragino Sans',sans-serif">
+  <!-- 時間軸 -->
+  <line x1="40" y1="90" x2="610" y2="90" stroke="#94a3b8" stroke-width="2" marker-end="url(#tarr)"/>
+  <text x="618" y="94" font-size="12" fill="#64748b">時間 →</text>
+
+  <!-- 震源マーク -->
+  <circle cx="60" cy="90" r="6" fill="#ef4444"/>
+  <text x="60" y="115" text-anchor="middle" font-size="11" fill="#ef4444">地震が</text>
+  <text x="60" y="128" text-anchor="middle" font-size="11" fill="#ef4444">発生</text>
+
+  <!-- P波到着（地震計） -->
+  <circle cx="160" cy="90" r="5" fill="#3b82f6"/>
+  <line x1="160" y1="68" x2="160" y2="90" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="160" y="57" text-anchor="middle" font-size="10" fill="#3b82f6">前ぶれの波が</text>
+  <text x="160" y="68" text-anchor="middle" font-size="10" fill="#3b82f6">地震計に届く</text>
+  <text x="160" y="130" text-anchor="middle" font-size="10" fill="#3b82f6">（数秒後）</text>
+
+  <!-- EEW発表 -->
+  <circle cx="240" cy="90" r="5" fill="#f97316"/>
+  <line x1="240" y1="68" x2="240" y2="90" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="240" y="57" text-anchor="middle" font-size="10" fill="#f97316">警報が</text>
+  <text x="240" y="68" text-anchor="middle" font-size="10" fill="#f97316">スマホに届く</text>
+  <text x="240" y="130" text-anchor="middle" font-size="10" fill="#f97316">（さらに数秒後）</text>
+
+  <!-- 猶予時間ゾーン -->
+  <rect x="240" y="72" width="220" height="36" rx="4" fill="#fef9c3" stroke="#ca8a04" stroke-width="1" opacity="0.9"/>
+  <text x="350" y="93" text-anchor="middle" font-size="12" font-weight="bold" fill="#78350f">身を守る時間（数秒〜数十秒）</text>
+
+  <!-- S波到着（遠方） -->
+  <circle cx="460" cy="90" r="5" fill="#ef4444"/>
+  <line x1="460" y1="112" x2="460" y2="90" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="460" y="128" text-anchor="middle" font-size="10" fill="#ef4444">本番のゆれが</text>
+  <text x="460" y="142" text-anchor="middle" font-size="10" fill="#ef4444">到着</text>
+
+  <!-- 注記 -->
+  <text x="320" y="172" text-anchor="middle" font-size="11" fill="#94a3b8">※ 震源のすぐ真下（直下型地震）では、時間がほぼゼロになることもあります</text>
+
+  <defs>
+    <marker id="tarr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+</svg>
+
+<h3>例：震源から100 km離れた場所の場合</h3>
+<table>
+  <tr>
+    <th>起きること</th>
+    <th>だいたい何秒後？</th>
+  </tr>
+  <tr>
+    <td>地震が発生</td>
+    <td>0秒（スタート）</td>
+  </tr>
+  <tr>
+    <td>前ぶれの波（P波）が近くの地震計に届く</td>
+    <td>約 3〜5秒後</td>
+  </tr>
+  <tr>
+    <td>警報がスマホ・テレビに届く</td>
+    <td>約 8〜10秒後</td>
+  </tr>
+  <tr>
+    <td>本番のゆれ（S波）が100 km地点に届く</td>
+    <td>約 25〜30秒後</td>
+  </tr>
+</table>
+
+<div class="card green">
+  <div class="card-title">15〜20秒あれば何ができる？</div>
+  机の下に隠れる・コンロの火を消す・エレベーターから降りる・窓やドアを開けて逃げ道を作る——こういった「身を守る行動」ができます。
+</div>
+
+<!-- ==================== EEW limits ==================== -->
+<h2 id="eew-limit">EEWが苦手なこと <span class="tag algo">注意点</span></h2>
+
+<p>EEWはとても便利ですが、完璧ではありません。いくつか苦手なことがあります。</p>
+
+<table>
+  <tr>
+    <th>苦手なこと</th>
+    <th>なぜ？</th>
+  </tr>
+  <tr>
+    <td>震源のすぐ近くでは間に合わない</td>
+    <td>計算して警報を出すのに数秒かかります。震源から数km以内では、本番のゆれがほぼ同時に来てしまいます</td>
+  </tr>
+  <tr>
+    <td>最初の発表は「おおよそ」の予測</td>
+    <td>最初はP波だけを見て計算するので誤差があります。後から「やっぱり震度が違った」と更新されることもあります</td>
+  </tr>
+  <tr>
+    <td>ごくまれに「空振り」することがある</td>
+    <td>地震計の機械トラブルや落雷などで、実際には大きくないのに警報が出ることがあります</td>
+  </tr>
+</table>
+
+<div class="card orange">
+  <div class="card-title">警報が鳴ったら</div>
+  「また空振りかも」と油断せず、まず身を守る行動を取りましょう。何度か空振りが続くと「慣れ」が生まれて、本当に必要なときに動けなくなることがあります。
+</div>
+
+<!-- ==================== EEW vs P2P ==================== -->
+<h2 id="eew-p2p">P2P地震情報とは何がちがう？ <span class="tag algo">比較</span></h2>
+
+<p>このプログラムでは、気象庁のEEWとは別に、<strong>P2P地震情報</strong>というサービスからもデータを受け取っています。どちらも「地震の情報」ですが、目的がちがいます。</p>
+
+<table>
+  <tr>
+    <th></th>
+    <th>気象庁 EEW</th>
+    <th>P2P地震情報</th>
+  </tr>
+  <tr>
+    <td><strong>いつの情報？</strong></td>
+    <td>ゆれる<em>前</em>の予告</td>
+    <td>ゆれた<em>後</em>の記録</td>
+  </tr>
+  <tr>
+    <td><strong>何のため？</strong></td>
+    <td>身を守るための事前警告</td>
+    <td>各地で実際にどのくらいゆれたかを知るため</td>
+  </tr>
+  <tr>
+    <td><strong>情報はどこから？</strong></td>
+    <td>気象庁が管理する公式の地震計</td>
+    <td>全国のユーザーが「震度〇でした」と報告したデータ</td>
+  </tr>
+  <tr>
+    <td><strong>速さは？</strong></td>
+    <td>とても速い（数秒〜十数秒）</td>
+    <td>少し遅い（報告が集まるまで数分かかる）</td>
+  </tr>
+</table>
+
+<div class="card purple">
+  <div class="card-title">このプログラムでは</div>
+  EEWは「今すぐ！」という声で知らせる音声アラートに使います。P2P地震情報は「地震の後、日本のどこがどのくらいゆれたか」を地図に表示するために使います。二つ合わせることで、事前の警告と事後の確認が両方できます。
+</div>
+
+<!-- ==================== FAQ ==================== -->
+<h2 id="faq">よくある疑問</h2>
+
+<details>
+  <summary>STA/LTAはP波（前ぶれ）を検出する方法ですか？</summary>
+  <div class="details-body">
+    半分正解です。STA/LTAは「急にゆれが大きくなった」という変化を捉えます。P波でもS波でも、ふだんより大きくなれば反応します。STAが短い（1秒）場合はP波の弱いゆれにも反応できますが、STAが長い場合はS波（本番のゆれ）が来て初めて反応するケースもあります。
+  </div>
+</details>
+
+<details>
+  <summary>震度とマグニチュードはどう違う？</summary>
+  <div class="details-body">
+    <strong>マグニチュード（M）</strong>は地震そのものの「エネルギーの大きさ」です。震源（地震が起きた場所）で決まる値で、どこで観測しても同じ数値です。<br><br>
+    <strong>震度</strong>は「その場所でどのくらいゆれたか」です。同じ地震でも、震源に近い場所は震度が大きく、遠い場所は小さくなります。地面の硬さや地層によっても変わります。
+  </div>
+</details>
+
+<details>
+  <summary>LTAはSTAより必ず長くないといけないの？</summary>
+  <div class="details-body">
+    はい。LTAは「STAより前の時間帯」のデータを使って「ふだんのゆれ」を計算します。LTAがSTAと同じか短いと、比べるデータがなくなってしまいます。プログラムの中でも、LTAが必ずSTAより長くなるよう決められています。
+  </div>
+</details>
+
+<details>
+  <summary>なぜ上下・南北・東西の3方向を合成して使うの？</summary>
+  <div class="details-body">
+    地震波はあらゆる方向から届きます。上下（Z）・南北（N）・東西（E）の3方向を別々に見ると、地震の来る方向によっては反応しない向きが出てしまいます。3方向を√(Z²+N²+E²) という式で合成すると、どの方向から来た地震でも同じようにしっかり検出できます。
+  </div>
+</details>
+
+<details>
+  <summary>震度はS波が来てから確定するのに、なぜP波で反応するの？</summary>
+  <div class="details-body">
+    目的が違います。<strong>P波への反応（トリガ）</strong>は「地震が来た！」という早めの知らせのためです。P波でいち早く反応するほど、本番のゆれ（S波）が来る前に身を守る時間が増えます。<br><br>
+    一方<strong>震度の確定</strong>は「どのくらいゆれたか」の正確な記録です。S波まで含めた揺れ全体で計算しないと正確な値にならないため、しばらく待ってから確定します。
+  </div>
+</details>
+
+<details>
+  <summary>ratioが1より小さくなることはある？</summary>
+  <div class="details-body">
+    あります。大きな地震の直後、LTA（ふだんの平均）にその地震のエネルギーが入り込んでしまうと、次に静かになったときにSTAがLTAより小さくなり、ratioが1を下回ります。「大きな地震の後しばらく次の地震を検出しにくくなる」という現象の原因です。LTAを長くするとこの影響が和らぎますが、完全には防げません。
+  </div>
+</details>
+
+</main>
+</div>
+
+<script>
+// スクロール連動でナビのアクティブ表示
+const sections = document.querySelectorAll('h2[id]');
+const navLinks = document.querySelectorAll('nav a');
+
+const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            navLinks.forEach(a => a.classList.remove('active'));
+            const link = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+            if (link) link.classList.add('active');
+        }
+    });
+}, { rootMargin: '-20% 0px -70% 0px' });
+
+sections.forEach(s => observer.observe(s));
+
+// ナビリンクのスムーズスクロール
+navLinks.forEach(a => {
+    a.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+});
+</script>
+</body>
+</html>

@@ -5,7 +5,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV="$SCRIPT_DIR/.venv/bin/python3"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+VENV="$ROOT_DIR/.venv/bin/python3"
 VOICEVOX_APP="/Applications/VOICEVOX.app"
 VOICEVOX_URL="http://localhost:50021"
 VOICEVOX_WAIT=15  # 起動待ち最大秒数
@@ -50,4 +51,4 @@ fi
 
 # ===== TUI 起動 =====
 echo "[INFO] TUI を起動します: $TUI_ARGS"
-exec "$VENV" "$SCRIPT_DIR/jma_intensity_tui.py" $TUI_ARGS
+exec "$VENV" "$ROOT_DIR/src/jma_intensity_tui.py" $TUI_ARGS
