@@ -260,6 +260,8 @@ def p2p_ws_loop(shared: "SharedState", stop_event: threading.Event):
                 return
             if item_id:
                 shared.p2p_seen_ids.add(item_id)
+                if len(shared.p2p_seen_ids) > 1000:
+                    shared.p2p_seen_ids.pop()
 
         if code == 551:
             parsed = _parse_quake_item(item)
@@ -270,6 +272,7 @@ def p2p_ws_loop(shared: "SharedState", stop_event: threading.Event):
             parsed_eew = _parse_eew_item(item)
             with shared._lock:
                 shared.p2p_eew = parsed_eew  # None = 取消 or 無効
+                shared._p2p_eew_received_at = time.time()
 
     def on_error(ws, error):
         pass
@@ -399,6 +402,7 @@ class SharedState:
         self.p2p_quakes: list = []
         self.p2p_seen_ids: set = set()
         self.p2p_eew: dict | None = None  # 最新EEW（取消/無効時はNone）
+        self._p2p_eew_received_at: float = 0.0  # EEW受信時刻（TTL管理用）
         # I値・STA/LTA推移（直近600点 = 5分@0.5s間隔）
         self.i_history: deque = deque(maxlen=600)
         self.ratio_history: deque = deque(maxlen=600)
@@ -424,7 +428,9 @@ class SharedState:
                 "raw_e": self.raw_e.copy(),
                 "events": list(self.events),
                 "p2p_quakes": list(self.p2p_quakes),
-                "p2p_eew": self.p2p_eew,
+                "p2p_eew": (self.p2p_eew
+                            if time.time() - self._p2p_eew_received_at < 600
+                            else None),
                 "i_history": np.array(self.i_history, dtype=np.float64),
                 "ratio_history": np.array(self.ratio_history, dtype=np.float64),
             }

@@ -140,6 +140,8 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
                 return
             if item_id:
                 shared.p2p_seen_ids.add(item_id)
+                if len(shared.p2p_seen_ids) > 1000:
+                    shared.p2p_seen_ids.pop()
 
         if code == 551:
             parsed = _parse_quake_item_web(item)
@@ -150,6 +152,7 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
             parsed_eew = _parse_eew_item(item)
             with shared._lock:
                 shared.p2p_eew = parsed_eew
+                shared._p2p_eew_received_at = time.time()
 
     def on_error(ws, error):
         pass
@@ -1879,6 +1882,18 @@ async def api_config(req: Request):
             "trig": _args.trig, "det_hold": _args.det_hold}
 
 
+_ANALYZE_JOB_TTL = 3600  # 完了/失敗ジョブを1時間後に削除
+
+
+def _purge_old_analyze_jobs():
+    """完了/失敗から1時間経過したジョブを削除（_analyze_lock 保持下で呼ぶこと）。"""
+    cutoff = time.time() - _ANALYZE_JOB_TTL
+    stale = [jid for jid, j in _analyze_jobs.items()
+             if j.get("completed_at", float("inf")) < cutoff]
+    for jid in stale:
+        _analyze_jobs.pop(jid, None)
+
+
 def _run_analyze(job_id: str, start_jst: str, duration: int, out_path: str):
     """analyze_rs.py をサブプロセスで実行し、結果をジョブ辞書に記録する。"""
     cwd = pathlib.Path(__file__).parent.parent
@@ -1889,23 +1904,28 @@ def _run_analyze(job_id: str, start_jst: str, duration: int, out_path: str):
         "--duration", str(duration),
         "--out", out_path,
     ]
+    now = time.time()
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), timeout=300)
         with _analyze_lock:
             if result.returncode == 0:
-                _analyze_jobs[job_id] = {"status": "done", "out_path": out_path, "error": None}
+                _analyze_jobs[job_id] = {"status": "done", "out_path": out_path,
+                                         "error": None, "completed_at": now}
             else:
                 _analyze_jobs[job_id] = {
                     "status": "error",
                     "out_path": None,
                     "error": result.stderr[-500:] if result.stderr else "unknown error",
+                    "completed_at": now,
                 }
     except subprocess.TimeoutExpired:
         with _analyze_lock:
-            _analyze_jobs[job_id] = {"status": "error", "out_path": None, "error": "timeout"}
+            _analyze_jobs[job_id] = {"status": "error", "out_path": None,
+                                     "error": "timeout", "completed_at": now}
     except Exception as e:
         with _analyze_lock:
-            _analyze_jobs[job_id] = {"status": "error", "out_path": None, "error": str(e)}
+            _analyze_jobs[job_id] = {"status": "error", "out_path": None,
+                                     "error": str(e), "completed_at": now}
 
 
 @app.post("/api/analyze")
@@ -1927,6 +1947,7 @@ async def api_analyze_start(req: Request):
     out_dir = pathlib.Path(__file__).parent.parent / "data"
     out_path = str(out_dir / f"analyze_{job_id}.png")
     with _analyze_lock:
+        _purge_old_analyze_jobs()
         _analyze_jobs[job_id] = {"status": "running", "out_path": None, "error": None}
     t = threading.Thread(target=_run_analyze, args=(job_id, start_jst, duration, out_path), daemon=True)
     t.start()
