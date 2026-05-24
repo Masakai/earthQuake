@@ -671,10 +671,10 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
         t_now = time.time()
         triggered = ratio >= args.trig and (t_now - last_triggered_time) > args.det_hold
 
-        # JMA フィルタ → 計測震度
-        acc_z = segs[cZ] / args.sensitivity
-        acc_n = segs[cN] / args.sensitivity
-        acc_e = segs[cE] / args.sensitivity
+        # JMA フィルタ → 計測震度（ENZ重力バイアス除去のため mean 除去してからフィルタ）
+        acc_z = detrend(segs[cZ]) / args.sensitivity
+        acc_n = detrend(segs[cN]) / args.sensitivity
+        acc_e = detrend(segs[cE]) / args.sensitivity
 
         az = apply_jma_filter_time(acc_z, fs)
         an = apply_jma_filter_time(acc_n, fs)
