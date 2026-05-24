@@ -281,22 +281,29 @@ def compute_stalta(vec: np.ndarray, fs: float, sta_s: float, lta_s: float) -> np
 
 # ===== 計測震度スライド窓 =====
 def compute_intensity_timeseries(a_gal: np.ndarray, fs: float, window_s: float = 90.0) -> np.ndarray:
+    # JMA定義: 合計0.3秒以上 a を超える最大の a を求める
+    # realtime.py の a_threshold_for_03s と同じ「合計0.3秒」基準
     from numpy.lib.stride_tricks import sliding_window_view
-    n03  = max(1, int(0.3 * fs))
+    k    = max(1, int(round(0.3 * fs)))
     nwin = int(window_s * fs)
     abs_a = np.abs(a_gal)
     N = len(abs_a)
-    if N < n03:
+    if N < k:
         return np.zeros(N)
-    roll_min = np.min(sliding_window_view(abs_a, n03), axis=1)
+
+    # 窓長を min(nwin, N) に固定してスライド窓行列を作る
+    # 各行（窓）に対して「上位k番目」= 合計k個超える値 を取得
+    win_len = min(nwin, N)
+    views = sliding_window_view(abs_a, win_len)   # shape: (N - win_len + 1, win_len)
+    # 各行の「k番目に大きい値」= 降順k番目 = 昇順(win_len - k)番目
+    part_idx = win_len - k
+    # np.partition は各行独立に適用 (axis=1)
+    peaks = np.partition(views, part_idx, axis=1)[:, part_idx]  # shape: (N - win_len + 1,)
+
     I_arr = np.zeros(N)
-    for i in range(n03, N):
-        j_end   = i - n03 + 2
-        j_start = max(0, j_end - nwin)
-        if j_end <= 0:
-            continue
-        peak = float(roll_min[j_start:j_end].max())
-        I_arr[i] = 2.0 * np.log10(max(peak, 1e-10)) + 0.94
+    # peaks[i] は abs_a[i : i+win_len] の窓に対応 → 末尾インデックス i+win_len-1 に格納
+    tail_idx = np.arange(win_len - 1, N)
+    I_arr[tail_idx] = 2.0 * np.log10(np.maximum(peaks, 1e-10)) + 0.94
     return I_arr
 
 
