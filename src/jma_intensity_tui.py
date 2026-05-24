@@ -10,6 +10,7 @@ Copyright (c) 2026 株式会社リバーランズ・コンサルティング
 
 import argparse
 import io
+import pathlib
 import socket
 import subprocess
 import tempfile
@@ -391,8 +392,9 @@ class SharedState:
         self.raw_z = np.zeros(0)
         self.raw_n = np.zeros(0)
         self.raw_e = np.zeros(0)
-        # イベント履歴（最大10件）
-        self.events: deque = deque(maxlen=10)
+        # イベント履歴（最大50件）
+        self.events: deque = deque(maxlen=50)
+        self._event_log_path: pathlib.Path | None = None
         # P2P地震情報
         self.p2p_quakes: list = []
         self.p2p_seen_ids: set = set()
@@ -427,9 +429,44 @@ class SharedState:
                 "ratio_history": np.array(self.ratio_history, dtype=np.float64),
             }
 
-    def add_event(self, ts: str, I: float, scale: str):
+    def add_event(self, ts: str, I: float, scale: str, ratio: float = 0.0):
         with self._lock:
-            self.events.append((ts, I, scale))
+            self.events.append((ts, I, scale, ratio))
+        if self._event_log_path is not None:
+            try:
+                date_str = datetime.now().strftime("%Y-%m-%d")
+                record = json.dumps({"date": date_str, "ts": ts,
+                                     "I": I, "scale": scale, "ratio": ratio},
+                                    ensure_ascii=False)
+                with open(self._event_log_path, "a", encoding="utf-8") as f:
+                    f.write(record + "\n")
+            except Exception:
+                pass
+
+    def load_event_log(self, log_path: pathlib.Path, limit: int = 50) -> None:
+        self._event_log_path = log_path
+        if not log_path.exists():
+            return
+        try:
+            lines = log_path.read_text(encoding="utf-8").splitlines()
+            records = []
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    d = json.loads(line)
+                    date_str = d.get("date", "")
+                    ts_full = f"{date_str} {d['ts']}" if date_str else d["ts"]
+                    records.append((ts_full, float(d["I"]), d["scale"],
+                                    float(d.get("ratio", 0.0))))
+                except Exception:
+                    continue
+            with self._lock:
+                for rec in records[-limit:]:
+                    self.events.append(rec)
+        except Exception:
+            pass
 
 
 # ===== 画面構築 =====
@@ -495,17 +532,20 @@ def build_display(state: dict, station: str, network: str, trig_thr: float = 3.5
     )
 
     # --- トリガ履歴 ---
-    event_table = Table("時刻", "I値", "震度", box=None, padding=(0, 2), show_header=True)
+    event_table = Table("時刻", "I値", "震度", "STA/LTA", box=None, padding=(0, 2), show_header=True)
     event_table.columns[0].style = "dim"
     event_table.columns[1].style = "cyan"
     event_table.columns[2].style = "bold"
+    event_table.columns[3].style = "yellow"
     events = state["events"]
     if events:
-        for ts, I_val, sc in reversed(events):
+        for ev in reversed(events):
+            ts, I_val, sc = ev[0], ev[1], ev[2]
+            ratio_val = ev[3] if len(ev) > 3 else 0.0
             event_color = _INTENSITY_COLORS.get(sc, "white")
-            event_table.add_row(ts, f"{I_val:.2f}", Text(f"震度{sc}", style=event_color))
+            event_table.add_row(ts, f"{I_val:.2f}", Text(f"震度{sc}", style=event_color), f"{ratio_val:.2f}")
     else:
-        event_table.add_row("[dim](なし)[/dim]", "", "")
+        event_table.add_row("[dim](なし)[/dim]", "", "", "")
 
     # --- P2P地震情報 ---
     p2p_table = Table("発生時刻", "震源", "M", "深さ", "最大震度", box=None, padding=(0, 1), show_header=True)
@@ -649,13 +689,13 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
         if triggered:
             last_triggered_time = t_now
             ts = datetime.now().strftime("%H:%M:%S")
-            pending_event = (t_now, ts)
+            pending_event = (t_now, ts, ratio)
 
         # トリガ後 rt-window 秒経過したら確定I値で記録
         if pending_event is not None:
-            trig_time, trig_ts = pending_event
+            trig_time, trig_ts, trig_ratio = pending_event
             if t_now - trig_time >= args.rt_window:
-                shared.add_event(trig_ts, I_final, scale)
+                shared.add_event(trig_ts, I_final, scale, trig_ratio)
                 alert.speak(scale, I_final)
                 pending_event = None
 
