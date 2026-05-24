@@ -1,21 +1,15 @@
 # CHANGELOG
 
-## [0.3.0] - 2026-05-23
+## [0.4.0] - 2026-05-24
 
 ### Added
-- `jma_intensity_web.py`: FastAPI + WebSocket によるブラウザ版ダッシュボード
-  - 1秒ごと WebSocket ブロードキャスト
-  - Leaflet.js による震源地図（×印マーカー、M比例サイズ）
-  - 市区町村単位の震度色分け表示（都道府県別 GeoJSON を並列 fetch・キャッシュ）
-  - 震度カラー凡例（気象庁10段階準拠）
-  - `navigator.geolocation` による震源までの直線距離表示（ハバーサイン公式）
-  - トリガ履歴クリック時に P2P 地震情報と時刻照合してズーム表示
-  - バックグラウンドタブ離脱時に WebSocket 自動切断・復帰時再接続
-  - `requestAnimationFrame` デバウンスによる連続メッセージの1フレーム集約
-- 全ソースファイルに著作権表示を追加
-- TUI フッターに著作権表示を追加
+- Web版: P2P地震情報テーブルの各行に「解析」ボタンを追加
+  - クリックで `analyze_rs.py` をサブプロセス起動し、自局の波形をダウンロード・解析
+  - 解析完了後に波形解析画像をモーダルで表示（ポーリング方式、最大120秒待機）
+  - `POST /api/analyze`, `GET /api/analyze/{job_id}`, `GET /api/analyze_img/{job_id}` エンドポイント追加
+- Web版: P2P地震情報の履歴表示件数を20件に拡張（従来10件）
 
-## [Unreleased]
+## [0.3.1] - 2026-05-24
 
 ### Added
 - P2P地震情報 WebSocket API によるリアルタイム受信（60 秒ポーリングから移行）
@@ -39,6 +33,21 @@
 - `jma_intensity_rs4d.py` を削除（`jma_intensity_realtime.py` に統合済み）
 - 音声アラートをシステムサウンドから VoiceVox 音声読み上げに変更
 - 音声速度を 1.1 倍に設定
+
+## [0.3.0] - 2026-05-23
+
+### Added
+- `jma_intensity_web.py`: FastAPI + WebSocket によるブラウザ版ダッシュボード
+  - 1秒ごと WebSocket ブロードキャスト
+  - Leaflet.js による震源地図（×印マーカー、M比例サイズ）
+  - 市区町村単位の震度色分け表示（都道府県別 GeoJSON を並列 fetch・キャッシュ）
+  - 震度カラー凡例（気象庁10段階準拠）
+  - `navigator.geolocation` による震源までの直線距離表示（ハバーサイン公式）
+  - トリガ履歴クリック時に P2P 地震情報と時刻照合してズーム表示
+  - バックグラウンドタブ離脱時に WebSocket 自動切断・復帰時再接続
+  - `requestAnimationFrame` デバウンスによる連続メッセージの1フレーム集約
+- 全ソースファイルに著作権表示を追加
+- TUI フッターに著作権表示を追加
 
 ## [0.1.0] - 2026-05-22
 

@@ -13,9 +13,14 @@ Copyright (c) 2026 株式会社リバーランズ・コンサルティング
 import argparse
 import asyncio
 import json
+import math
+import pathlib
 import socket
+import subprocess
+import sys
 import threading
 import time
+import uuid
 from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -35,8 +40,8 @@ try:
 except ImportError:
     _websocket_ok = False
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from jma_intensity_tui import (
     SharedState,
@@ -51,6 +56,9 @@ from jma_intensity_realtime import Ring, jma_scale_from_I
 
 # ===== WebSocket クライアント管理 =====
 _ws_clients: set = set()
+
+_analyze_jobs: dict = {}  # job_id -> {status, out_path, error}
+_analyze_lock = threading.Lock()
 
 
 # ===== P2P地震情報（Web版: points/位置情報あり）=====
@@ -106,7 +114,7 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
     """WebSocket でP2P地震情報をリアルタイム受信（Web版: points付き）。自動再接続あり。"""
     WS_URL = "wss://api.p2pquake.net/v2/ws"
 
-    initial = _fetch_p2p_quakes_http_web(10)
+    initial = _fetch_p2p_quakes_http_web(20)
     seen_ids: set[str] = {q["id"] for q in initial}
     with shared._lock:
         shared.p2p_quakes = initial
@@ -114,7 +122,7 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
 
     if not _websocket_ok:
         while not stop_event.is_set():
-            quakes = _fetch_p2p_quakes_http_web(10)
+            quakes = _fetch_p2p_quakes_http_web(20)
             shared.update(p2p_quakes=quakes)
             stop_event.wait(60)
         return
@@ -137,7 +145,7 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
             parsed = _parse_quake_item_web(item)
             if parsed:
                 with shared._lock:
-                    shared.p2p_quakes = ([parsed] + list(shared.p2p_quakes))[:10]
+                    shared.p2p_quakes = ([parsed] + list(shared.p2p_quakes))[:20]
         elif code == 556:
             parsed_eew = _parse_eew_item(item)
             with shared._lock:
@@ -192,6 +200,12 @@ async def broadcast_loop(shared: SharedState):
             "events": list(snap["events"]),
             "p2p_quakes": list(snap["p2p_quakes"]),
             "p2p_eew": snap["p2p_eew"],
+            "config": {
+                "sta": _args.sta,
+                "lta": _args.lta,
+                "trig": _args.trig,
+                "det_hold": _args.det_hold,
+            },
         }
         message = json.dumps(payload)
 
@@ -206,7 +220,8 @@ async def broadcast_loop(shared: SharedState):
 
 # ===== HTML =====
 
-def _make_html(station: str, network: str, trig_thr: float) -> str:
+def _make_html(station: str, network: str, trig_thr: float,
+               sta: float = 1.0, lta: float = 20.0, det_hold: float = 20.0) -> str:
     return f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -524,6 +539,92 @@ def _make_html(station: str, network: str, trig_thr: float) -> str:
         #col-left, #col-center, #col-right {{ grid-column: 1; grid-row: auto; }}
         #map {{ height: 250px; }}
     }}
+
+    /* ===== 設定ボタン ===== */
+    #cfg-open-btn {{
+        margin-left: auto;
+        background: none;
+        border: 1px solid #444;
+        color: #c9d1d9;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 1px 7px;
+        border-radius: 4px;
+        line-height: 1;
+    }}
+    #cfg-open-btn:hover {{ background: #21262d; }}
+
+    /* ===== 設定パネル ===== */
+    #cfg-panel {{
+        position: fixed;
+        top: 0; right: 0;
+        width: 300px; height: 100vh;
+        background: #161b22;
+        border-left: 1px solid #30363d;
+        z-index: 1000;
+        transform: translateX(100%);
+        transition: transform 0.25s ease;
+        display: flex;
+        flex-direction: column;
+    }}
+    #cfg-panel.open {{ transform: translateX(0); }}
+    #cfg-panel-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        border-bottom: 1px solid #30363d;
+        font-size: 13px;
+        font-weight: bold;
+        color: #c9d1d9;
+    }}
+    #cfg-panel-header button {{
+        background: none; border: none;
+        color: #8b949e; cursor: pointer; font-size: 16px;
+    }}
+    #cfg-panel-header button:hover {{ color: #c9d1d9; }}
+    #cfg-panel-body {{
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }}
+    .cfg-row {{
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }}
+    .cfg-row label {{
+        font-size: 11px;
+        color: #8b949e;
+    }}
+    .cfg-row input[type=range] {{
+        width: 100%;
+        accent-color: #58a6ff;
+    }}
+    .cfg-row span {{
+        font-size: 13px;
+        color: #f97316;
+        font-weight: bold;
+        text-align: right;
+    }}
+    #cfg-apply-btn {{
+        background: #1f6feb;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: bold;
+    }}
+    #cfg-apply-btn:hover {{ background: #388bfd; }}
+    #cfg-status {{
+        font-size: 11px;
+        color: #3fb950;
+        text-align: center;
+        min-height: 16px;
+    }}
 </style>
 </head>
 <body>
@@ -539,6 +640,7 @@ def _make_html(station: str, network: str, trig_thr: float) -> str:
     <span class="sep">|</span>
     <span>RS4D DATACAST</span>
     <span class="uptime">稼働 <span id="uptime-val">--:--:--</span> &nbsp;|&nbsp; <span id="clock">--</span></span>
+    <button id="cfg-open-btn" title="パラメータ設定" onclick="document.getElementById('cfg-panel').classList.toggle('open')">⚙</button>
 </div>
 
 <!-- 情報バナー -->
@@ -590,7 +692,7 @@ def _make_html(station: str, network: str, trig_thr: float) -> str:
             <div id="stalta-vals">
                 <span>比: <strong id="ratio-val" style="color:#58a6ff;">--</strong></span>
                 <span>閾値: <strong style="color:#f97316;">{trig_thr}</strong></span>
-                <span>STA:1s / LTA:20s</span>
+                <span>STA:{sta}s / LTA:{lta}s</span>
             </div>
         </div>
 
@@ -600,7 +702,7 @@ def _make_html(station: str, network: str, trig_thr: float) -> str:
             <div id="events-table-wrap">
                 <table>
                     <thead>
-                        <tr><th>時刻</th><th>I値</th><th>震度</th></tr>
+                        <tr><th>時刻</th><th>I値</th><th>震度</th><th>STA/LTA</th></tr>
                     </thead>
                     <tbody id="events-tbody">
                         <tr><td colspan="3" style="color:#8b949e; text-align:center; padding:12px;">なし</td></tr>
@@ -641,10 +743,10 @@ def _make_html(station: str, network: str, trig_thr: float) -> str:
             <div id="p2p-table-wrap">
                 <table>
                     <thead>
-                        <tr><th>発生時刻</th><th>震源</th><th>M</th><th>深さ</th><th>距離</th><th>震度</th></tr>
+                        <tr><th>発生時刻</th><th>震源</th><th>M</th><th>深さ</th><th>距離</th><th>震度</th><th></th></tr>
                     </thead>
                     <tbody id="p2p-tbody">
-                        <tr><td colspan="5" style="color:#8b949e; text-align:center; padding:12px;">取得中...</td></tr>
+                        <tr><td colspan="7" style="color:#8b949e; text-align:center; padding:12px;">取得中...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -654,8 +756,44 @@ def _make_html(station: str, network: str, trig_thr: float) -> str:
 
 </div><!-- /main -->
 
+<!-- 設定パネル -->
+<div id="cfg-panel">
+    <div id="cfg-panel-header">
+        <span>パラメータ設定</span>
+        <button onclick="document.getElementById('cfg-panel').classList.remove('open')">✕</button>
+    </div>
+    <div id="cfg-panel-body">
+        <div class="cfg-row">
+            <label>STA 窓長 [秒]</label>
+            <input type="range" id="cfg-sta" min="0.2" max="5" step="0.1" value="{sta}"
+                oninput="document.getElementById('cfg-sta-val').textContent=this.value">
+            <span id="cfg-sta-val">{sta}</span>
+        </div>
+        <div class="cfg-row">
+            <label>LTA 窓長 [秒]</label>
+            <input type="range" id="cfg-lta" min="5" max="60" step="1" value="{lta}"
+                oninput="document.getElementById('cfg-lta-val').textContent=this.value">
+            <span id="cfg-lta-val">{lta}</span>
+        </div>
+        <div class="cfg-row">
+            <label>トリガ閾値 (STA/LTA)</label>
+            <input type="range" id="cfg-trig" min="1.0" max="10.0" step="0.1" value="{trig_thr}"
+                oninput="document.getElementById('cfg-trig-val').textContent=this.value">
+            <span id="cfg-trig-val">{trig_thr}</span>
+        </div>
+        <div class="cfg-row">
+            <label>再検出抑制 [秒]</label>
+            <input type="range" id="cfg-det-hold" min="5" max="120" step="5" value="{det_hold}"
+                oninput="document.getElementById('cfg-det-hold-val').textContent=this.value">
+            <span id="cfg-det-hold-val">{det_hold}</span>
+        </div>
+        <button id="cfg-apply-btn" onclick="applyConfig()">適用</button>
+        <div id="cfg-status"></div>
+    </div>
+</div>
+
 <script>
-const TRIG_THR = {trig_thr};
+let TRIG_THR = {trig_thr};
 
 // ===== スケール定数 =====
 // 気象庁震度着色規則に準拠
@@ -676,6 +814,16 @@ function scaleClass(scale) {{
     const map = {{'0':'scale-0','1':'scale-1','2':'scale-2','3':'scale-3','4':'scale-4',
         '5弱':'scale-5w','5強':'scale-5s','6弱':'scale-6w','6強':'scale-6s','7':'scale-7'}};
     return map[scale] || 'scale-0';
+}}
+
+// ===== HTMLエスケープ =====
+function esc(s) {{
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }}
 
 // ===== 全角変換 =====
@@ -840,6 +988,7 @@ let _cityLayer = null;
 let _activeQuake = null;  // 震源クリックで選択中の地震
 let _latestP2pQuakes = []; // 最新のP2P地震リスト（トリガ履歴クリック照合用）
 let _userLat = null, _userLng = null; // ブラウザ位置情報
+let _userMarker = null; // 現在地ピン
 const _cityGeoCache = {{}}; // 都道府県コード → GeoJSONデータ のキャッシュ
 
 // ===== 位置情報・距離計算 =====
@@ -848,6 +997,24 @@ const _cityGeoCache = {{}}; // 都道府県コード → GeoJSONデータ のキ
     navigator.geolocation.getCurrentPosition(pos => {{
         _userLat = pos.coords.latitude;
         _userLng = pos.coords.longitude;
+
+        // 現在地ピン（青い丸）
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'>
+            <circle cx='10' cy='10' r='7' fill='#1f6feb' stroke='#fff' stroke-width='2.5'/>
+            <circle cx='10' cy='10' r='2.5' fill='#fff'/>
+        </svg>`;
+        const icon = L.divIcon({{
+            html: svg,
+            className: '',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -12],
+        }});
+        if (_userMarker) quakeMap.removeLayer(_userMarker);
+        _userMarker = L.marker([_userLat, _userLng], {{ icon, zIndexOffset: 2000 }})
+            .bindPopup('現在地', {{closeButton: false}})
+            .addTo(quakeMap);
+
         // 取得完了後、既表示中のリスト・地図を距離付きで再描画
         if (_latestP2pQuakes.length > 0) {{
             updateP2PTable(_latestP2pQuakes);
@@ -1087,9 +1254,9 @@ function renderBannerForQuake(quake, eew, force) {{
         const items = quake.points.map(p => {{
             const col = SCALE_COLORS[p.scale] || '#e6edf3';
             return '<span class="ticker-item">' +
-                '<span class="ticker-pref">' + p.pref + '</span>' +
-                '<span class="ticker-place">' + p.addr + '</span>' +
-                '<span class="ticker-scale" style="color:' + col + ';">震度' + p.scale + '</span>' +
+                '<span class="ticker-pref">' + esc(p.pref) + '</span>' +
+                '<span class="ticker-place">' + esc(p.addr) + '</span>' +
+                '<span class="ticker-scale" style="color:' + col + ';">震度' + esc(p.scale) + '</span>' +
                 '</span>';
         }}).join('');
         newHtml = items;
@@ -1143,34 +1310,131 @@ function updateBanner(quakes, eew) {{
 }}
 
 // ===== P2Pテーブル =====
+function _onP2PRowClick(idx) {{
+    const q = _latestP2pQuakes[idx];
+    if (!q) return;
+    const lat = q.latitude, lng = q.longitude;
+    if (lat == null || lng == null) return;
+    _activeQuake = q;
+    _pinnedQuake = q;
+    _bannerKey = null;
+    quakeMap.setView([lat, lng], Math.max(quakeMap.getZoom(), CITY_SHOW_ZOOM), {{animate: true}});
+    drawCityLayer(q);
+    renderBannerForQuake(q, null, true);
+}}
+
 function updateP2PTable(quakes) {{
     const tbody = document.getElementById('p2p-tbody');
     if (!quakes || quakes.length === 0) {{
-        tbody.innerHTML = '<tr><td colspan="6" style="color:#8b949e; text-align:center; padding:12px;">取得中...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="color:#8b949e; text-align:center; padding:12px;">取得中...</td></tr>';
         return;
     }}
-    tbody.innerHTML = quakes.map(q => {{
+    tbody.innerHTML = quakes.map((q, idx) => {{
         const sc = q.max_scale || '?';
         const cls = scaleClass(sc);
         const tsunami = (q.tsunami && q.tsunami !== 'None' && q.tsunami !== 'Unknown')
             ? '<span class="tsunami-warn">津波</span>' : '';
-        const time = (q.time || '').replace('T', ' ').slice(5, 16);
-        const dist = distLabel(q.latitude, q.longitude);
-        return '<tr>' +
+        const time = esc((q.time || '').replace('T', ' ').slice(5, 16));
+        const dist = esc(distLabel(q.latitude, q.longitude));
+        const clickable = q.latitude != null && q.longitude != null;
+        const rowAttr = clickable
+            ? ' class="trig-row-linked" style="cursor:pointer;" onclick="_onP2PRowClick(' + idx + ')"'
+            : '';
+        const analyzeBtn = q.time
+            ? '<button onclick="event.stopPropagation();_startAnalyze(' + idx + ')" ' +
+              'style="font-size:10px;padding:2px 6px;background:#21262d;border:1px solid #30363d;' +
+              'color:#58a6ff;border-radius:4px;cursor:pointer;">解析</button>'
+            : '';
+        return '<tr' + rowAttr + '>' +
             '<td style="color:#8b949e;">' + time + '</td>' +
-            '<td>' + (q.name || '不明') + '</td>' +
+            '<td>' + esc(q.name || '不明') + '</td>' +
             '<td style="color:#58a6ff;">' + parseFloat(q.magnitude || 0).toFixed(1) + '</td>' +
-            '<td style="color:#8b949e;">' + (q.depth || '--') + 'km</td>' +
+            '<td style="color:#8b949e;">' + esc(String(q.depth || '--')) + 'km</td>' +
             '<td style="color:#8b949e;">' + dist + '</td>' +
             '<td class="scale-cell ' + cls + '">' + formatScale(sc) + tsunami + '</td>' +
+            '<td style="text-align:center;">' + analyzeBtn + '</td>' +
             '</tr>';
     }}).join('');
 }}
 
+// ===== P2P行 解析機能 =====
+function _startAnalyze(idx) {{
+    const q = _latestP2pQuakes[idx];
+    if (!q || !q.time) return;
+    _showAnalyzeModal('running', null, null);
+    fetch('/api/analyze', {{
+        method: 'POST',
+        headers: {{'Content-Type': 'application/json'}},
+        body: JSON.stringify({{time: q.time, duration: 420}})
+    }})
+    .then(r => r.json())
+    .then(data => {{
+        if (!data.job_id) {{
+            _showAnalyzeModal('error', null, data.error || '起動失敗');
+            return;
+        }}
+        _pollAnalyze(data.job_id, 0);
+    }})
+    .catch(e => _showAnalyzeModal('error', null, String(e)));
+}}
+
+function _pollAnalyze(jobId, count) {{
+    if (count > 120) {{
+        _showAnalyzeModal('error', null, 'タイムアウト（120秒）');
+        return;
+    }}
+    fetch('/api/analyze/' + jobId)
+    .then(r => r.json())
+    .then(data => {{
+        if (data.status === 'done') {{
+            _showAnalyzeModal('done', '/api/analyze_img/' + jobId, null);
+        }} else if (data.status === 'error') {{
+            _showAnalyzeModal('error', null, data.error || '解析エラー');
+        }} else {{
+            setTimeout(() => _pollAnalyze(jobId, count + 1), 1000);
+        }}
+    }})
+    .catch(e => _showAnalyzeModal('error', null, String(e)));
+}}
+
+function _showAnalyzeModal(status, imgUrl, errorMsg) {{
+    let modal = document.getElementById('analyze-modal');
+    if (!modal) {{
+        modal = document.createElement('div');
+        modal.id = 'analyze-modal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
+            'background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;' +
+            'justify-content:center;';
+        modal.onclick = e => {{ if (e.target === modal) modal.remove(); }};
+        document.body.appendChild(modal);
+    }}
+    let inner = '';
+    if (status === 'running') {{
+        inner = '<div style="color:#e6edf3;font-size:14px;">解析中... (～30秒かかります)</div>';
+    }} else if (status === 'done') {{
+        inner = '<img src="' + imgUrl + '?t=' + Date.now() + '" style="max-width:95vw;max-height:90vh;border-radius:8px;" />';
+    }} else {{
+        inner = '<div style="color:#f85149;font-size:13px;">エラー: ' + esc(errorMsg || '不明') + '</div>';
+    }}
+    modal.innerHTML = '<div class="analyze-modal-wrap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;' +
+        'padding:16px;max-width:95vw;max-height:92vh;overflow:auto;position:relative;">' +
+        '<button onclick="document.getElementById(&apos;analyze-modal&apos;).remove()" ' +
+        'style="position:absolute;top:8px;right:8px;background:transparent;border:none;' +
+        'color:#8b949e;font-size:16px;cursor:pointer;">✕</button>' +
+        inner + '</div>';
+}}
+
 // ===== トリガ履歴テーブル =====
 
-// "HH:MM:SS" を当日の分単位epoch(分)に変換
+// "HH:MM:SS" または "YYYY-MM-DD HH:MM:SS" を分単位epochに変換
 function _trigTsToMin(ts) {{
+    if (!ts) return NaN;
+    // 日付付き形式（ログ復元時）
+    if (ts.length > 8) {{
+        const dt = new Date(ts.replace(' ', 'T') + '+09:00');
+        return isNaN(dt) ? NaN : dt.getTime() / 60000;
+    }}
+    // 時刻のみ形式（当日発生分）
     const now = new Date();
     const [h, m] = ts.split(':').map(Number);
     let d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
@@ -1219,24 +1483,27 @@ function _onTrigRowClick(trigTs) {{
 function updateEventsTable(events) {{
     const tbody = document.getElementById('events-tbody');
     if (!events || events.length === 0) {{
-        tbody.innerHTML = '<tr><td colspan="3" style="color:#8b949e; text-align:center; padding:12px;">なし</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="color:#8b949e; text-align:center; padding:12px;">なし</td></tr>';
         return;
     }}
     const rows = [...events].reverse().map(e => {{
-        const [ts, I, scale] = e;
+        const [ts, I, scale, ratio] = e;
         const cls = scaleClass(scale);
+        const dispTs = ts.length > 8 ? ts.slice(0, 10) + ' ' + ts.slice(11, 19) : ts;
         const matched = _findMatchingQuake(ts) !== null;
         const rowStyle = matched
             ? 'cursor:pointer; transition:background 0.15s;'
             : 'color:#555;';
         const tsStyle = matched ? 'color:#8b949e;' : 'color:#555;';
         const iStyle  = matched ? 'color:#58a6ff;' : 'color:#555;';
+        const ratioStr = (ratio != null && ratio > 0) ? parseFloat(ratio).toFixed(2) : '--';
         const onClick = matched ? ` onclick="_onTrigRowClick(${{JSON.stringify(ts)}})"`  : '';
         const hoverAttr = matched ? ' class="trig-row-linked"' : '';
         return '<tr' + hoverAttr + ' style="' + rowStyle + '"' + onClick + '>' +
-            '<td style="' + tsStyle + '">' + ts + (matched ? ' 🔗' : '') + '</td>' +
+            '<td style="' + tsStyle + '">' + dispTs + (matched ? ' 🔗' : '') + '</td>' +
             '<td style="' + iStyle + '">' + parseFloat(I).toFixed(2) + '</td>' +
             '<td class="scale-cell ' + cls + '">' + formatScale(scale) + '</td>' +
+            '<td style="color:#f97316; text-align:right;">' + ratioStr + '</td>' +
             '</tr>';
     }}).join('');
     tbody.innerHTML = rows;
@@ -1324,6 +1591,37 @@ function updateDashboard(data) {{
         document.getElementById('fs-val').textContent = (d.fs || 0).toFixed(1);
         document.getElementById('pkt-val').textContent = (d.pkt_count || 0).toLocaleString();
 
+        // サーバーの実動作パラメータを同期
+        if (d.config) {{
+            const cfg = d.config;
+            if (cfg.trig !== TRIG_THR) {{
+                TRIG_THR = cfg.trig;
+                // グラフ閾値線
+                const thrDataset = historyChart.data.datasets[2];
+                thrDataset.data = Array(N_HIST).fill(cfg.trig);
+                thrDataset.label = 'thr=' + cfg.trig;
+                // STA/LTAバー閾値線
+                const maxDisp = Math.max(cfg.trig * 2, 5.0);
+                document.getElementById('stalta-thr-line').style.left = (cfg.trig / maxDisp * 100).toFixed(1) + '%';
+                // STA/LTAパネルの数値表示
+                const thrEl = document.querySelector('#stalta-vals strong[style*="f97316"]');
+                if (thrEl) thrEl.textContent = cfg.trig;
+            }}
+            // 設定パネルが閉じているときだけスライダーを実動作値に同期
+            if (!document.getElementById('cfg-panel').classList.contains('open')) {{
+                const staEl = document.getElementById('cfg-sta');
+                if (staEl) {{ staEl.value = cfg.sta; document.getElementById('cfg-sta-val').textContent = cfg.sta; }}
+                const ltaEl = document.getElementById('cfg-lta');
+                if (ltaEl) {{ ltaEl.value = cfg.lta; document.getElementById('cfg-lta-val').textContent = cfg.lta; }}
+                const trigEl = document.getElementById('cfg-trig');
+                if (trigEl) {{ trigEl.value = cfg.trig; document.getElementById('cfg-trig-val').textContent = cfg.trig; }}
+                const detEl = document.getElementById('cfg-det-hold');
+                if (detEl) {{ detEl.value = cfg.det_hold; document.getElementById('cfg-det-hold-val').textContent = cfg.det_hold; }}
+            }}
+            const staLtaEl = document.querySelector('#stalta-vals span:last-child');
+            if (staLtaEl) staLtaEl.textContent = 'STA:' + cfg.sta + 's / LTA:' + cfg.lta + 's';
+        }}
+
         _latestP2pQuakes = d.p2p_quakes || [];
         updateIntensity(d);
         updateSTALTA(d);
@@ -1388,12 +1686,87 @@ document.addEventListener('visibilitychange', () => {{
 }});
 
 connect();
+
+// ===== 設定パネル =====
+async function applyConfig() {{
+    const sta      = parseFloat(document.getElementById('cfg-sta').value);
+    const lta      = parseFloat(document.getElementById('cfg-lta').value);
+    const trig     = parseFloat(document.getElementById('cfg-trig').value);
+    const det_hold = parseFloat(document.getElementById('cfg-det-hold').value);
+    const status   = document.getElementById('cfg-status');
+    status.textContent = '適用中...';
+    status.style.color = '#8b949e';
+    try {{
+        const res = await fetch('/api/config', {{
+            method: 'POST',
+            headers: {{'Content-Type': 'application/json'}},
+            body: JSON.stringify({{ sta, lta, trig, det_hold }}),
+        }});
+        if (res.ok) {{
+            status.textContent = '✓ 適用しました';
+            status.style.color = '#3fb950';
+            // STA/LTAパネルの閾値表示を更新
+            const thrEl = document.querySelector('#stalta-vals strong[style*="f97316"]');
+            if (thrEl) thrEl.textContent = trig;
+            const staLtaEl = document.querySelector('#stalta-vals span:last-child');
+            if (staLtaEl) staLtaEl.textContent = 'STA:' + sta + 's / LTA:' + lta + 's';
+            // グラフ・バーの閾値線を更新
+            TRIG_THR = trig;
+            const thrDataset = historyChart.data.datasets[2];
+            thrDataset.data = Array(N_HIST).fill(trig);
+            thrDataset.label = 'thr=' + trig;
+            historyChart.update('none');
+            // STA/LTAバーの閾値線を即時更新
+            const maxDisp = Math.max(trig * 2, 5.0);
+            document.getElementById('stalta-thr-line').style.left = (trig / maxDisp * 100).toFixed(1) + '%';
+        }} else {{
+            status.textContent = '✗ エラー: ' + res.status;
+            status.style.color = '#f85149';
+        }}
+    }} catch(e) {{
+        status.textContent = '✗ 通信エラー';
+        status.style.color = '#f85149';
+    }}
+    setTimeout(() => {{ status.textContent = ''; }}, 3000);
+}}
 </script>
 <footer style="text-align:center; padding:6px 0; font-size:11px; color:#484f58; border-top:1px solid #21262d; flex-shrink:0;">
     Copyright &copy; 2026 株式会社リバーランズ・コンサルティング
 </footer>
 </body>
 </html>"""
+
+
+# ===== 設定永続化 =====
+
+_CONFIG_PATH = pathlib.Path.home() / ".config" / "jma_intensity" / "config.json"
+_CONFIG_KEYS = ("sta", "lta", "trig", "det_hold")
+
+
+def _load_config(args, cli_specified: set) -> None:
+    """config.json を読み込む。コマンドライン引数で明示指定されたキーは上書きしない。"""
+    if not _CONFIG_PATH.exists():
+        return
+    try:
+        data = json.loads(_CONFIG_PATH.read_text())
+        applied = {}
+        for key in _CONFIG_KEYS:
+            if key in data and key not in cli_specified:
+                setattr(args, key, float(data[key]))
+                applied[key] = float(data[key])
+        if applied:
+            print(f"[INFO] 設定を読み込みました: {applied}")
+    except Exception as e:
+        print(f"[WARN] 設定ファイルの読み込みに失敗しました: {e}")
+
+
+def _save_config(args) -> None:
+    try:
+        _CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        data = {key: getattr(args, key) for key in _CONFIG_KEYS}
+        _CONFIG_PATH.write_text(json.dumps(data, indent=2))
+    except Exception as e:
+        print(f"[WARN] 設定ファイルの保存に失敗しました: {e}")
 
 
 # ===== FastAPI アプリ =====
@@ -1415,6 +1788,10 @@ async def lifespan(app: FastAPI):
     comps = [c.strip().upper() for c in args.channels.split(",")]
     host, port_str = args.bind.split(":")
     port = int(port_str)
+
+    log_path = pathlib.Path.home() / "Dropbox" / "earthQuake" / "logs" / "trigger_log.jsonl"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    shared.load_event_log(log_path, limit=50)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((host, port))
@@ -1468,8 +1845,114 @@ async def index():
         station=_args.station,
         network=_args.network,
         trig_thr=_args.trig,
+        sta=_args.sta,
+        lta=_args.lta,
+        det_hold=_args.det_hold,
     )
     return HTMLResponse(content=html)
+
+
+_CONFIG_LIMITS = {
+    "sta":      (0.1,  30.0),
+    "lta":      (1.0, 300.0),
+    "trig":     (0.5,  50.0),
+    "det_hold": (1.0, 600.0),
+}
+
+
+@app.post("/api/config")
+async def api_config(req: Request):
+    body = await req.json()
+    for key, (lo, hi) in _CONFIG_LIMITS.items():
+        if key not in body:
+            continue
+        try:
+            val = float(body[key])
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=422, content={"error": f"invalid value for {key}"})
+        if math.isnan(val) or math.isinf(val) or not (lo <= val <= hi):
+            return JSONResponse(status_code=422,
+                                content={"error": f"{key} must be in [{lo}, {hi}]"})
+        setattr(_args, key, val)
+    _save_config(_args)
+    return {"ok": True, "sta": _args.sta, "lta": _args.lta,
+            "trig": _args.trig, "det_hold": _args.det_hold}
+
+
+def _run_analyze(job_id: str, start_jst: str, duration: int, out_path: str):
+    """analyze_rs.py をサブプロセスで実行し、結果をジョブ辞書に記録する。"""
+    cwd = pathlib.Path(__file__).parent.parent
+    cmd = [
+        sys.executable,
+        str(pathlib.Path(__file__).parent / "analyze_rs.py"),
+        "--start", start_jst,
+        "--duration", str(duration),
+        "--out", out_path,
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), timeout=300)
+        with _analyze_lock:
+            if result.returncode == 0:
+                _analyze_jobs[job_id] = {"status": "done", "out_path": out_path, "error": None}
+            else:
+                _analyze_jobs[job_id] = {
+                    "status": "error",
+                    "out_path": None,
+                    "error": result.stderr[-500:] if result.stderr else "unknown error",
+                }
+    except subprocess.TimeoutExpired:
+        with _analyze_lock:
+            _analyze_jobs[job_id] = {"status": "error", "out_path": None, "error": "timeout"}
+    except Exception as e:
+        with _analyze_lock:
+            _analyze_jobs[job_id] = {"status": "error", "out_path": None, "error": str(e)}
+
+
+@app.post("/api/analyze")
+async def api_analyze_start(req: Request):
+    body = await req.json()
+    raw_time = (body.get("time") or "").strip()
+    if not raw_time:
+        return JSONResponse(status_code=422, content={"error": "time is required"})
+    # "YYYY/MM/DD HH:MM", "YYYY-MM-DDTHH:MM" など → "YYYY-MM-DD HH:MM:00"
+    start_jst = raw_time.replace("/", "-").replace("T", " ")
+    if len(start_jst) == 16:
+        start_jst += ":00"
+    try:
+        datetime.strptime(start_jst, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return JSONResponse(status_code=422, content={"error": f"invalid time format: {raw_time}"})
+    duration = int(body.get("duration", 420))
+    job_id = str(uuid.uuid4())[:8]
+    out_dir = pathlib.Path(__file__).parent.parent / "data"
+    out_path = str(out_dir / f"analyze_{job_id}.png")
+    with _analyze_lock:
+        _analyze_jobs[job_id] = {"status": "running", "out_path": None, "error": None}
+    t = threading.Thread(target=_run_analyze, args=(job_id, start_jst, duration, out_path), daemon=True)
+    t.start()
+    return {"job_id": job_id}
+
+
+@app.get("/api/analyze/{job_id}")
+async def api_analyze_status(job_id: str):
+    with _analyze_lock:
+        job = _analyze_jobs.get(job_id)
+    if job is None:
+        return JSONResponse(status_code=404, content={"error": "job not found"})
+    return job
+
+
+@app.get("/api/analyze_img/{job_id}")
+async def api_analyze_img(job_id: str):
+    with _analyze_lock:
+        job = _analyze_jobs.get(job_id)
+    if job is None or job.get("status") != "done":
+        return JSONResponse(status_code=404, content={"error": "not ready"})
+    out_path = pathlib.Path(job["out_path"])
+    if not out_path.exists():
+        return JSONResponse(status_code=404, content={"error": "file not found"})
+    from fastapi.responses import FileResponse
+    return FileResponse(str(out_path), media_type="image/png")
 
 
 @app.websocket("/ws")
@@ -1513,6 +1996,14 @@ def main():
     ap.add_argument("--web-bind", type=str, default="127.0.0.1",
                     help="HTTP サーバーバインドアドレス（デフォルト: 127.0.0.1）")
     args = ap.parse_args()
+    # コマンドラインで明示指定されたキーを収集（config.json より優先させるため）
+    import sys
+    cli_specified = set()
+    for token in sys.argv[1:]:
+        if token.startswith("--"):
+            key = token.lstrip("-").split("=")[0].replace("-", "_")
+            cli_specified.add(key)
+    _load_config(args, cli_specified)
 
     comps = [c.strip().upper() for c in args.channels.split(",")]
     if len(comps) != 3:
