@@ -626,7 +626,7 @@ def build_display(state: dict, station: str, network: str, trig_thr: float = 3.5
 # ===== compute_loop =====
 def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, alert: AlertSpeaker):
     last_triggered_time = 0.0
-    pending_event = None  # (trigger_time, trigger_ts) トリガ後rt-window秒後に確定記録
+    pending_queue: deque = deque()  # (trigger_time, trigger_ts, trigger_ratio) FIFO
 
     def sta_lta_ratio(vec, fs, sta_s, lta_s):
         nsta = max(1, int(round(sta_s * fs)))
@@ -689,15 +689,16 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
         if triggered:
             last_triggered_time = t_now
             ts = datetime.now().strftime("%H:%M:%S")
-            pending_event = (t_now, ts, ratio)
+            pending_queue.append((t_now, ts, ratio))
 
-        # トリガ後 rt-window 秒経過したら確定I値で記録
-        if pending_event is not None:
-            trig_time, trig_ts, trig_ratio = pending_event
-            if t_now - trig_time >= args.rt_window:
-                shared.add_event(trig_ts, I_final, scale, trig_ratio)
-                alert.speak(scale, I_final)
-                pending_event = None
+        # トリガ後 rt-window 秒経過したイベントを先頭から順に発火
+        while pending_queue:
+            trig_time, trig_ts, trig_ratio = pending_queue[0]
+            if t_now - trig_time < args.rt_window:
+                break
+            pending_queue.popleft()
+            shared.add_event(trig_ts, I_final, scale, trig_ratio)
+            alert.speak(scale, I_final)
 
         # 推移履歴に追記
         with shared._lock:
