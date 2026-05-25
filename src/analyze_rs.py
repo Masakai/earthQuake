@@ -344,7 +344,8 @@ def _load_map_data():
 
 # ===== 震源地図 =====
 def plot_map(ax, eq_lat, eq_lon, eq_name, eq_mag, eq_depth,
-             sta_lat, sta_lon, dist_km, sta_name='R38DC'):
+             sta_lat, sta_lon, dist_km, sta_name='R38DC',
+             dist_km_sp=None):
     ax.set_facecolor('#dce8f0')  # 海の色
     ax.tick_params(colors='#57606a', labelsize=8)
     for spine in ax.spines.values():
@@ -416,6 +417,16 @@ def plot_map(ax, eq_lat, eq_lon, eq_name, eq_mag, eq_depth,
     mid_lon = (eq_lon + sta_lon) / 2
     ax.text(mid_lon, mid_lat, f' {dist_km:.0f}km',
             color='#57606a', fontsize=8, va='center', zorder=5)
+
+    # S-P時間由来の推定震源距離円（緯度補正済み楕円）
+    if dist_km_sp is not None and dist_km_sp > 0 and sta_lat is not None:
+        theta = np.linspace(0, 2 * np.pi, 360)
+        dlat = dist_km_sp / 111.0
+        dlon = dist_km_sp / (111.0 * np.cos(np.radians(sta_lat)))
+        ax.plot(sta_lon + dlon * np.cos(theta),
+                sta_lat + dlat * np.sin(theta),
+                color='#0969da', lw=1.5, ls='--', alpha=0.7,
+                label=f'推定距離圏 {dist_km_sp:.0f}km', zorder=5)
 
     ax.legend(loc='lower right', fontsize=8,
               facecolor='#f6f8fa', edgecolor='#d0d7de', labelcolor='#1f2328')
@@ -515,6 +526,7 @@ def plot_analysis(
         sta_lat=sta_lat, sta_lon=sta_lon,
         dist_km=dist_km,
         sta_name=sta_name,
+        dist_km_sp=dist_km if dist_km > 0 else None,
     )
 
     # ===== EHZ スペクトログラム =====
@@ -675,10 +687,23 @@ def plot_analysis(
         ax.xaxis.set_tick_params(which='both', labelbottom=True)
 
     dist_str = f'  /  震源距離 {dist_km:.0f}km' if dist_km > 0 else ''
+
+    # Si-Midorikawa (1999) 距離減衰式の逆算で推定M
+    # log10(a[gal]) = 0.61M - 1.73*log10(r[km]) - 0.00030*r + 0.167
+    # 地殻内地震向け係数。プレート境界地震（駿河トラフ等）には誤差±0.5程度。
+    est_M_str = ''
+    if dist_km > 0 and a_peak > 0:
+        r = dist_km
+        est_M = (np.log10(a_peak) - 0.167 + 1.73 * np.log10(r) + 0.00030 * r) / 0.61
+        official_mag = quake_info.get('magnitude', 0) if quake_info else 0
+        # Si-Midorikawa (1999) 式は r<200km 程度の近地強震向けであり、遠地は誤差が大きい
+        caveat = '参考値' if dist_km > 200 else '±0.5程度'
+        est_M_str = f'  /  推定M {est_M:.1f}（公式M{official_mag}、{caveat}）'
+
     fig.suptitle(
         f'{title}\n'
         f'最大加速度: {a_peak:.3f} gal  /  計測震度: I={I_peak:.2f}（震度{scale_peak}）'
-        f'  /  STA/LTA最大: {r_peak:.2f}{dist_str}',
+        f'  /  STA/LTA最大: {r_peak:.2f}{dist_str}{est_M_str}',
         color='#1f2328', fontsize=12,
     )
 
