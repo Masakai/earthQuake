@@ -119,6 +119,7 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
     with shared._lock:
         shared.p2p_quakes = initial
         shared.p2p_seen_ids = seen_ids
+        shared._p2p_seen_ids_fifo.extend(seen_ids)
 
     if not _websocket_ok:
         while not stop_event.is_set():
@@ -139,9 +140,11 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
             if item_id and item_id in shared.p2p_seen_ids:
                 return
             if item_id:
+                if len(shared._p2p_seen_ids_fifo) == shared._p2p_seen_ids_fifo.maxlen:
+                    oldest = shared._p2p_seen_ids_fifo[0]
+                    shared.p2p_seen_ids.discard(oldest)
+                shared._p2p_seen_ids_fifo.append(item_id)
                 shared.p2p_seen_ids.add(item_id)
-                if len(shared.p2p_seen_ids) > 1000:
-                    shared.p2p_seen_ids.pop()
 
         if code == 551:
             parsed = _parse_quake_item_web(item)

@@ -238,6 +238,7 @@ def p2p_ws_loop(shared: "SharedState", stop_event: threading.Event):
     with shared._lock:
         shared.p2p_quakes = initial
         shared.p2p_seen_ids = seen_ids
+        shared._p2p_seen_ids_fifo.extend(seen_ids)
 
     if not _websocket_ok:
         # websocket-client がなければ60秒ポーリングにフォールバック
@@ -259,9 +260,12 @@ def p2p_ws_loop(shared: "SharedState", stop_event: threading.Event):
             if item_id and item_id in shared.p2p_seen_ids:
                 return
             if item_id:
+                # deque(maxlen=1000) が溢れたら古いIDを set からも削除
+                if len(shared._p2p_seen_ids_fifo) == shared._p2p_seen_ids_fifo.maxlen:
+                    oldest = shared._p2p_seen_ids_fifo[0]
+                    shared.p2p_seen_ids.discard(oldest)
+                shared._p2p_seen_ids_fifo.append(item_id)
                 shared.p2p_seen_ids.add(item_id)
-                if len(shared.p2p_seen_ids) > 1000:
-                    shared.p2p_seen_ids.pop()
 
         if code == 551:
             parsed = _parse_quake_item(item)
@@ -400,7 +404,8 @@ class SharedState:
         self._event_log_path: pathlib.Path | None = None
         # P2P地震情報
         self.p2p_quakes: list = []
-        self.p2p_seen_ids: set = set()
+        self.p2p_seen_ids: set = set()           # O(1)検索用
+        self._p2p_seen_ids_fifo: deque = deque(maxlen=1000)  # FIFO上限管理用
         self.p2p_eew: dict | None = None  # 最新EEW（取消/無効時はNone）
         self._p2p_eew_received_at: float = 0.0  # EEW受信時刻（TTL管理用）
         # I値・STA/LTA推移（直近600点 = 5分@0.5s間隔）

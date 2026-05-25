@@ -283,7 +283,8 @@ def compute_stalta(vec: np.ndarray, fs: float, sta_s: float, lta_s: float) -> np
 def compute_intensity_timeseries(a_gal: np.ndarray, fs: float, window_s: float = 90.0) -> np.ndarray:
     # JMA定義: 合計0.3秒以上 a を超える最大の a を求める
     # realtime.py の a_threshold_for_03s と同じ「合計0.3秒」基準
-    from numpy.lib.stride_tricks import sliding_window_view
+    # np.partition を2D行列に適用すると数GB の一時コピーが生じるため
+    # stride=10サンプル(0.1s)でダウンサンプル計算し線形補間する
     k    = max(1, int(round(0.3 * fs)))
     nwin = int(window_s * fs)
     abs_a = np.abs(a_gal)
@@ -291,19 +292,23 @@ def compute_intensity_timeseries(a_gal: np.ndarray, fs: float, window_s: float =
     if N < k:
         return np.zeros(N)
 
-    # 窓長を min(nwin, N) に固定してスライド窓行列を作る
-    # 各行（窓）に対して「上位k番目」= 合計k個超える値 を取得
-    win_len = min(nwin, N)
-    views = sliding_window_view(abs_a, win_len)   # shape: (N - win_len + 1, win_len)
-    # 各行の「k番目に大きい値」= 降順k番目 = 昇順(win_len - k)番目
-    part_idx = win_len - k
-    # np.partition は各行独立に適用 (axis=1)
-    peaks = np.partition(views, part_idx, axis=1)[:, part_idx]  # shape: (N - win_len + 1,)
+    stride = max(1, int(fs * 0.1))  # 0.1秒ごとに1点計算
+    calc_indices = range(k, N, stride)
+    sparse_peaks = np.empty(len(calc_indices))
+    for out_i, i in enumerate(calc_indices):
+        win = abs_a[max(0, i - nwin):i]
+        idx = len(win) - k
+        sparse_peaks[out_i] = np.partition(win, idx)[idx]
+
+    # 計算点のインデックスと全インデックスで線形補間
+    calc_idx_arr = np.array(list(calc_indices), dtype=float)
+    all_idx = np.arange(N, dtype=float)
+    peaks_full = np.interp(all_idx, calc_idx_arr, sparse_peaks)
+    peaks_full[:k] = 0.0  # データ不足区間はゼロ
 
     I_arr = np.zeros(N)
-    # peaks[i] は abs_a[i : i+win_len] の窓に対応 → 末尾インデックス i+win_len-1 に格納
-    tail_idx = np.arange(win_len - 1, N)
-    I_arr[tail_idx] = 2.0 * np.log10(np.maximum(peaks, 1e-10)) + 0.94
+    mask = peaks_full > 0
+    I_arr[mask] = 2.0 * np.log10(np.maximum(peaks_full[mask], 1e-10)) + 0.94
     return I_arr
 
 
