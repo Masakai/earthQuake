@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [0.8.0] - 2026-05-25
+
+### Added
+- `src/download_geojson.py`: 国土数値情報（国土交通省、PDL1.0）から全47都道府県・1905市区町村のGeoJSONをダウンロードし `data/geojson/{pref}/{city}.json` に保存するスクリプトを追加
+- `jma_intensity_web.py`: `/api/geojson/{pref}` (市区町村コード一覧) と `/api/geojson/{pref}/{city}` (GeoJSON取得) の2エンドポイントを追加
+
+### Changed
+- `dashboard.html`: 地図タイルを CartoDB light_all（英語・多言語混在）から国土地理院 blank（日本語・境界線のみ）に変更
+- `dashboard.html`: 市区町村GeoJSONの取得元をGitHubの無ライセンスリポジトリへの直接fetchからサーバーAPIに変更
+  - データソース: 国土交通省国土数値情報（PDL1.0）— ライセンス明確・高精度（市区町村ポリゴン精度約50倍改善）
+  - 外部依存を排除しサーバーローカルのファイルから提供
+- GeoJSONスタイル: 震度ありの市区町村は境界線も同色・半透明にして隙間を解消
+
+### Fixed
+- 市区町村GeoJSONの精度が低く（一部57頂点）、隣接市区町村間に視覚的な隙間が生じていた問題を、国土数値情報（2823頂点等）への切り替えで根本解決
+
 ## [0.7.0] - 2026-05-25
 
 ### Added
