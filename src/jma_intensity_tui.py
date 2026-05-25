@@ -644,8 +644,11 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
         nlta = max(nsta + 1, int(round(lta_s * fs)))
         if len(vec) < nlta:
             return 0.0
-        s_sta = np.mean(vec[-nsta:] ** 2) + 1e-18
-        s_lta = np.mean(vec[-nlta:-nsta] ** 2) + 1e-18
+        s_sta = np.mean(vec[-nsta:] ** 2)
+        s_lta = np.mean(vec[-nlta:-nsta] ** 2)
+        # LTAが実質ゼロ = データギャップ後のバッファ未充填。誤検出を防ぐため 0 を返す
+        if s_lta < 1e-12:
+            return 0.0
         return float(s_sta / s_lta)
 
     while not stop_event.is_set():

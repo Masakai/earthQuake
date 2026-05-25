@@ -447,7 +447,7 @@ def plot_analysis(
 
     N = len(a_comb_gal)
     fs_approx = N / max((times_jst[-1] - times_jst[0]).total_seconds(), 1.0)
-    stable_idx = int(stable_offset_s * fs_approx)
+    stable_idx = min(int(stable_offset_s * fs_approx), max(0, N - 1))
 
     a_search   = a_comb_gal[stable_idx:]
     r_search   = ratio_arr[stable_idx:]
