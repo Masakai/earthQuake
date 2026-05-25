@@ -437,6 +437,7 @@ def plot_analysis(
     sta_lat=None, sta_lon=None,
     available_en=None,
     sta_name='R38DC',
+    gap_spans=None,
 ):
     _setup_font()
 
@@ -444,6 +445,8 @@ def plot_analysis(
         markers = []
     if available_en is None:
         available_en = ['ENZ', 'ENN', 'ENE']
+    if gap_spans is None:
+        gap_spans = []
 
     N = len(a_comb_gal)
     fs_approx = N / max((times_jst[-1] - times_jst[0]).total_seconds(), 1.0)
@@ -586,6 +589,14 @@ def plot_analysis(
             ax.text(t_m, ylim[1] - (ylim[1] - ylim[0]) * 0.05, f' {lbl}',
                     color='#8250df', fontsize=8, va='top', zorder=6)
 
+    def draw_gaps(ax):
+        for gap_start, gap_end, dur_s in gap_spans:
+            ax.axvspan(gap_start, gap_end, color='#cf222e', alpha=0.15, zorder=3)
+            ylim = ax.get_ylim()
+            ax.text(gap_start, ylim[1] - (ylim[1] - ylim[0]) * 0.05,
+                    f' ⚠ギャップ{dur_s:.1f}s',
+                    color='#cf222e', fontsize=8, va='top', zorder=6)
+
     panel = 0
 
     # EHZ 速度波形
@@ -599,6 +610,7 @@ def plot_analysis(
         ax.axhline(0, color='#d0d7de', lw=0.5)
         ax.set_ylim(-1.3, 1.3)
         draw_markers(ax)
+        draw_gaps(ax)
 
     # 合成加速度
     ax = ax_right[panel]; panel += 1
@@ -611,6 +623,7 @@ def plot_analysis(
                 color='#0969da', fontsize=9,
                 arrowprops=dict(arrowstyle='->', color='#0969da', lw=0.8))
     draw_markers(ax)
+    draw_gaps(ax)
 
     # STA/LTA
     ax = ax_right[panel]; panel += 1
@@ -629,6 +642,7 @@ def plot_analysis(
                 color='#bc4c00', fontsize=9,
                 arrowprops=dict(arrowstyle='->', color='#bc4c00', lw=0.8))
     draw_markers(ax)
+    draw_gaps(ax)
 
     # 計測震度
     ax = ax_right[panel]; panel += 1
@@ -648,6 +662,7 @@ def plot_analysis(
               facecolor='#f6f8fa', edgecolor='#d0d7de', labelcolor='#1f2328')
     ax.set_ylim(bottom=y_bottom, top=y_top)
     draw_markers(ax)
+    draw_gaps(ax)
 
     # X軸（全パネルにラベル表示）
     duration_s = (times_jst[-1] - times_jst[0]).total_seconds()
@@ -796,24 +811,42 @@ def main():
 
     # ===== EN3成分 読み込み（データが存在する成分のみ）=====
     print("波形を読み込み中...")
-    traces = {}
+    from obspy import Stream as ObspyStream
+    streams = {}
     for ch in channels_en:
         p = ms_path(ch)
         if not p.exists() or p.stat().st_size == 0:
             print(f"  [WARN] {ch}: データなし（スキップ）")
             continue
         try:
-            tr = obspy_read(str(p))[0]
-            tr.data = tr.data.astype(float)
-            traces[ch] = tr
+            st = obspy_read(str(p))
+            streams[ch] = st
         except Exception as e:
             print(f"  [WARN] {ch}: 読み込み失敗 ({e})（スキップ）")
 
-    if not traces:
+    if not streams:
         sys.exit("[ERROR] EN成分のデータが1つも取得できませんでした。")
 
-    available_en = list(traces.keys())
+    available_en = list(streams.keys())
     print(f"  利用可能なEN成分: {available_en}")
+
+    # ギャップ検出（最初の成分のStreamで代表）
+    ref_st = list(streams.values())[0]
+    raw_gaps = ref_st.get_gaps()
+    gap_spans_utc = [(g[4], g[5], g[6]) for g in raw_gaps]  # (start, end, duration_s)
+    if gap_spans_utc:
+        for gs, ge, gd in gap_spans_utc:
+            print(f"  [INFO] データギャップ検出: {gs} → {ge}  ({gd:.2f}秒)")
+
+    # ギャップをNaN埋めでマージ（int32→float64に変換してからmerge）
+    traces = {}
+    for ch, st in streams.items():
+        st_copy = st.copy()
+        for tr in st_copy:
+            tr.data = tr.data.astype(np.float64)
+        st_merged = st_copy.merge(fill_value=np.nan)
+        tr = st_merged[0]
+        traces[ch] = tr
 
     t0_obspy = max(tr.stats.starttime for tr in traces.values())
     t1_obspy = min(tr.stats.endtime   for tr in traces.values())
@@ -832,15 +865,20 @@ def main():
 
     # ===== STA/LTA =====
     print("STA/LTA計算中...")
+    # NaN（ギャップ埋め）はゼロ置換して計算（ゼロ区間でLTAが小さくなるが可視化目的では許容）
+    def nan_to_zero(arr):
+        out = arr.copy()
+        out[np.isnan(out)] = 0.0
+        return out
     vec_raw = np.sqrt(sum(
-        (segs[ch] - np.mean(segs[ch]))**2 for ch in available_en
+        (nan_to_zero(segs[ch]) - np.nanmean(segs[ch]))**2 for ch in available_en
     ))
     ratio_arr = compute_stalta(vec_raw, fs, args.sta, args.lta)
 
     # ===== JMAフィルタ → 計測震度 =====
     print("計測震度計算中...")
     filtered = [
-        apply_jma_filter_time((segs[ch] - np.mean(segs[ch])) / args.sensitivity, fs)
+        apply_jma_filter_time((nan_to_zero(segs[ch]) - np.nanmean(segs[ch])) / args.sensitivity, fs)
         for ch in available_en
     ]
     a_comb_gal = np.sqrt(sum(f**2 for f in filtered)) * 100.0
@@ -848,6 +886,16 @@ def main():
 
     t0_dt     = t0_obspy.datetime.replace(tzinfo=UTC).astimezone(JST)
     times_jst = [t0_dt + timedelta(seconds=k / fs) for k in range(N)]
+
+    # ギャップ時刻をJSTに変換（グラフ描画用）
+    gap_spans_jst = [
+        (
+            gs.datetime.replace(tzinfo=UTC).astimezone(JST),
+            ge.datetime.replace(tzinfo=UTC).astimezone(JST),
+            gd,
+        )
+        for gs, ge, gd in gap_spans_utc
+    ]
 
     # ===== EHZ =====
     ehz_raw_dc = None
@@ -919,6 +967,7 @@ def main():
         sta_lon=args.sta_lon,
         available_en=available_en,
         sta_name=args.station,
+        gap_spans=gap_spans_jst,
     )
 
     import subprocess, platform
