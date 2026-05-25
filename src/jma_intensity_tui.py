@@ -395,6 +395,7 @@ class SharedState:
         self.triggered = False
         self.pkt_count = 0
         self.start_time = time.time()
+        self.last_pkt_wall_time: float = time.time()  # 最終UDP受信時刻（実時計）
         # 直近 n サンプルの raw counts (各成分)
         self.raw_z = np.zeros(0)
         self.raw_n = np.zeros(0)
@@ -651,8 +652,21 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
             return 0.0
         return float(s_sta / s_lta)
 
+    _UDP_TIMEOUT_S = 5.0  # この秒数パケットが届かなければRingをリセット
+
     while not stop_event.is_set():
         time.sleep(0.5)
+
+        # UDPが停止していればRingをリセット（LTA蓄積前の誤検出を防ぐ）
+        with shared._lock:
+            silent_s = time.time() - shared.last_pkt_wall_time
+        if silent_s > _UDP_TIMEOUT_S and shared.fs > 0.0:
+            for ring in rings_counts.values():
+                ring.buf.clear()
+                ring.nsamp = 0
+            with shared._lock:
+                shared.fs = 0.0
+
         fs = shared.fs
         if fs <= 0.0:
             continue
@@ -756,6 +770,7 @@ def recv_loop_fn(sock, rings_counts, comps, shared: SharedState,
         rings_counts[ch].extend(vals)
         with shared._lock:
             shared.pkt_count += 1
+            shared.last_pkt_wall_time = time.time()
 
         # fs 推定
         prev = last_t0.get(ch)
