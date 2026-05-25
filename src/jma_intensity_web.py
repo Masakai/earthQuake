@@ -470,6 +470,26 @@ async def api_analyze_img(job_id: str):
     return FileResponse(str(out_path), media_type="image/png")
 
 
+_GEOJSON_DIR = pathlib.Path(__file__).parent.parent / "data" / "geojson"
+
+@app.get("/api/geojson/{pref_code}")
+async def get_geojson_pref_index(pref_code: str):
+    """都道府県内の市区町村コード一覧を返す。"""
+    pref_dir = _GEOJSON_DIR / pref_code
+    if not pref_dir.exists():
+        return JSONResponse(status_code=404, content={"error": "not found"})
+    codes = [p.stem for p in sorted(pref_dir.glob("*.json"))]
+    return JSONResponse(content={"codes": codes})
+
+@app.get("/api/geojson/{pref_code}/{city_code}")
+async def get_geojson_city(pref_code: str, city_code: str):
+    path = _GEOJSON_DIR / pref_code / f"{city_code}.json"
+    if not path.exists():
+        return JSONResponse(status_code=404, content={"error": "not found"})
+    from fastapi.responses import FileResponse
+    return FileResponse(str(path), media_type="application/json")
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()

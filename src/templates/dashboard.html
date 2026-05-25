@@ -728,10 +728,9 @@ const historyChart = new Chart(histCtx, {
 
 // ===== 震源地図 =====
 const quakeMap = L.map('map', { zoomControl: true, attributionControl: false }).setView([36.5, 137.5], 5);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    subdomains: 'abcd',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/blank/{z}/{x}/{y}.png', {
+    maxZoom: 14,
+    attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
 }).addTo(quakeMap);
 let _mapMarkers = [];
 let _mapQuakeKey = null;
@@ -830,8 +829,6 @@ const PREF_CODE = {
     '佐賀県':'41','長崎県':'42','熊本県':'43','大分県':'44','宮崎県':'45',
     '鹿児島県':'46','沖縄県':'47'
 };
-const CITY_BASE = 'https://raw.githubusercontent.com/smartnews-smri/japan-topography/main/data/municipality/geojson/s0010/';
-
 // 震度の数値変換（大小比較用）
 const toScaleNum = s => {
     if (!s) return -1;
@@ -857,12 +854,26 @@ function crossIcon(color, size) {
 }
 
 // 都道府県コードのGeoJSONを取得（キャッシュあり）
+// 出典：国土交通省国土数値情報ダウンロードサイト (PDL1.0)
 function fetchCityGeoJson(code) {
     if (_cityGeoCache[code]) return Promise.resolve(_cityGeoCache[code]);
-    const url = CITY_BASE + 'N03-21_' + code + '_210101.json';
-    return fetch(url)
+    // 市区町村コード一覧を取得してから各市区町村GeoJSONを並列fetch
+    return fetch(`/api/geojson/${code}`)
         .then(r => r.json())
-        .then(data => { _cityGeoCache[code] = data; return data; });
+        .then(idx => {
+            const fetches = idx.codes.map(cityCode =>
+                fetch(`/api/geojson/${code}/${cityCode}`).then(r => r.json())
+            );
+            return Promise.all(fetches);
+        })
+        .then(results => {
+            const merged = {
+                type: 'FeatureCollection',
+                features: results.flatMap(fc => fc.features || [])
+            };
+            _cityGeoCache[code] = merged;
+            return merged;
+        });
 }
 
 // 市区町村震度レイヤーを描画
@@ -908,10 +919,11 @@ function drawCityLayer(quake) {
                 const key = pref + '::' + cityName;
                 const scale = cityScale[key];
                 if (!scale) {
-                    return { fillColor: 'transparent', fillOpacity: 0, color: '#555', weight: 0.4, opacity: 0.25 };
+                    return { fillColor: 'transparent', fillOpacity: 0, color: 'transparent', weight: 0, opacity: 0 };
                 }
                 const col = SCALE_COLORS[scale] || '#8b949e';
-                return { fillColor: col, fillOpacity: 0.5, color: '#fff', weight: 0.8, opacity: 0.7 };
+                // 隙間をポリゴン自身の色で埋めるため境界線も同色にする
+                return { fillColor: col, fillOpacity: 0.5, color: col, weight: 1.5, opacity: 0.5 };
             },
             onEachFeature: (feature, layer) => {
                 const pref = feature._pref || '';
