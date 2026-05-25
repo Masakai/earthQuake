@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [0.5.0] - 2026-05-25
+
+### Added
+- `src/templates/dashboard.html`: Jinja2 テンプレートとして HTML を分離
+- `src/test_template_parity.py`: テンプレートレンダリング検証テスト（3テスト）
+
+### Fixed
+- `compute_intensity_timeseries`: JMA公式定義「合計0.3秒以上継続する最大値」に修正（従来は連続0.3秒判定）
+- JMAフィルタ適用前に DC除去（平均除去）を追加し、重力バイアスが計測震度に混入するバグを修正
+- `pending_event`（単一変数）を FIFO キュー化し、余震連発時に後続イベントが上書き消失するバグを修正
+- `_analyze_jobs`、`p2p_seen_ids`、`p2p_eew` の3か所で長期稼働時にメモリが無制限増加する問題を修正
+
+### Changed
+- `src/jma_intensity_web.py`: `_make_html()` 関数（約1500行の f-string）を削除し、Jinja2 `FileSystemLoader` でレンダリングするよう変更
+- `src/verify_filter.py`: モジュールレベル実行から pytest テストスイートに全面書き直し（41テスト）
+
 ## [0.4.0] - 2026-05-24
 
 ### Added

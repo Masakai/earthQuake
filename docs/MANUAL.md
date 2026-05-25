@@ -34,10 +34,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # TUI 版のみ使う場合
-pip install numpy obspy rich websocket-client
+pip install numpy obspy rich websocket-client jinja2
 
 # Web 版も使う場合
-pip install numpy obspy rich websocket-client fastapi uvicorn
+pip install numpy obspy rich websocket-client fastapi uvicorn jinja2
 ```
 
 ---
@@ -54,7 +54,9 @@ earthQuake/
 │   ├── jma_intensity_web.py   # Web ダッシュボード
 │   ├── jma_intensity_realtime.py  # JMA 計測震度コアライブラリ
 │   ├── simulate_udp.py        # UDP シミュレーター
-│   └── verify_filter.py       # JMA フィルタ検証スクリプト
+│   ├── verify_filter.py       # JMA フィルタ検証（pytest スイート、41テスト）
+│   └── templates/             # Jinja2 HTML テンプレート
+│       └── dashboard.html     # Web ダッシュボード HTML（Jinja2）
 ├── scripts/                   # 起動スクリプト
 │   ├── start.sh               # TUI 起動（VoiceVox 自動起動付き）
 │   └── start_web.sh           # Web 起動（VoiceVox 自動起動付き）
@@ -308,18 +310,19 @@ VoiceVox が未起動の場合は macOS の `say -v Kyoko` で読み上げます
 
 ## 10. フィルタ検証
 
-JMA フィルタの実装が正しいことを確認するスクリプトです。
+JMA フィルタの実装が正しいことを確認する pytest スイートです。
 
 ```bash
-.venv/bin/python3 src/verify_filter.py
+.venv/bin/pytest src/verify_filter.py -v
 ```
 
-5 項目を検証します：
+41テストで以下を検証します：
 1. フィルタ振幅特性（各周波数で理論値と 5% 以内の誤差）
 2. DC 成分の除去（f=0 → 出力≈0）
 3. 計測震度の逆算（目標 I 値から設計した振幅で計算値が一致）
 4. 0.3 秒閾値の動作（定常波・短スパイク・長スパイク）
-5. `jma_scale_from_I` の境界値
+5. `jma_scale_from_I` の境界値（21ケース）
+6. `compute_intensity_timeseries` と realtime の出力一致（I=2,3,4 の3ケース）
 
 ---
 
@@ -347,7 +350,7 @@ FF(f) = 1/√f                             # 速度比例補正
 
 **Step 3: 3 成分合成と 0.3 秒閾値**
 
-フィルタ後の 3 成分を二乗和平方根で合成し、0.3 秒間（30 サンプル @ 100Hz）以上継続する最大値 a [m/s²] を求めます。
+フィルタ後の 3 成分を二乗和平方根で合成し、各時刻における過去の波形を大きい順に並べたとき **合計して 0.3 秒分（30 サンプル @ 100Hz）を超える最大値** a [m/s²] を求めます（気象庁公式定義）。
 
 **Step 4: 計測震度の算出**
 
