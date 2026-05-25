@@ -652,7 +652,7 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
             return 0.0
         return float(s_sta / s_lta)
 
-    _UDP_TIMEOUT_S = 5.0  # この秒数パケットが届かなければRingをリセット
+    _UDP_TIMEOUT_S = args.lta  # LTA秒数無音でRingをリセット（LTA充填前の誤検出を防ぐ最小単位）
 
     while not stop_event.is_set():
         time.sleep(0.5)
