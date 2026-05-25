@@ -508,8 +508,8 @@ def main():
                     help="検出後の再検出抑制[秒]")
     ap.add_argument("--web-port", type=int, default=8080,
                     help="HTTP サーバーポート（デフォルト: 8080）")
-    ap.add_argument("--web-bind", type=str, default="127.0.0.1",
-                    help="HTTP サーバーバインドアドレス（デフォルト: 127.0.0.1）")
+    ap.add_argument("--web-bind", type=str, default="0.0.0.0",
+                    help="HTTP サーバーバインドアドレス（デフォルト: 0.0.0.0）")
     args = ap.parse_args()
     # コマンドラインで明示指定されたキーを収集（config.json より優先させるため）
     import sys
