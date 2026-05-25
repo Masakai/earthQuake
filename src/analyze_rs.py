@@ -344,8 +344,7 @@ def _load_map_data():
 
 # ===== 震源地図 =====
 def plot_map(ax, eq_lat, eq_lon, eq_name, eq_mag, eq_depth,
-             sta_lat, sta_lon, dist_km, sta_name='R38DC',
-             dist_km_sp=None):
+             sta_lat, sta_lon, dist_km, sta_name='R38DC'):
     ax.set_facecolor('#dce8f0')  # 海の色
     ax.tick_params(colors='#57606a', labelsize=8)
     for spine in ax.spines.values():
@@ -417,16 +416,6 @@ def plot_map(ax, eq_lat, eq_lon, eq_name, eq_mag, eq_depth,
     mid_lon = (eq_lon + sta_lon) / 2
     ax.text(mid_lon, mid_lat, f' {dist_km:.0f}km',
             color='#57606a', fontsize=8, va='center', zorder=5)
-
-    # S-P時間由来の推定震源距離円（緯度補正済み楕円）
-    if dist_km_sp is not None and dist_km_sp > 0 and sta_lat is not None:
-        theta = np.linspace(0, 2 * np.pi, 360)
-        dlat = dist_km_sp / 111.0
-        dlon = dist_km_sp / (111.0 * np.cos(np.radians(sta_lat)))
-        ax.plot(sta_lon + dlon * np.cos(theta),
-                sta_lat + dlat * np.sin(theta),
-                color='#0969da', lw=1.5, ls='--', alpha=0.7,
-                label=f'推定距離圏 {dist_km_sp:.0f}km', zorder=5)
 
     ax.legend(loc='lower right', fontsize=8,
               facecolor='#f6f8fa', edgecolor='#d0d7de', labelcolor='#1f2328')
@@ -526,7 +515,6 @@ def plot_analysis(
         sta_lat=sta_lat, sta_lon=sta_lon,
         dist_km=dist_km,
         sta_name=sta_name,
-        dist_km_sp=dist_km if dist_km > 0 else None,
     )
 
     # ===== EHZ スペクトログラム =====
