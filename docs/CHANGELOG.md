@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [0.6.0] - 2026-05-25
+
+### Added
+- `analyze_rs.py`: データギャップをグラフ上に赤帯で可視化（`⚠ギャップXs` ラベル付き）
+  - obspy `get_gaps()` でギャップを検出し、NaN埋めマージで全区間を連続配列として処理
+  - `plot_analysis()` に `gap_spans` 引数を追加、全時系列パネルに `axvspan` で描画
+
+### Fixed
+- データギャップ後の STA/LTA 誤警報を多重防御で完全修正（`jma_intensity_tui.py`）
+  - **根本原因**: ギャップ後の最初のパケットで `dt` が大きくなり `fs_est` が狂い `nlta` が誤計算されていた
+  - **修正1**: `compute_loop` が LTA秒数（デフォルト20秒）無音を検出し能動的に Ring と `shared.fs` をリセット
+  - **修正2**: `recv_loop_fn` でパケット間隔 `dt > 3秒` を検出した場合も同様にリセット
+  - **修正3**: `s_lta < 1e-12` ガードを追加（LTA が実質ゼロの場合は ratio = 0.0 を返す）
+- `analyze_rs.py`: `stable_idx` が配列長を超える場合のクラッシュ（ValueError）を修正
+
 ## [0.5.0] - 2026-05-25
 
 ### Added

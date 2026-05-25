@@ -54,6 +54,7 @@ earthQuake/
 │   ├── jma_intensity_web.py   # Web ダッシュボード
 │   ├── jma_intensity_realtime.py  # JMA 計測震度コアライブラリ
 │   ├── simulate_udp.py        # UDP シミュレーター
+│   ├── analyze_rs.py          # 波形後処理解析・グラフ生成（MiniSEED ダウンロード）
 │   ├── verify_filter.py       # JMA フィルタ検証（pytest スイート、41テスト）
 │   └── templates/             # Jinja2 HTML テンプレート
 │       └── dashboard.html     # Web ダッシュボード HTML（Jinja2）
@@ -407,6 +408,16 @@ RS4D の加速度計チャンネルは `ENZ/ENN/ENE` です。速度計や他機
 
 - `--web-bind 127.0.0.1`（既定）の場合、同じマシンからしかアクセスできません。外部からアクセスする場合は `--web-bind 0.0.0.0` を指定してください。
 - ファイアウォールが `--web-port`（既定 8080）をブロックしていないか確認してください。
+
+### データギャップ後に震度が異常値になる
+
+RS4D との通信が一時的に途絶した後に受信が再開すると、LTA バッファが正しく充填されていない状態で STA/LTA が計算され、誤警報が発生することがあります。v0.6.0 以降では以下の多重防御で対処しています：
+
+1. `compute_loop` が LTA秒数（既定 20 秒）以上パケットが届かないことを検出し、Ring バッファと `shared.fs` をリセット
+2. `recv_loop` でパケット間隔が 3 秒を超えた場合も同様にリセット
+3. LTA エネルギーが極小（実質ゼロ）の場合は STA/LTA = 0 を返すガード
+
+通信断が続く場合は RS4D の DATACAST 設定と LAN 環境を確認してください。
 
 ---
 
