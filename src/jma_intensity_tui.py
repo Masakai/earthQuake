@@ -763,6 +763,15 @@ def recv_loop_fn(sock, rings_counts, comps, shared: SharedState,
         if prev is not None:
             dt = t0 - prev
             if dt > 0 and len(vals) > 0:
+                # dt が異常に大きい = データギャップ。バッファと fs を汚染しないためリセット
+                if dt > 3.0:
+                    for ring in rings_counts.values():
+                        ring.buf.clear()
+                        ring.nsamp = 0
+                    with shared._lock:
+                        shared.fs = 0.0
+                    last_t0[ch] = None
+                    continue
                 fs_est = len(vals) / dt
                 with shared._lock:
                     if shared.fs <= 0.0:
