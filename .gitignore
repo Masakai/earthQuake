@@ -2,14 +2,28 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv2/
 .claude/
+.DS_Store
 *.egg-info/
 dist/
 build/
 .playwright-mcp/
 logs/
-data/ne/
 web-dashboard-*.png
 raspberry-shake-jma-intensity-web-*.png
 !docs/web-dashboard-*.png
 !docs/raspberry-shake-jma-intensity-web-*.png
+
+# data/ は基本的に追跡しない（波形データは大容量、K-NET/KiK-net は NIED 規約により再配布不可）
+# 必要なメタデータ・READMEのみホワイトリストで追跡する
+data/*
+data/**/
+!data/R38DC.xml
+!data/knet/
+data/knet/*
+!data/knet/README.md
+
+# ルート直下に散らばる解析画像も除外
+/bandpower_*.png
+/dashboard_bandpower*.png
