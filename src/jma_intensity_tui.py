@@ -5,7 +5,7 @@ Raspberry Shake UDP リアルタイム計測震度 TUI ダッシュボード
 - rich.Live を使ったターミナルUI
 - 3層構成: recv_loop → compute_loop → 描画(main)
 
-Copyright (c) 2026 株式会社リバーランズ・コンサルティング
+Copyright (c) 2026 Masanori Sakai
 """
 
 import argparse
@@ -122,12 +122,14 @@ _SCALE_MESSAGES = {
 
 class AlertSpeaker:
     """
-    VoiceVox（ずんだもん）優先、使えなければ macOS say にフォールバック。
+    VoiceVox（青山龍星）優先、使えなければ macOS say にフォールバック。
     起動時に VoiceVox の疎通確認を行う。
+
+    クレジット表記「VOICEVOX:青山龍星」が必要（README/MANUAL 参照）。
     """
     VOICEVOX_URL = "http://localhost:50021"
-    ZUNDAMON_NAME = "No.7"
-    ZUNDAMON_STYLE = "アナウンス"
+    SPEAKER_NAME = "青山龍星"
+    SPEAKER_STYLE = "ノーマル"
 
     def __init__(self):
         self._speaker_id: int | None = None
@@ -135,7 +137,7 @@ class AlertSpeaker:
         self._check_voicevox()
 
     def _check_voicevox(self):
-        sid = _voicevox_speaker_id(self.VOICEVOX_URL, self.ZUNDAMON_NAME, self.ZUNDAMON_STYLE)
+        sid = _voicevox_speaker_id(self.VOICEVOX_URL, self.SPEAKER_NAME, self.SPEAKER_STYLE)
         if sid is not None:
             self._speaker_id = sid
             self._use_voicevox = True
@@ -157,7 +159,7 @@ class AlertSpeaker:
 
     @property
     def engine(self) -> str:
-        return f"VoiceVox（{self.ZUNDAMON_NAME}/{self.ZUNDAMON_STYLE}）" if self._use_voicevox else "macOS say (Kyoko)"
+        return f"VoiceVox（{self.SPEAKER_NAME}/{self.SPEAKER_STYLE}）" if self._use_voicevox else "macOS say (Kyoko)"
 
 
 # ===== P2P地震情報 =====
@@ -626,7 +628,7 @@ def build_display(state: dict, station: str, network: str, trig_thr: float = 3.5
     layout["events"].update(Panel(event_table, title="[bold]トリガ履歴[/bold]", border_style="yellow"))
     layout["p2p"].update(Panel(p2p_table, title="[bold]最新地震情報 (P2P)[/bold]", border_style="magenta"))
     layout["footer"].update(Text.from_markup(
-        "[dim]Copyright (c) 2026 株式会社リバーランズ・コンサルティング[/dim]",
+        "[dim]Copyright (c) 2026 Masanori Sakai[/dim]",
         justify="center",
     ))
 

@@ -13,7 +13,7 @@ pytest src/verify_filter.py -v で実行する。
 5. jma_scale_from_I の境界値
 6. compute_intensity_timeseries が realtime と同じ値を返すか
 
-Copyright (c) 2026 株式会社リバーランズ・コンサルティング
+Copyright (c) 2026 Masanori Sakai
 """
 
 import sys

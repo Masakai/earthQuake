@@ -26,7 +26,7 @@ Raspberry Shake 波形分析ツール
     .venv/bin/python3 src/analyze_rs.py --start "2026-05-24 07:05:00" --duration 420 \\
         --marker "07:07:02 P波"
 
-Copyright (c) 2026 株式会社リバーランズ・コンサルティング
+Copyright (c) 2026 Masanori Sakai
 """
 
 import argparse

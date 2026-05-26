@@ -12,7 +12,7 @@
     # 別ポートに送出
     .venv/bin/python3 src/replay_udp.py --files data/AM.R38DC.00.EN?.D.2026.144.ms --dest 127.0.0.1:8888
 
-Copyright (c) 2026 株式会社リバーランズ・コンサルティング
+Copyright (c) 2026 Masanori Sakai
 """
 
 import argparse

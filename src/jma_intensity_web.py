@@ -7,7 +7,7 @@ Raspberry Shake UDP リアルタイム計測震度 Web ダッシュボード
 - jma_intensity_realtime.py から Ring, jma_scale_from_I を import
 - P2P地震情報は points/latitude/longitude を含む独自パーサで処理
 
-Copyright (c) 2026 株式会社リバーランズ・コンサルティング
+Copyright (c) 2026 Masanori Sakai
 """
 
 import argparse

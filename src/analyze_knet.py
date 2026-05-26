@@ -25,7 +25,7 @@ NIED（防災科研）の K-NET / KiK-net 強震波形（ASCII形式）を読み
 設計方針:
     analyze_rs.py（Raspberry Shake版）とは独立。共通関数のみ再利用する。
 
-Copyright (c) 2026 株式会社リバーランズ・コンサルティング
+Copyright (c) 2026 Masanori Sakai
 """
 
 import argparse

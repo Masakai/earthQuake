@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [0.9.3] - 2026-05-27
+
+### Changed
+- **著作権者を `株式会社リバーランズ・コンサルティング` から `Masanori Sakai` に全面変更**
+  - 対象16ファイル: README.md, docs/CHANGELOG.md, docs/MANUAL.md, docs/index.html, docs/mockup.html, docs/infrasound_plumbing.html, src/analyze_knet.py, src/analyze_rs.py, src/jma_intensity_realtime.py, src/jma_intensity_tui.py (2箇所), src/jma_intensity_web.py, src/replay_udp.py, src/simulate_udp.py, src/templates/dashboard.html, src/verify_filter.py
+  - 理由: 個人著作物として明確化し、VOICEVOX 等の外部リソースの「商用/非商用」判定をシンプル化（個人OSS = 非商用扱いとして整理しやすくする）
+- `src/jma_intensity_tui.py`: VoiceVox デフォルト話者を `No.7（アナウンス）` から `青山龍星（ノーマル）` に変更
+  - 理由: No.7 はクレジット非表示の商用利用が 250,000円、クレジットあり 15,000円〜と有償。青山龍星は東北ずん子・ずんだもんプロジェクト系のキャラクターで、クレジット表記「VOICEVOX:青山龍星」のみで商用利用可能
+  - 緊急地震速報のトーンに合う重厚な男性声を維持
+  - `AlertSpeaker` の定数名を `ZUNDAMON_NAME` / `ZUNDAMON_STYLE` から `SPEAKER_NAME` / `SPEAKER_STYLE` にリネーム（実体に合わせて整理）
+- `README.md` / `docs/MANUAL.md`: 音声クレジット表記「VOICEVOX:青山龍星」の記載を必須化する案内を追加
+  - 共通禁止事項（公序良俗違反、政治・宗教活動、情報商材、フェイク情報、風俗営業、反社会的勢力による利用等）に注意喚起
+  - 話者変更時の手順（`AlertSpeaker.SPEAKER_NAME` 変更）と他キャラクター利用時の規約確認を明記
+
 ## [0.9.2] - 2026-05-27
 
 ### Added
@@ -163,4 +177,4 @@
 
 ---
 
-Copyright (c) 2026 株式会社リバーランズ・コンサルティング
+Copyright (c) 2026 Masanori Sakai
