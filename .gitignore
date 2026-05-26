@@ -27,3 +27,6 @@ data/knet/*
 # ルート直下に散らばる解析画像も除外
 /bandpower_*.png
 /dashboard_bandpower*.png
+
+# src/data/ も analyze_rs.py の生成物（波形 .ms + 解析画像 .png）置き場
+src/data/
