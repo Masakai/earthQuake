@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [0.9.2] - 2026-05-27
+
+### Added
+- `CLAUDE.md`: プロジェクト指示書（環境・主要スクリプト・テスト手順）を追跡対象に追加
+- `国内RS4D.json`: 国内 Raspberry Shake 4D 観測点一覧（27局、2026-05-24時点）を追跡対象に追加
+  - data.raspberryshake.org FDSN Station API + OpenStreetMap Nominatim から取得
+  - 各局の緯度経度・標高・所在地（都道府県・市区町村）・稼働開始日を収録
+- `docs/infrasound_plumbing.html`: インフラサウンドセンサー配管設計書（SDP810-125Pa + ATOM S3）を追跡対象に追加
+
+### Changed
+- `.gitignore`: `src/data/` を除外対象に追加（analyze_rs.py の生成物 .ms / .png の置き場）
+
 ## [0.9.1] - 2026-05-27
 
 ### Added
