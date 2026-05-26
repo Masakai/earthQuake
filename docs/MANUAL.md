@@ -36,10 +36,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # TUI 版のみ使う場合
-pip install numpy obspy rich websocket-client jinja2
+pip install numpy scipy obspy rich websocket-client jinja2 matplotlib
 
 # Web 版も使う場合
-pip install numpy obspy rich websocket-client fastapi uvicorn jinja2
+pip install numpy scipy obspy rich websocket-client fastapi uvicorn jinja2 matplotlib
 ```
 
 ---
@@ -58,6 +58,7 @@ earthQuake/
 │   ├── simulate_udp.py        # UDP シミュレーター
 │   ├── analyze_rs.py          # 波形後処理解析・グラフ生成（MiniSEED ダウンロード）
 │   ├── analyze_knet.py        # K-NET / KiK-net 強震波形解析（NIED ASCIIをローカル読み込み）
+│   ├── microseism.py          # マイクロセイズム診断図生成（3成分PSD・H/V比・昼夜比較）
 │   ├── verify_filter.py       # JMA フィルタ検証（pytest スイート、41テスト）
 │   └── templates/             # Jinja2 HTML テンプレート
 │       └── dashboard.html     # Web ダッシュボード HTML（Jinja2）
