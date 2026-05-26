@@ -733,8 +733,8 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
             shared.i_history.append(I_final)
             shared.ratio_history.append(ratio)
 
-        # 波形用 raw counts（直近 200 サンプル）
-        disp_len = 200
+        # 波形用 raw counts（直近 4000 サンプル = 40秒 @ 100sps、マイクロセイズム帯0.05Hz観測に必要）
+        disp_len = 4000
         shared.update(
             fs=fs,
             I_final=I_final,

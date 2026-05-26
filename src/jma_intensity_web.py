@@ -56,6 +56,30 @@ from jma_intensity_tui import (
 from jma_intensity_realtime import Ring, jma_scale_from_I
 
 
+# ===== .env から観測点座標を読み込む =====
+_ENV_PATH = pathlib.Path(__file__).parent.parent / '.env'
+_station_lat: float | None = None
+_station_lon: float | None = None
+if _ENV_PATH.exists():
+    for _line in _ENV_PATH.read_text().splitlines():
+        _line = _line.strip()
+        if not _line or _line.startswith('#') or '=' not in _line:
+            continue
+        _k, _v = _line.split('=', 1)
+        _k = _k.strip()
+        _v = _v.strip().strip('"\'')
+        if _k == 'STATION_LAT':
+            try:
+                _station_lat = float(_v)
+            except ValueError:
+                pass
+        elif _k == 'STATION_LON':
+            try:
+                _station_lon = float(_v)
+            except ValueError:
+                pass
+
+
 # ===== WebSocket クライアント管理 =====
 _ws_clients: set = set()
 
@@ -183,14 +207,74 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
 
 # ===== broadcast_loop =====
 
+# 帯域パワー計算用: (低Hz, 高Hz, ラベル, 色)
+_BAND_DEFS = [
+    (0.05, 0.30, "うねり",   "#58a6ff"),
+    (1.0,  5.0,  "地震/河川", "#f97316"),
+    (5.0,  15.0, "交通",     "#3fb950"),
+    (15.0, 44.0, "豪雨/風",  "#da3633"),
+]
+
+
+def _compute_band_powers(raw_z: np.ndarray, fs: float) -> list[float]:
+    """垂直成分からWelch法でバンドパワー[dB ref 1 count²/Hz]を計算する。"""
+    n = len(raw_z)
+    if n < 64 or fs <= 0:
+        return [None] * len(_BAND_DEFS)
+
+    # Welch: nperseg は40秒分（fs*40）、最大4000サンプル
+    # マイクロセイズム帯（0.05-0.30Hz）の観測に必要な周波数分解能 = fs/nperseg ≒ 0.025Hz
+    nperseg = min(4000, max(64, int(fs * 40)))
+    # ハニング窓
+    step = nperseg // 2
+    noverlap = nperseg - step
+    win = np.hanning(nperseg)
+    win_norm = np.sum(win ** 2)
+
+    segments = []
+    for start in range(0, n - nperseg + 1, step):
+        seg = raw_z[start:start + nperseg] * win
+        segments.append(seg)
+    if not segments:
+        return [None] * len(_BAND_DEFS)
+
+    # 各セグメントのFFT → パワースペクトル
+    specs = [np.abs(np.fft.rfft(s)) ** 2 / (fs * win_norm) for s in segments]
+    psd = np.mean(specs, axis=0)
+    freqs = np.fft.rfftfreq(nperseg, d=1.0 / fs)
+
+    results = []
+    for f_lo, f_hi, _, _ in _BAND_DEFS:
+        idx = np.where((freqs >= f_lo) & (freqs < f_hi))[0]
+        if len(idx) == 0:
+            results.append(None)
+            continue
+        power = float(np.mean(psd[idx]))
+        if power > 0:
+            results.append(round(10.0 * math.log10(power), 1))
+        else:
+            results.append(None)
+    return results
+
+
 async def broadcast_loop(shared: SharedState):
     """1秒ごとに全WebSocketクライアントへ状態をブロードキャスト。"""
+    _tick = 0
+    _cached_band_powers: list | None = None
     while True:
         await asyncio.sleep(1.0)
         if not _ws_clients:
             continue
 
         snap = shared.snapshot()
+
+        # バンドパワーは10秒ごとに再計算（現象の変化スケールに合わせる）
+        if _tick % 10 == 0:
+            fs = snap["fs"] or 100.0
+            _cached_band_powers = _compute_band_powers(snap["raw_z"], fs)
+        _tick += 1
+        band_powers = _cached_band_powers
+
         payload = {
             "fs": snap["fs"],
             "I_final": snap["I_final"],
@@ -200,14 +284,12 @@ async def broadcast_loop(shared: SharedState):
             "triggered": snap["triggered"],
             "pkt_count": snap["pkt_count"],
             "start_time": snap["start_time"],
-            "raw_z": snap["raw_z"].tolist(),
-            "raw_n": snap["raw_n"].tolist(),
-            "raw_e": snap["raw_e"].tolist(),
             "i_history": snap["i_history"].tolist(),
             "ratio_history": snap["ratio_history"].tolist(),
             "events": list(snap["events"]),
             "p2p_quakes": list(snap["p2p_quakes"]),
             "p2p_eew": snap["p2p_eew"],
+            "band_powers": band_powers,
             "config": {
                 "sta": _args.sta,
                 "lta": _args.lta,
@@ -345,6 +427,8 @@ async def index():
         sta=_args.sta,
         lta=_args.lta,
         det_hold=_args.det_hold,
+        station_lat=_station_lat,
+        station_lon=_station_lon,
     )
     return HTMLResponse(content=html)
 

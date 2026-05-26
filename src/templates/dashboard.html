@@ -202,6 +202,14 @@
         height: 16px;
         background: #f97316;
     }
+    #stalta-peak-line {
+        position: absolute;
+        top: -3px;
+        width: 2px;
+        height: 16px;
+        background: #a371f7;
+        display: none;
+    }
     #stalta-vals {
         display: flex;
         justify-content: space-between;
@@ -293,9 +301,9 @@
         border-radius: 2px;
         flex-shrink: 0;
     }
-    #charts-row { flex: 0 0 120px; }
+    #charts-row { flex: 0 0 150px; }
     #history-panel { overflow: hidden; height: 100%; }
-    .chart-wrap { position: relative; height: 88px; }
+    .chart-wrap { position: relative; height: 118px; }
 
     /* ===== 右カラム ===== */
     #col-right {
@@ -308,6 +316,42 @@
     #p2p-panel { flex: 1 1 0; overflow: hidden; display: flex; flex-direction: column; }
     #p2p-table-wrap { overflow-y: auto; flex: 1; }
     .tsunami-warn { color: #f85149; font-size: 10px; margin-left: 2px; }
+
+    /* ===== バンドパワーパネル ===== */
+    #bandpower-panel { flex: 0 0 auto; }
+    .bp-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+    .bp-label {
+        flex: 0 0 72px;
+        font-size: 11px;
+        color: #8b949e;
+        white-space: nowrap;
+    }
+    .bp-bar-bg {
+        flex: 1;
+        height: 10px;
+        background: #21262d;
+        border-radius: 5px;
+        overflow: hidden;
+        position: relative;
+    }
+    .bp-bar-fill {
+        height: 100%;
+        border-radius: 5px;
+        transition: width 9s ease-in-out;
+        width: 0%;
+    }
+    .bp-val {
+        flex: 0 0 52px;
+        font-size: 11px;
+        text-align: right;
+        color: #8b949e;
+        font-variant-numeric: tabular-nums;
+    }
 
     /* ===== レスポンシブ ===== */
     @media (max-width: 900px) {
@@ -463,6 +507,7 @@
                 <div id="stalta-bar-bg">
                     <div id="stalta-bar-fill"></div>
                     <div id="stalta-thr-line"></div>
+                    <div id="stalta-peak-line"></div>
                 </div>
             </div>
             <div id="stalta-vals">
@@ -478,10 +523,10 @@
             <div id="events-table-wrap">
                 <table>
                     <thead>
-                        <tr><th>時刻</th><th>I値</th><th>震度</th><th>STA/LTA</th></tr>
+                        <tr><th>時刻</th><th>I値</th><th>震度</th><th>STA/LTA</th><th></th></tr>
                     </thead>
                     <tbody id="events-tbody">
-                        <tr><td colspan="3" style="color:#8b949e; text-align:center; padding:12px;">なし</td></tr>
+                        <tr><td colspan="5" style="color:#8b949e; text-align:center; padding:12px;">なし</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -525,6 +570,33 @@
                         <tr><td colspan="7" style="color:#8b949e; text-align:center; padding:12px;">取得中...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- 周波数帯別パワーモニター -->
+        <div class="panel" id="bandpower-panel">
+            <div class="panel-title">周波数帯別パワー (ENZ)</div>
+            <div id="bp-rows">
+                <div class="bp-row">
+                    <span class="bp-label">0.05-0.30Hz<br><span style="color:#484f58;font-size:10px;">うねり</span></span>
+                    <div class="bp-bar-bg"><div class="bp-bar-fill" id="bp-fill-0" style="background:#58a6ff;"></div></div>
+                    <span class="bp-val" id="bp-val-0">-- dB</span>
+                </div>
+                <div class="bp-row">
+                    <span class="bp-label">1-5Hz<br><span style="color:#484f58;font-size:10px;">地震/河川</span></span>
+                    <div class="bp-bar-bg"><div class="bp-bar-fill" id="bp-fill-1" style="background:#f97316;"></div></div>
+                    <span class="bp-val" id="bp-val-1">-- dB</span>
+                </div>
+                <div class="bp-row">
+                    <span class="bp-label">5-15Hz<br><span style="color:#484f58;font-size:10px;">交通</span></span>
+                    <div class="bp-bar-bg"><div class="bp-bar-fill" id="bp-fill-2" style="background:#3fb950;"></div></div>
+                    <span class="bp-val" id="bp-val-2">-- dB</span>
+                </div>
+                <div class="bp-row">
+                    <span class="bp-label">15-44Hz<br><span style="color:#484f58;font-size:10px;">豪雨/風</span></span>
+                    <div class="bp-bar-bg"><div class="bp-bar-fill" id="bp-fill-3" style="background:#da3633;"></div></div>
+                    <span class="bp-val" id="bp-val-3">-- dB</span>
+                </div>
             </div>
         </div>
 
@@ -688,6 +760,18 @@ const historyChart = new Chart(histCtx, {
                 tension: 0,
                 yAxisID: 'yR',
             },
+            {
+                label: 'peak',
+                data: Array(N_HIST).fill(null),
+                borderColor: '#a371f7',
+                borderWidth: 2,
+                borderDash: [6, 3],
+                pointRadius: 0,
+                fill: false,
+                tension: 0,
+                yAxisID: 'yR',
+                hidden: false,
+            },
         ]
     },
     options: {
@@ -697,7 +781,10 @@ const historyChart = new Chart(histCtx, {
         plugins: {
             legend: {
                 position: 'top',
-                labels: { color: '#8b949e', boxWidth: 12, font: { size: 11 } }
+                labels: {
+                    color: '#8b949e', boxWidth: 12, font: { size: 11 },
+                    filter: item => item.datasetIndex !== 3,
+                }
             },
             tooltip: { mode: 'index', intersect: false },
         },
@@ -762,41 +849,55 @@ let _cityLayer = null;
 })();    // 市区町村震度塗りつぶしレイヤー
 let _activeQuake = null;  // 震源クリックで選択中の地震
 let _latestP2pQuakes = []; // 最新のP2P地震リスト（トリガ履歴クリック照合用）
+// .envの観測点座標（サーバーから埋め込み）— ブラウザ位置情報が取れない場合のフォールバック
+const _stationLat = {{ station_lat if station_lat is not none else 'null' }};
+const _stationLon = {{ station_lon if station_lon is not none else 'null' }};
+
 let _userLat = null, _userLng = null; // ブラウザ位置情報
 let _userMarker = null; // 現在地ピン
 const _cityGeoCache = {}; // 都道府県コード → GeoJSONデータ のキャッシュ
 
+function _applyUserLocation(lat, lng) {
+    _userLat = lat;
+    _userLng = lng;
+
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'>
+        <circle cx='10' cy='10' r='7' fill='#1f6feb' stroke='#fff' stroke-width='2.5'/>
+        <circle cx='10' cy='10' r='2.5' fill='#fff'/>
+    </svg>`;
+    const icon = L.divIcon({
+        html: svg,
+        className: '',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -12],
+    });
+    if (_userMarker) quakeMap.removeLayer(_userMarker);
+    _userMarker = L.marker([_userLat, _userLng], { icon, zIndexOffset: 2000 })
+        .bindPopup('現在地', {closeButton: false})
+        .addTo(quakeMap);
+
+    if (_latestP2pQuakes.length > 0) {
+        updateP2PTable(_latestP2pQuakes);
+        _mapQuakeKey = '';
+        updateMap(_latestP2pQuakes);
+    }
+}
+
 // ===== 位置情報・距離計算 =====
 (function initGeolocation() {
+    // .envのフォールバック座標があれば先に適用しておく
+    if (_stationLat !== null && _stationLon !== null) {
+        _applyUserLocation(_stationLat, _stationLon);
+    }
+
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
-        _userLat = pos.coords.latitude;
-        _userLng = pos.coords.longitude;
-
-        // 現在地ピン（青い丸）
-        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'>
-            <circle cx='10' cy='10' r='7' fill='#1f6feb' stroke='#fff' stroke-width='2.5'/>
-            <circle cx='10' cy='10' r='2.5' fill='#fff'/>
-        </svg>`;
-        const icon = L.divIcon({
-            html: svg,
-            className: '',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            popupAnchor: [0, -12],
-        });
-        if (_userMarker) quakeMap.removeLayer(_userMarker);
-        _userMarker = L.marker([_userLat, _userLng], { icon, zIndexOffset: 2000 })
-            .bindPopup('現在地', {closeButton: false})
-            .addTo(quakeMap);
-
-        // 取得完了後、既表示中のリスト・地図を距離付きで再描画
-        if (_latestP2pQuakes.length > 0) {
-            updateP2PTable(_latestP2pQuakes);
-            _mapQuakeKey = '';  // 強制再描画
-            updateMap(_latestP2pQuakes);
-        }
-    }, () => {}, { enableHighAccuracy: false, timeout: 10000 });
+    // watchPosition で継続監視（ページ滞在中は失効しない）
+    navigator.geolocation.watchPosition(pos => {
+        _applyUserLocation(pos.coords.latitude, pos.coords.longitude);
+    }, () => {
+        // ブラウザ位置情報が取れなくなってもフォールバック座標は残るのでそのまま
+    }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
 })();
 
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -1268,10 +1369,51 @@ function _onTrigRowClick(trigTs) {
     renderBannerForQuake(q, null, true);
 }
 
+// トリガ時刻文字列をanalyze_rs.py用の "YYYY-MM-DD HH:MM:SS" に変換（2分前マージン付き）
+function _trigTsToAnalyzeStart(ts) {
+    if (!ts) return null;
+    let dt;
+    if (ts.length > 8) {
+        dt = new Date(ts.replace(' ', 'T') + '+09:00');
+    } else {
+        const now = new Date();
+        const [h, m, s] = ts.split(':').map(Number);
+        dt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0, 0);
+        if (dt - now > 12 * 3600 * 1000) dt = new Date(dt.getTime() - 86400000);
+        if (now - dt > 12 * 3600 * 1000) dt = new Date(dt.getTime() + 86400000);
+    }
+    if (isNaN(dt)) return null;
+    // 2分前マージンを付ける
+    dt = new Date(dt.getTime() - 2 * 60 * 1000);
+    const pad = n => String(n).padStart(2, '0');
+    return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate()) + ' ' +
+           pad(dt.getHours()) + ':' + pad(dt.getMinutes()) + ':' + pad(dt.getSeconds());
+}
+
+function _startAnalyzeFromTrig(ts) {
+    const startJst = _trigTsToAnalyzeStart(ts);
+    if (!startJst) return;
+    _showAnalyzeModal('running', null, null);
+    fetch('/api/analyze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({time: startJst, duration: 420})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.job_id) {
+            _showAnalyzeModal('error', null, data.error || '起動失敗');
+            return;
+        }
+        _pollAnalyze(data.job_id, 0);
+    })
+    .catch(e => _showAnalyzeModal('error', null, String(e)));
+}
+
 function updateEventsTable(events) {
     const tbody = document.getElementById('events-tbody');
     if (!events || events.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="color:#8b949e; text-align:center; padding:12px;">なし</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="color:#8b949e; text-align:center; padding:12px;">なし</td></tr>';
         return;
     }
     const rows = [...events].reverse().map(e => {
@@ -1285,13 +1427,18 @@ function updateEventsTable(events) {
         const tsStyle = matched ? 'color:#8b949e;' : 'color:#555;';
         const iStyle  = matched ? 'color:#58a6ff;' : 'color:#555;';
         const ratioStr = (ratio != null && ratio > 0) ? parseFloat(ratio).toFixed(2) : '--';
-        const onClick = matched ? ` onclick="_onTrigRowClick(${JSON.stringify(ts)})"`  : '';
+        const safeTs = ts.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const onClick = matched ? " onclick=\"_onTrigRowClick('" + safeTs + "')\"" : '';
         const hoverAttr = matched ? ' class="trig-row-linked"' : '';
+        const analyzeBtn = '<button onclick="event.stopPropagation();_startAnalyzeFromTrig(\'' + safeTs + '\')" ' +
+            'style="font-size:10px;padding:2px 5px;background:#21262d;border:1px solid #30363d;' +
+            'color:#a371f7;border-radius:4px;cursor:pointer;">解析</button>';
         return '<tr' + hoverAttr + ' style="' + rowStyle + '"' + onClick + '>' +
             '<td style="' + tsStyle + '">' + dispTs + (matched ? ' 🔗' : '') + '</td>' +
             '<td style="' + iStyle + '">' + parseFloat(I).toFixed(2) + '</td>' +
             '<td class="scale-cell ' + cls + '">' + formatScale(scale) + '</td>' +
             '<td style="color:#f97316; text-align:right;">' + ratioStr + '</td>' +
+            '<td style="text-align:center;">' + analyzeBtn + '</td>' +
             '</tr>';
     }).join('');
     tbody.innerHTML = rows;
@@ -1326,6 +1473,10 @@ function updateIntensity(data) {
 }
 
 // ===== STA/LTA表示更新 =====
+let _barPeakHold = 0;
+let _barPeakTimer = null;
+const BAR_PEAK_HOLD_SEC = 30;
+
 function updateSTALTA(data) {
     const ratio = data.ratio || 0;
     const maxDisp = Math.max(TRIG_THR * 2, 5.0);
@@ -1336,16 +1487,48 @@ function updateSTALTA(data) {
     document.getElementById('stalta-bar-fill').style.background = ratio >= TRIG_THR ? '#f85149' : '#58a6ff';
     document.getElementById('stalta-thr-line').style.left = thrPct + '%';
     document.getElementById('ratio-val').textContent = ratio.toFixed(2);
+
+    // ピークホールド線
+    if (ratio > _barPeakHold) {
+        _barPeakHold = ratio;
+        if (_barPeakTimer) clearTimeout(_barPeakTimer);
+        _barPeakTimer = setTimeout(() => {
+            _barPeakHold = 0;
+            document.getElementById('stalta-peak-line').style.display = 'none';
+        }, BAR_PEAK_HOLD_SEC * 1000);
+    }
+    const peakLine = document.getElementById('stalta-peak-line');
+    const peakPct = Math.min(_barPeakHold / maxDisp * 100, 100).toFixed(1);
+    peakLine.style.left = peakPct + '%';
+    peakLine.style.display = _barPeakHold > 0 ? 'block' : 'none';
 }
 
 // ===== グラフ更新 =====
 let _chartPending = false;
 let _chartNextI = null;
 let _chartNextR = null;
+let _chartNextRatio = 0;    // 現在のリアルタイム ratio 値
+let _peakHold = 0;          // ピークホールド値
+let _peakHoldTimer = null;  // ピーク減衰タイマー
+const PEAK_HOLD_SEC = 30;   // ピークを30秒保持してから減衰
 
-function updateChart(iHistory, ratioHistory) {
+function _updatePeak(val) {
+    if (val > _peakHold) {
+        _peakHold = val;
+        if (_peakHoldTimer) clearTimeout(_peakHoldTimer);
+        _peakHoldTimer = setTimeout(() => {
+            _peakHold = 0;
+            historyChart.data.datasets[3].data = Array(N_HIST).fill(0);
+            historyChart.data.datasets[3].label = 'peak=0.00';
+            historyChart.update('none');
+        }, PEAK_HOLD_SEC * 1000);
+    }
+}
+
+function updateChart(iHistory, ratioHistory, currentRatio) {
     _chartNextI = iHistory || [];
     _chartNextR = ratioHistory || [];
+    _chartNextRatio = currentRatio || 0;
     if (_chartPending) return;  // 既にrAFがスケジュール済みならスキップ
     _chartPending = true;
     requestAnimationFrame(() => {
@@ -1353,8 +1536,16 @@ function updateChart(iHistory, ratioHistory) {
         const rData = _chartNextR;
         const padI = Array(Math.max(0, N_HIST - iData.length)).fill(0).concat(iData).slice(-N_HIST);
         const padR = Array(Math.max(0, N_HIST - rData.length)).fill(0).concat(rData).slice(-N_HIST);
+
+        // リアルタイム値と履歴の両方でピーク更新
+        _updatePeak(_chartNextRatio);
+        if (padR.length > 0) _updatePeak(Math.max(...padR));
+
         historyChart.data.datasets[0].data = padI;
         historyChart.data.datasets[1].data = padR;
+        // ピーク線: 常時表示
+        historyChart.data.datasets[3].data = Array(N_HIST).fill(_peakHold);
+        historyChart.data.datasets[3].label = 'peak=' + _peakHold.toFixed(2);
         historyChart.update('none');
         _chartPending = false;
     });
@@ -1413,11 +1604,36 @@ function updateDashboard(data) {
         _latestP2pQuakes = d.p2p_quakes || [];
         updateIntensity(d);
         updateSTALTA(d);
-        updateChart(d.i_history, d.ratio_history);
+        updateChart(d.i_history, d.ratio_history, d.ratio);
         updateEventsTable(d.events);
         updateP2PTable(d.p2p_quakes);
         updateMap(d.p2p_quakes);
         updateBanner(d.p2p_quakes, d.p2p_eew);
+        updateBandPowers(d.band_powers);
+    });
+}
+
+// ===== バンドパワー表示更新 =====
+// サーバーから受け取る値は dB (ref 1 count²/Hz)。
+// RS4D ENZの実用範囲: 静穏時 ~ -30dB、強振動時 ~ +80dB。
+// バー表示: -30dBを0%、+80dBを100%にマップ。
+const BP_MIN = -30;
+const BP_MAX = 80;
+
+function updateBandPowers(powers) {
+    if (!powers || powers.length === 0) return;
+    powers.forEach((db, i) => {
+        const fillEl = document.getElementById('bp-fill-' + i);
+        const valEl  = document.getElementById('bp-val-' + i);
+        if (!fillEl || !valEl) return;
+        if (db === null || db === undefined) {
+            fillEl.style.width = '0%';
+            valEl.textContent = '-- dB';
+            return;
+        }
+        const pct = Math.max(0, Math.min(100, (db - BP_MIN) / (BP_MAX - BP_MIN) * 100));
+        fillEl.style.width = pct.toFixed(1) + '%';
+        valEl.textContent = db.toFixed(0) + ' dB';
     });
 }
 
