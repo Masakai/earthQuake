@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.9.1] - 2026-05-27
+
+### Added
+- `src/microseism.py`: R38DC マイクロセイズム診断図生成スクリプトを追加
+  - ENZ・ENE・ENN 3成分（MEMS加速度計）を計器応答除去し m/s 単位に統一
+  - スペクトログラム、平均PSD（Welch法）、ピーク検出、H/V比、帯域パワー時系列、昼夜比較を1枚にまとめた診断図を生成
+  - 個別パネルPNG出力とHTMLレポート出力に対応
+  - H/V計算は線形パワーで合成（H = √(ENE_power + ENN_power), V = √(ENZ_power)）
+- `README.md` / `docs/MANUAL.md`: インストール手順に scipy / matplotlib を明記
+
 ## [0.9.0] - 2026-05-27
 
 ### Added
