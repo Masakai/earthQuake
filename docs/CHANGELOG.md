@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [0.9.0] - 2026-05-27
+
+### Added
+- `src/analyze_knet.py`: NIED 強震観測網（K-NET / KiK-net）の ASCII 強震記録（3成分: NS, EW, UD）をローカルから読み込み、計測震度・スペクトログラム・震源マップを出力する解析スクリプトを追加
+- `data/knet/README.md`: K-NET / KiK-net データ配置ディレクトリの使用方法を追加
+- `README.md` / `docs/MANUAL.md`: 計測震度算出ロジックの正当性検証セクションを追加
+  - NIED 公式震度データベース値（2026-05-20 11:46 イベント、M5.9）との照合結果を記載
+  - KGS035（与論、震央距離53km）: 公式値 312.3 gal / I=5.0 → 解析値 293.9 gal / I=5.08（震度階級完全一致）
+  - KGS034（知名、震央距離19km）: 公式値 150.0 gal / I=4.2 → 解析値 147.4 gal / I=4.29（震度階級完全一致）
+  - 検証範囲（jma_intensity_realtime.py + analyze_rs.py + analyze_knet.py）と検証範囲外（リアルタイム機能・震度2以下・震度6弱以上・遠地イベント等）を明示
+
+### Fixed
+- `src/analyze_knet.py`: obspy K-NET reader の `Trace.stats.calib` が m/s²/count（gal/count ではない）を返す仕様への対応漏れを修正
+  - `load_knet_traces` で `tr.data * calib * 100.0` として gal 単位に正しく変換
+  - 修正前は加速度が約 1/100 で算出されており、計測震度が公式値と大きく乖離していた
+
 ## [0.8.0] - 2026-05-25
 
 ### Added
