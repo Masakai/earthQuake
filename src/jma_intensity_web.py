@@ -43,7 +43,7 @@ except ImportError:
 import jinja2
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from jma_intensity_tui import (
     SharedState,
@@ -414,7 +414,6 @@ _TEMPLATE_PATH = pathlib.Path(__file__).parent / "templates" / "dashboard.html"
 _jinja_env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(str(_TEMPLATE_PATH.parent)),
     autoescape=False,
-    auto_reload=True,
 )
 
 
@@ -557,17 +556,17 @@ async def api_analyze_img(job_id: str):
 
 _GEOJSON_DIR = pathlib.Path(__file__).parent.parent / "data" / "geojson"
 _STATIONS_PATH = pathlib.Path(__file__).parent.parent / "data" / "jma_stations.json"
-_stations_cache: dict | None = None
+_stations_cache_bytes: bytes | None = None
 
 @app.get("/api/stations")
 async def get_stations():
     """気象庁震度観測点一覧（name→{lat,lon,pref}）を返す。"""
-    global _stations_cache
-    if _stations_cache is None:
+    global _stations_cache_bytes
+    if _stations_cache_bytes is None:
         if not _STATIONS_PATH.exists():
             return JSONResponse(status_code=404, content={"error": "stations data not found"})
-        _stations_cache = json.loads(_STATIONS_PATH.read_text(encoding="utf-8"))
-    return JSONResponse(content=_stations_cache)
+        _stations_cache_bytes = _STATIONS_PATH.read_bytes()
+    return Response(content=_stations_cache_bytes, media_type="application/json")
 
 
 @app.get("/api/geojson/{pref_code}")

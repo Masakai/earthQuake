@@ -845,7 +845,17 @@ let _badgeLayer = null;  // 観測点震度バッジレイヤー
 
 // 気象庁観測点マスター: name → {lat, lon, pref}（起動時に一度ロード）
 let _stationMaster = null;
-fetch('/api/stations').then(r => r.json()).then(d => { _stationMaster = d; }).catch(() => {});
+fetch('/api/stations')
+    .then(r => {
+        if (!r.ok) throw new Error(`/api/stations ${r.status}`);
+        return r.json();
+    })
+    .then(d => {
+        _stationMaster = d;
+        // ロード完了時点でアクティブな地震があればバッジを再描画
+        if (_activeQuake) drawBadgeLayer(_activeQuake);
+    })
+    .catch(err => console.error('[stations] load failed:', err));
 
 // 震度凡例コントロール
 (function() {
@@ -940,6 +950,8 @@ function distLabel(lat, lng) {
 }
 
 const CITY_SHOW_ZOOM = 7;  // このズーム以上で市区町村塗りを表示
+// Leafletのズームアニメーション完了後にDivIconが再レンダリングされるまでの待機時間
+const BADGE_REDRAW_DELAY_MS = 50;
 
 // 都道府県名 → 国土数値情報ファイルコード（2桁）
 const PREF_CODE = {
@@ -1017,7 +1029,7 @@ function drawBadgeLayer(quake) {
         const n = toScaleNum(p.scale);
         const size = n >= 4 ? 28 : 22;
         const icon = L.divIcon({
-            html: `<div class="shindo-badge" style="background:${col};width:${size}px;height:${size}px;font-size:${n>=4?13:11}px;">${p.scale}</div>`,
+            html: `<div class="shindo-badge" style="background:${col};width:${size}px;height:${size}px;font-size:${n>=4?13:11}px;">${esc(p.scale)}</div>`,
             className: '',
             iconSize: [size, size],
             iconAnchor: [size/2, size/2],
@@ -1025,7 +1037,7 @@ function drawBadgeLayer(quake) {
         });
         const m = L.marker([st.lat, st.lon], { icon, zIndexOffset: 500 });
         m.bindPopup(
-            `<b>${p.addr}</b>（${p.pref}）<br>震度 ${p.scale}`,
+            `<b>${esc(p.addr)}</b>（${esc(p.pref)}）<br>震度 ${esc(p.scale)}`,
             {closeButton: false}
         );
         m.on('click', e => { m.openPopup(); L.DomEvent.stopPropagation(e); });
@@ -1102,10 +1114,10 @@ function drawCityLayer(quake) {
         if (quakeMap.getZoom() >= CITY_SHOW_ZOOM) {
             _cityLayer.addTo(quakeMap);
         }
-        // GeoJSON描画完了後にバッジを（再）描画
-        drawBadgeLayer(quake);
-    }).catch(() => {
-        // GeoJSON取得失敗時もバッジだけは描画
+    }).catch(err => {
+        console.error('[cityLayer] GeoJSON fetch failed:', err);
+    }).finally(() => {
+        // 成功・失敗にかかわらずバッジを描画
         drawBadgeLayer(quake);
     });
 }
@@ -1133,19 +1145,19 @@ quakeMap.on('zoomend', () => {
     }
     // ズーム後はDivIconマーカーがDOMから外れることがあるため毎回再描画
     if (_activeQuake) {
-        setTimeout(() => drawBadgeLayer(_activeQuake), 50);
+        setTimeout(() => drawBadgeLayer(_activeQuake), BADGE_REDRAW_DELAY_MS);
     }
 });
 
 function updateMap(quakes) {
     // IDリストが変わっていなければ再描画しない
-    const key = (quakes || []).map(q => q.id || q.time || '').join(',');
+    // idに加えて各地震の観測点数をキーに含め、続報で観測点が追加された場合も検知する
+    const key = (quakes || []).map(q => `${q.id || q.time || ''}:${(q.points || []).length}`).join(',');
     if (key === _mapQuakeKey) return;
     _mapQuakeKey = key;
 
     // ピン固定中の地震が新リストに引き継がれるか確認
     const prevPinned = _pinnedQuake;
-    const prevActive = _activeQuake;
 
     // 既存マーカーと市区町村・バッジレイヤーをクリア
     _mapMarkers.forEach(m => quakeMap.removeLayer(m));
