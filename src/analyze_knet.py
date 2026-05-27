@@ -591,6 +591,13 @@ def plot_knet_analysis(
         color='#1f2328', fontsize=12,
     )
 
+    fig.text(
+        0.99, 0.01,
+        '防災科学技術研究所（NIED）が公開する K-NET / KiK-net 強震観測網のデータを利用しています。',
+        ha='right', va='bottom', fontsize=7, color='#57606a',
+        transform=fig.transFigure,
+    )
+
     plt.savefig(str(out_path), dpi=150, bbox_inches='tight',
                 facecolor=fig.get_facecolor())
     plt.close(fig)

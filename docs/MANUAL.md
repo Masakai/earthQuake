@@ -485,6 +485,8 @@ ls data/knet/KGS035*.{NS,EW,UD}
 
 `src/analyze_knet.py` は NIED の強震観測網（K-NET / KiK-net）が公開する ASCII 強震記録を読み込み、計測震度・スペクトログラム・震源マップ等を出力します。
 
+本スクリプトは防災科学技術研究所（NIED）が公開する K-NET / KiK-net 強震観測網のデータを利用しています。
+
 ### データの取得
 
 NIED 強震観測網ホームページ（https://www.kyoshin.bosai.go.jp/）から、対象イベント・観測点の ASCII 強震記録（tar.gz）をダウンロードし、展開して `data/knet/` 配下に配置します。
