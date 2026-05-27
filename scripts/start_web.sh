@@ -11,6 +11,10 @@ VOICEVOX_APP="/Applications/VOICEVOX.app"
 VOICEVOX_URL="http://localhost:50021"
 VOICEVOX_WAIT=15  # 起動待ち最大秒数
 
+LOG_FILE="/tmp/earthquake_web_$(date +%Y%m%d_%H%M%S).log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "[INFO] ログファイル: $LOG_FILE"
+
 # ===== 引数（Web へそのまま渡す） =====
 WEB_ARGS="${*:---station R38DC --web-port 8080}"
 
@@ -54,4 +58,4 @@ fi
 # ===== Web 起動 =====
 echo "[INFO] Web ダッシュボードを起動します: $WEB_ARGS"
 echo "[INFO] ブラウザで http://localhost:8080 を開いてください。"
-exec "$VENV" "$ROOT_DIR/src/jma_intensity_web.py" $WEB_ARGS
+"$VENV" "$ROOT_DIR/src/jma_intensity_web.py" $WEB_ARGS
