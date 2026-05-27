@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [0.9.4] - 2026-05-27
+
+### Added
+- `dashboard.html`: 気象庁観測点マスターを使った震度バッジ表示（JMA 観測点座標に DivIcon バッジ）
+- `README.md` / `docs/MANUAL.md` / 解析画像フッター: K-NET/KiK-net データ謝辞（NIED）を追加
+
+### Fixed
+- `dashboard.html`: `extractCity` 正規表現バグ修正（「大町市役所」→「大町市」が「大町」になっていた問題）
+- `dashboard.html`: WSプッシュでバッジが消えていた問題を修正（cityPane z-index 調整 + pinnedQuake 保持）
+- `dashboard.html`: コードレビュー指摘10件の修正（XSS対策・続報検知・エラーログ改善等）
+
+### Changed
+- `scripts/start_web.sh`: ログファイル出力を追加
+
 ## [0.9.3] - 2026-05-27
 
 ### Changed
