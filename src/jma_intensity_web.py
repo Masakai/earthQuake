@@ -414,6 +414,7 @@ _TEMPLATE_PATH = pathlib.Path(__file__).parent / "templates" / "dashboard.html"
 _jinja_env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(str(_TEMPLATE_PATH.parent)),
     autoescape=False,
+    auto_reload=True,
 )
 
 
@@ -555,6 +556,19 @@ async def api_analyze_img(job_id: str):
 
 
 _GEOJSON_DIR = pathlib.Path(__file__).parent.parent / "data" / "geojson"
+_STATIONS_PATH = pathlib.Path(__file__).parent.parent / "data" / "jma_stations.json"
+_stations_cache: dict | None = None
+
+@app.get("/api/stations")
+async def get_stations():
+    """気象庁震度観測点一覧（name→{lat,lon,pref}）を返す。"""
+    global _stations_cache
+    if _stations_cache is None:
+        if not _STATIONS_PATH.exists():
+            return JSONResponse(status_code=404, content={"error": "stations data not found"})
+        _stations_cache = json.loads(_STATIONS_PATH.read_text(encoding="utf-8"))
+    return JSONResponse(content=_stations_cache)
+
 
 @app.get("/api/geojson/{pref_code}")
 async def get_geojson_pref_index(pref_code: str):

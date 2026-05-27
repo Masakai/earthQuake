@@ -20,6 +20,7 @@ raspberry-shake-jma-intensity-web-*.png
 data/*
 data/**/
 !data/R38DC.xml
+!data/jma_stations.json
 !data/knet/
 data/knet/*
 !data/knet/README.md
