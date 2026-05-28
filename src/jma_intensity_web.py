@@ -296,6 +296,7 @@ async def broadcast_loop(shared: SharedState):
                 "lta": _args.lta,
                 "trig": _args.trig,
                 "det_hold": _args.det_hold,
+                "confirm_window": _args.confirm_window,
             },
         }
         message = json.dumps(payload)
@@ -313,7 +314,7 @@ async def broadcast_loop(shared: SharedState):
 # ===== 設定永続化 =====
 
 _CONFIG_PATH = pathlib.Path.home() / ".config" / "jma_intensity" / "config.json"
-_CONFIG_KEYS = ("sta", "lta", "trig", "det_hold")
+_CONFIG_KEYS = ("sta", "lta", "trig", "det_hold", "confirm_window")
 
 
 def _load_config(args, cli_specified: set) -> None:
@@ -438,10 +439,11 @@ async def index():
 
 
 _CONFIG_LIMITS = {
-    "sta":      (0.1,  30.0),
-    "lta":      (1.0, 300.0),
-    "trig":     (0.5,  50.0),
-    "det_hold": (1.0, 600.0),
+    "sta":            (0.1,  30.0),
+    "lta":            (1.0, 300.0),
+    "trig":           (0.5,  50.0),
+    "det_hold":       (1.0, 600.0),
+    "confirm_window": (1.0,  60.0),
 }
 
 
@@ -621,7 +623,9 @@ def main():
     ap.add_argument("--sensitivity", type=float, default=387867.0,
                     help="counts/(m/s²)  R38DC実測値: 387867 (公式V6: 384500)")
     ap.add_argument("--rt-window", type=float, default=90.0,
-                    help="震度計算の窓長[秒]")
+                    help="I値計算に使う波形窓長（秒）")
+    ap.add_argument("--confirm-window", type=float, default=10.0,
+                    help="トリガ後に揺れ継続を確認する窓（秒）。発話までのラグに直結する")
     ap.add_argument("--sta", type=float, default=1.0, help="STA 窓長[秒]")
     ap.add_argument("--lta", type=float, default=20.0, help="LTA 窓長[秒]")
     ap.add_argument("--trig", type=float, default=3.5, help="STA/LTA しきい値")

@@ -804,10 +804,10 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
             ts = datetime.now().strftime("%H:%M:%S")
             pending_queue.append((t_now, ts, ratio))
 
-        # トリガ後 rt-window 秒経過したイベントを先頭から順に発火
+        # トリガ後 confirm-window 秒経過したイベントを先頭から順に発火
         while pending_queue:
             trig_time, trig_ts, trig_ratio = pending_queue[0]
-            if t_now - trig_time < args.rt_window:
+            if t_now - trig_time < args.confirm_window:
                 break
             pending_queue.popleft()
             shared.add_event(trig_ts, I_final, scale, trig_ratio)
@@ -909,7 +909,10 @@ def main():
     ap.add_argument("--station", type=str, required=True)
     ap.add_argument("--sensitivity", type=float, default=387867.0,
                     help="counts/(m/s²)  R38DC実測値: 387867 (公式V6: 384500)")
-    ap.add_argument("--rt-window", type=float, default=90.0)
+    ap.add_argument("--rt-window", type=float, default=90.0,
+                    help="I値計算に使う波形窓長（秒）")
+    ap.add_argument("--confirm-window", type=float, default=10.0,
+                    help="トリガ後に揺れ継続を確認する窓（秒）。発話までのラグに直結する")
     ap.add_argument("--sta", type=float, default=1.0)
     ap.add_argument("--lta", type=float, default=20.0)
     ap.add_argument("--trig", type=float, default=3.5)
