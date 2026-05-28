@@ -22,6 +22,7 @@ from datetime import datetime
 import json
 
 import numpy as np
+from scipy.signal import butter, sosfilt
 try:
     import urllib.request
     import urllib.error
@@ -120,6 +121,52 @@ _SCALE_MESSAGES = {
 }
 
 
+def _log_alert_latency(
+    trig_time: float | None,
+    call_time: float,
+    start_time: float,
+    end_time: float,
+    scale: str,
+    I_final: float,
+    engine: str,
+):
+    """
+    検出→発話のタイムラグをJSONL形式でログに記録。
+
+    フィールド:
+      detected_at   : トリガ確定時刻（ISO8601）
+      called_at     : speak() 呼び出し時刻
+      voice_start_at: 音声スレッド内でエンジン呼び出し開始時刻
+      voice_end_at  : 音声再生完了時刻
+      lag_trig_to_call_s  : トリガ確定 → speak() 呼び出し [秒]（rt_window待ち含む）
+      lag_call_to_voice_s : speak() 呼び出し → 音声開始 [秒]（スレッド起動オーバーヘッド）
+      lag_trig_to_voice_s : トリガ確定 → 音声開始 [秒]（合計ラグ）
+      voice_duration_s    : 音声再生所要時間 [秒]
+    """
+    log_dir = pathlib.Path.home() / "Dropbox" / "earthQuake" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / "alert_latency.jsonl"
+
+    entry: dict = {
+        "detected_at":    datetime.fromtimestamp(trig_time).isoformat() if trig_time else None,
+        "called_at":      datetime.fromtimestamp(call_time).isoformat(),
+        "voice_start_at": datetime.fromtimestamp(start_time).isoformat(),
+        "voice_end_at":   datetime.fromtimestamp(end_time).isoformat(),
+        "lag_trig_to_call_s":  round(call_time - trig_time, 3) if trig_time else None,
+        "lag_call_to_voice_s": round(start_time - call_time, 3),
+        "lag_trig_to_voice_s": round(start_time - trig_time, 3) if trig_time else None,
+        "voice_duration_s":    round(end_time - start_time, 3),
+        "scale":   scale,
+        "I_final": I_final,
+        "engine":  engine,
+    }
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+
 class AlertSpeaker:
     """
     VoiceVox（青山龍星）優先、使えなければ macOS say にフォールバック。
@@ -137,23 +184,39 @@ class AlertSpeaker:
         self._check_voicevox()
 
     def _check_voicevox(self):
-        sid = _voicevox_speaker_id(self.VOICEVOX_URL, self.SPEAKER_NAME, self.SPEAKER_STYLE)
-        if sid is not None:
-            self._speaker_id = sid
-            self._use_voicevox = True
+        # VoiceVox合成遅延のため現在は無効化（sayにフォールバック固定）
+        # 再有効化する場合はコメントアウトを外す
+        # sid = _voicevox_speaker_id(self.VOICEVOX_URL, self.SPEAKER_NAME, self.SPEAKER_STYLE)
+        # if sid is not None:
+        #     self._speaker_id = sid
+        #     self._use_voicevox = True
+        pass
 
-    def speak(self, scale: str, I_final: float):
-        """音声読み上げを非同期で実行。"""
+    def speak(self, scale: str, I_final: float, trig_time: float | None = None):
+        """音声読み上げを非同期で実行。trig_time を渡すと発話開始までのラグをログに記録。"""
         i_str = f"{I_final:.2f}".replace(".", "点")
         prefix = _SCALE_ALERT_PREFIX.get(scale, "注意！地震です。")
         caution = _SCALE_MESSAGES.get(scale, "")
         text = f"{prefix}震度{scale}。計測震度{i_str}。{caution}"
+        call_time = time.time()
 
         def _run():
+            start_time = time.time()
+            engine = "voicevox" if self._use_voicevox else "say"
             if self._use_voicevox:
                 _voicevox_speak(text, self.VOICEVOX_URL, self._speaker_id)
             else:
                 _say_speak(text)
+            end_time = time.time()
+            _log_alert_latency(
+                trig_time=trig_time,
+                call_time=call_time,
+                start_time=start_time,
+                end_time=end_time,
+                scale=scale,
+                I_final=I_final,
+                engine=engine,
+            )
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -398,6 +461,7 @@ class SharedState:
         self.pkt_count = 0
         self.start_time = time.time()
         self.last_pkt_wall_time: float = time.time()  # 最終UDP受信時刻（実時計）
+        self.pkt_lag: float = 0.0  # 直近パケット: 受信時刻 - パケット先頭時刻 [秒]
         # 直近 n サンプルの raw counts (各成分)
         self.raw_z = np.zeros(0)
         self.raw_n = np.zeros(0)
@@ -430,6 +494,7 @@ class SharedState:
                 "ratio": self.ratio,
                 "triggered": self.triggered,
                 "pkt_count": self.pkt_count,
+                "pkt_lag": self.pkt_lag,
                 "start_time": self.start_time,
                 "raw_z": self.raw_z.copy(),
                 "raw_n": self.raw_n.copy(),
@@ -654,6 +719,14 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
             return 0.0
         return float(s_sta / s_lta)
 
+    def bandpass_ehz(x, fs, f_lo=1.0, f_hi=10.0):
+        """EHZ用 1-10Hz バンドパスフィルタ（Butterworth 4次）。"""
+        nyq = fs / 2.0
+        if f_hi >= nyq:
+            f_hi = nyq * 0.95
+        sos = butter(4, [f_lo / nyq, f_hi / nyq], btype="band", output="sos")
+        return sosfilt(sos, x)
+
     _UDP_TIMEOUT_S = args.lta  # LTA秒数無音でRingをリセット（LTA充填前の誤検出を防ぐ最小単位）
 
     while not stop_event.is_set():
@@ -692,11 +765,21 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
 
         cZ, cN, cE = comps[0], comps[1], comps[2]
 
-        # STA/LTA（DC除去後のcounts、lta窓が確保できる長さで計算）
+        # STA/LTA: EHZに1-10Hzバンドパスフィルタを適用して計算
+        # EHZが十分蓄積していればEHZを使用、不足時はENZ3成分にフォールバック
         def detrend(x):
             return x - np.mean(x)
-        vec_raw = np.sqrt(detrend(full[cZ]) ** 2 + detrend(full[cN]) ** 2 + detrend(full[cE]) ** 2)
-        ratio = sta_lta_ratio(vec_raw, fs, args.sta, args.lta)
+        ehz_arr = rings_counts["EHZ"].to_array()
+        need_ehz = max(need, need_stalta)
+        if len(ehz_arr) >= need_stalta:
+            ehz_seg = ehz_arr[-need_stalta:]
+            ehz_filtered = bandpass_ehz(detrend(ehz_seg), fs)
+            vec_stalta = np.abs(ehz_filtered)
+            stalta_src = "EHZ"
+        else:
+            vec_stalta = np.sqrt(detrend(full[cZ]) ** 2 + detrend(full[cN]) ** 2 + detrend(full[cE]) ** 2)
+            stalta_src = "ENZ"
+        ratio = sta_lta_ratio(vec_stalta, fs, args.sta, args.lta)
 
         t_now = time.time()
         triggered = ratio >= args.trig and (t_now - last_triggered_time) > args.det_hold
@@ -721,14 +804,16 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
             ts = datetime.now().strftime("%H:%M:%S")
             pending_queue.append((t_now, ts, ratio))
 
-        # トリガ後 rt-window 秒経過したイベントを先頭から順に発火
+        # トリガ後 confirm-window 秒経過したイベントを先頭から順に発火
         while pending_queue:
             trig_time, trig_ts, trig_ratio = pending_queue[0]
-            if t_now - trig_time < args.rt_window:
+            if t_now - trig_time < args.confirm_window:
                 break
             pending_queue.popleft()
             shared.add_event(trig_ts, I_final, scale, trig_ratio)
-            alert.speak(scale, I_final)
+            # I値が震度1相当（0.5）未満は生活振動として発話しない
+            if I_final >= 0.5:
+                alert.speak(scale, I_final, trig_time=trig_time)
 
         # 推移履歴に追記
         with shared._lock:
@@ -754,6 +839,7 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
 def recv_loop_fn(sock, rings_counts, comps, shared: SharedState,
                  last_t0, stop_event):
     inferred_fs = None
+    _last_diag_time = [0.0]
 
     while not stop_event.is_set():
         try:
@@ -769,10 +855,14 @@ def recv_loop_fn(sock, rings_counts, comps, shared: SharedState,
         ch = ch.upper()
         if ch not in rings_counts:
             continue
+        recv_wall = time.time()
         rings_counts[ch].extend(vals)
+        # パケット末尾サンプルの推定時刻 = t0 + (サンプル数-1)/fs（fsが未確定なら t0 のみ）
+        pkt_lag = recv_wall - t0  # 正 = 受信がパケット先頭時刻より遅れている（伝送+処理遅延）
         with shared._lock:
             shared.pkt_count += 1
-            shared.last_pkt_wall_time = time.time()
+            shared.last_pkt_wall_time = recv_wall
+            shared.pkt_lag = pkt_lag  # 直近パケットのラグを共有
 
         # fs 推定
         prev = last_t0.get(ch)
@@ -796,6 +886,19 @@ def recv_loop_fn(sock, rings_counts, comps, shared: SharedState,
                     else:
                         shared.fs = 0.8 * shared.fs + 0.2 * fs_est
 
+        # 10秒ごとに各チャネルのバッファ蓄積状況を診断ログ出力
+        t_now_diag = time.time()
+        if t_now_diag - _last_diag_time[0] >= 10.0:
+            _last_diag_time[0] = t_now_diag
+            nsamp_info = {c: rings_counts[c].nsamp for c in list(comps) + ["EHZ"]}
+            with shared._lock:
+                fs_now = shared.fs
+                lag_now = shared.pkt_lag
+            print(
+                f"[DIAG] nsamp={nsamp_info}  fs={fs_now:.1f}  pkt_lag={lag_now:.3f}s",
+                flush=True,
+            )
+
 
 # ===== main =====
 def main():
@@ -806,7 +909,10 @@ def main():
     ap.add_argument("--station", type=str, required=True)
     ap.add_argument("--sensitivity", type=float, default=387867.0,
                     help="counts/(m/s²)  R38DC実測値: 387867 (公式V6: 384500)")
-    ap.add_argument("--rt-window", type=float, default=90.0)
+    ap.add_argument("--rt-window", type=float, default=90.0,
+                    help="I値計算に使う波形窓長（秒）")
+    ap.add_argument("--confirm-window", type=float, default=10.0,
+                    help="トリガ後に揺れ継続を確認する窓（秒）。発話までのラグに直結する")
     ap.add_argument("--sta", type=float, default=1.0)
     ap.add_argument("--lta", type=float, default=20.0)
     ap.add_argument("--trig", type=float, default=3.5)
@@ -826,8 +932,12 @@ def main():
     sock.settimeout(1.0)
 
     max_window = int(max(args.rt_window, args.lta) * 2.0)
-    rings_counts = {c: Ring(maxlen_samples=max(10_000, max_window * 200)) for c in comps}
+    ring_maxlen = max(10_000, max_window * 200)
+    # EHZは comps とは別管理（STA/LTA計算用）
+    rings_counts = {c: Ring(maxlen_samples=ring_maxlen) for c in comps}
+    rings_counts["EHZ"] = Ring(maxlen_samples=ring_maxlen)
     last_t0 = {c: None for c in comps}
+    last_t0["EHZ"] = None
 
     shared = SharedState()
     stop_event = threading.Event()

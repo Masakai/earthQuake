@@ -474,6 +474,8 @@
     <span class="sep">|</span>
     <span>pkt: <span class="val" id="pkt-val">--</span></span>
     <span class="sep">|</span>
+    <span>lag: <span class="val" id="pkt-lag-val">--</span>s</span>
+    <span class="sep">|</span>
     <span>RS4D DATACAST</span>
     <span class="uptime">稼働 <span id="uptime-val">--:--:--</span> &nbsp;|&nbsp; <span id="clock">--</span></span>
     <button id="cfg-open-btn" title="パラメータ設定" onclick="document.getElementById('cfg-panel').classList.toggle('open')">⚙</button>
@@ -650,6 +652,12 @@
             <input type="range" id="cfg-det-hold" min="5" max="120" step="5" value="{{ det_hold }}"
                 oninput="document.getElementById('cfg-det-hold-val').textContent=this.value">
             <span id="cfg-det-hold-val">{{ det_hold }}</span>
+        </div>
+        <div class="cfg-row">
+            <label>確認窓 [秒]</label>
+            <input type="range" id="cfg-confirm-window" min="1" max="60" step="1" value="{{ confirm_window }}"
+                oninput="document.getElementById('cfg-confirm-window-val').textContent=this.value">
+            <span id="cfg-confirm-window-val">{{ confirm_window }}</span>
         </div>
         <button id="cfg-apply-btn" onclick="applyConfig()">適用</button>
         <div id="cfg-status"></div>
@@ -1673,6 +1681,7 @@ function updateDashboard(data) {
 
         document.getElementById('fs-val').textContent = (d.fs || 0).toFixed(1);
         document.getElementById('pkt-val').textContent = (d.pkt_count || 0).toLocaleString();
+        document.getElementById('pkt-lag-val').textContent = (d.pkt_lag != null ? d.pkt_lag.toFixed(2) : '--');
 
         // サーバーの実動作パラメータを同期
         if (d.config) {
@@ -1700,6 +1709,8 @@ function updateDashboard(data) {
                 if (trigEl) { trigEl.value = cfg.trig; document.getElementById('cfg-trig-val').textContent = cfg.trig; }
                 const detEl = document.getElementById('cfg-det-hold');
                 if (detEl) { detEl.value = cfg.det_hold; document.getElementById('cfg-det-hold-val').textContent = cfg.det_hold; }
+                const cwEl = document.getElementById('cfg-confirm-window');
+                if (cwEl) { cwEl.value = cfg.confirm_window; document.getElementById('cfg-confirm-window-val').textContent = cfg.confirm_window; }
             }
             const staLtaEl = document.querySelector('#stalta-vals span:last-child');
             if (staLtaEl) staLtaEl.textContent = 'STA:' + cfg.sta + 's / LTA:' + cfg.lta + 's';
@@ -1797,10 +1808,11 @@ connect();
 
 // ===== 設定パネル =====
 async function applyConfig() {
-    const sta      = parseFloat(document.getElementById('cfg-sta').value);
-    const lta      = parseFloat(document.getElementById('cfg-lta').value);
-    const trig     = parseFloat(document.getElementById('cfg-trig').value);
-    const det_hold = parseFloat(document.getElementById('cfg-det-hold').value);
+    const sta            = parseFloat(document.getElementById('cfg-sta').value);
+    const lta            = parseFloat(document.getElementById('cfg-lta').value);
+    const trig           = parseFloat(document.getElementById('cfg-trig').value);
+    const det_hold       = parseFloat(document.getElementById('cfg-det-hold').value);
+    const confirm_window = parseFloat(document.getElementById('cfg-confirm-window').value);
     const status   = document.getElementById('cfg-status');
     status.textContent = '適用中...';
     status.style.color = '#8b949e';
@@ -1808,7 +1820,7 @@ async function applyConfig() {
         const res = await fetch('/api/config', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ sta, lta, trig, det_hold }),
+            body: JSON.stringify({ sta, lta, trig, det_hold, confirm_window }),
         });
         if (res.ok) {
             status.textContent = '✓ 適用しました';

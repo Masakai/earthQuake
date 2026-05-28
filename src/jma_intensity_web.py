@@ -283,6 +283,7 @@ async def broadcast_loop(shared: SharedState):
             "ratio": snap["ratio"],
             "triggered": snap["triggered"],
             "pkt_count": snap["pkt_count"],
+            "pkt_lag": snap["pkt_lag"],
             "start_time": snap["start_time"],
             "i_history": snap["i_history"].tolist(),
             "ratio_history": snap["ratio_history"].tolist(),
@@ -295,6 +296,7 @@ async def broadcast_loop(shared: SharedState):
                 "lta": _args.lta,
                 "trig": _args.trig,
                 "det_hold": _args.det_hold,
+                "confirm_window": _args.confirm_window,
             },
         }
         message = json.dumps(payload)
@@ -312,7 +314,7 @@ async def broadcast_loop(shared: SharedState):
 # ===== 設定永続化 =====
 
 _CONFIG_PATH = pathlib.Path.home() / ".config" / "jma_intensity" / "config.json"
-_CONFIG_KEYS = ("sta", "lta", "trig", "det_hold")
+_CONFIG_KEYS = ("sta", "lta", "trig", "det_hold", "confirm_window")
 
 
 def _load_config(args, cli_specified: set) -> None:
@@ -370,8 +372,11 @@ async def lifespan(app: FastAPI):
     sock.settimeout(1.0)
 
     max_window = int(max(args.rt_window, args.lta) * 2.0)
-    rings_counts = {c: Ring(maxlen_samples=max(10_000, max_window * 200)) for c in comps}
+    ring_maxlen = max(10_000, max_window * 200)
+    rings_counts = {c: Ring(maxlen_samples=ring_maxlen) for c in comps}
+    rings_counts["EHZ"] = Ring(maxlen_samples=ring_maxlen)
     last_t0 = {c: None for c in comps}
+    last_t0["EHZ"] = None
 
     alert = AlertSpeaker()
 
@@ -427,6 +432,7 @@ async def index():
         sta=_args.sta,
         lta=_args.lta,
         det_hold=_args.det_hold,
+        confirm_window=_args.confirm_window,
         station_lat=_station_lat,
         station_lon=_station_lon,
     )
@@ -434,10 +440,11 @@ async def index():
 
 
 _CONFIG_LIMITS = {
-    "sta":      (0.1,  30.0),
-    "lta":      (1.0, 300.0),
-    "trig":     (0.5,  50.0),
-    "det_hold": (1.0, 600.0),
+    "sta":            (0.1,  30.0),
+    "lta":            (1.0, 300.0),
+    "trig":           (0.5,  50.0),
+    "det_hold":       (1.0, 600.0),
+    "confirm_window": (1.0,  60.0),
 }
 
 
@@ -617,7 +624,9 @@ def main():
     ap.add_argument("--sensitivity", type=float, default=387867.0,
                     help="counts/(m/s²)  R38DC実測値: 387867 (公式V6: 384500)")
     ap.add_argument("--rt-window", type=float, default=90.0,
-                    help="震度計算の窓長[秒]")
+                    help="I値計算に使う波形窓長（秒）")
+    ap.add_argument("--confirm-window", type=float, default=10.0,
+                    help="トリガ後に揺れ継続を確認する窓（秒）。発話までのラグに直結する")
     ap.add_argument("--sta", type=float, default=1.0, help="STA 窓長[秒]")
     ap.add_argument("--lta", type=float, default=20.0, help="LTA 窓長[秒]")
     ap.add_argument("--trig", type=float, default=3.5, help="STA/LTA しきい値")
