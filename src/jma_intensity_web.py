@@ -432,6 +432,7 @@ async def index():
         sta=_args.sta,
         lta=_args.lta,
         det_hold=_args.det_hold,
+        confirm_window=_args.confirm_window,
         station_lat=_station_lat,
         station_lon=_station_lon,
     )
