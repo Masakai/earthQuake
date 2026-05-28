@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [0.10.0] - 2026-05-28
+## [1.0.0] - 2026-05-28
 
 ### Added
 - `jma_intensity_tui.py` / `jma_intensity_web.py`: EHZ チャネル（速度計）を STA/LTA トリガ検出に使用するデュアルチャネル方式を実装
