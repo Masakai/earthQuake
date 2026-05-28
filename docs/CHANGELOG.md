@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [0.10.0] - 2026-05-28
+
+### Added
+- `jma_intensity_tui.py` / `jma_intensity_web.py`: EHZ チャネル（速度計）を STA/LTA トリガ検出に使用するデュアルチャネル方式を実装
+  - EHZ に Butterworth 4次バンドパスフィルタ（1〜10Hz）を適用して STA/LTA を算出
+  - I 値計算は従来通り ENZ/ENN/ENE（MEMS加速度計）3成分を使用
+  - EHZ 未受信時は ENZ 単体にフォールバック
+- `--confirm-window` 引数を新設（既定 10.0 秒）
+  - `--rt-window`（I 値計算窓長）からトリガ確認待ち時間を分離し、アラート発報ラグを約 90 秒 → 10 秒に短縮
+- I 値フィルタ: 計測震度 I < 0.5 の場合は音声アラートを発報しない（誤検出抑制）
+- パケット伝送ラグ（`pkt_lag`）の計測・WebSocket ブロードキャスト・ヘッダー表示（`lag: X.XXs`）
+- アラート遅延ログ: トリガ検出から発話完了までの時間を `~/Dropbox/earthQuake/logs/alert_latency.jsonl` に記録
+- `dashboard.html`: 設定パネルに「確認窓」スライダー（1〜60 秒）を追加
+
+### Changed
+- 音声エンジン: VoiceVox 合成遅延のため、現在は macOS `say -v Kyoko` に固定（VoiceVox コードは維持・コメントアウト）
+
 ## [0.9.4] - 2026-05-27
 
 ### Added
