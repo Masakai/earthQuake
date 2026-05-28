@@ -283,6 +283,7 @@ async def broadcast_loop(shared: SharedState):
             "ratio": snap["ratio"],
             "triggered": snap["triggered"],
             "pkt_count": snap["pkt_count"],
+            "pkt_lag": snap["pkt_lag"],
             "start_time": snap["start_time"],
             "i_history": snap["i_history"].tolist(),
             "ratio_history": snap["ratio_history"].tolist(),
@@ -370,8 +371,11 @@ async def lifespan(app: FastAPI):
     sock.settimeout(1.0)
 
     max_window = int(max(args.rt_window, args.lta) * 2.0)
-    rings_counts = {c: Ring(maxlen_samples=max(10_000, max_window * 200)) for c in comps}
+    ring_maxlen = max(10_000, max_window * 200)
+    rings_counts = {c: Ring(maxlen_samples=ring_maxlen) for c in comps}
+    rings_counts["EHZ"] = Ring(maxlen_samples=ring_maxlen)
     last_t0 = {c: None for c in comps}
+    last_t0["EHZ"] = None
 
     alert = AlertSpeaker()
 

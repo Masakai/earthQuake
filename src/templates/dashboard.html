@@ -474,6 +474,8 @@
     <span class="sep">|</span>
     <span>pkt: <span class="val" id="pkt-val">--</span></span>
     <span class="sep">|</span>
+    <span>lag: <span class="val" id="pkt-lag-val">--</span>s</span>
+    <span class="sep">|</span>
     <span>RS4D DATACAST</span>
     <span class="uptime">稼働 <span id="uptime-val">--:--:--</span> &nbsp;|&nbsp; <span id="clock">--</span></span>
     <button id="cfg-open-btn" title="パラメータ設定" onclick="document.getElementById('cfg-panel').classList.toggle('open')">⚙</button>
@@ -1673,6 +1675,7 @@ function updateDashboard(data) {
 
         document.getElementById('fs-val').textContent = (d.fs || 0).toFixed(1);
         document.getElementById('pkt-val').textContent = (d.pkt_count || 0).toLocaleString();
+        document.getElementById('pkt-lag-val').textContent = (d.pkt_lag != null ? d.pkt_lag.toFixed(2) : '--');
 
         // サーバーの実動作パラメータを同期
         if (d.config) {
