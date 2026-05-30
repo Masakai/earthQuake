@@ -71,8 +71,15 @@ def parse_quake(eq: dict) -> dict | None:
     }
 
 
+def quake_key(rec: dict) -> str:
+    """同一地震を識別するキー: 発生時刻(分まで) + 震源名。"""
+    return rec['time'][:16] + '_' + rec['name']
+
+
 def load_cache(year: int, month: int) -> dict[str, dict]:
-    """キャッシュファイルを読み込み、id→レコードのdictを返す。"""
+    """キャッシュファイルを読み込み、quake_key→レコードのdictを返す。
+    同一地震で複数報がある場合は scale が大きい（確定報）を優先する。
+    """
     path = CACHE_DIR / f'{year}{month:02d}.jsonl'
     records: dict[str, dict] = {}
     if not path.exists():
@@ -83,7 +90,9 @@ def load_cache(year: int, month: int) -> dict[str, dict]:
             continue
         try:
             rec = json.loads(line)
-            records[rec['id']] = rec
+            key = quake_key(rec)
+            if key not in records or rec['scale'] > records[key]['scale']:
+                records[key] = rec
         except Exception:
             pass
     return records
@@ -128,10 +137,13 @@ def fetch_for_month(year: int, month: int) -> int:
                 break
             if (dt.year, dt.month) != target_ym:
                 continue
-            if rec['id'] and rec['id'] in existing:
+            key = quake_key(rec)
+            prev = existing.get(key)
+            if prev and prev['scale'] >= rec['scale']:
                 continue
-            existing[rec['id'] or rec['time']] = rec
-            added += 1
+            if not prev:
+                added += 1
+            existing[key] = rec
 
         if exhausted:
             break
