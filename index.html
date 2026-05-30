@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AM.R38DC 月次地震レポート</title>
+<style>
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f1f5f9; color: #1e293b; margin: 0; padding: 0; }
+  .container { max-width: 720px; margin: 0 auto; padding: 40px 16px; }
+  header { background: #1e3a5f; color: #fff; padding: 28px 32px; border-radius: 12px; margin-bottom: 32px; }
+  header h1 { margin: 0 0 6px; font-size: 1.5em; }
+  header p { margin: 0; font-size: 0.9em; opacity: 0.8; }
+  .report-list { list-style: none; padding: 0; margin: 0; }
+  .report-list li { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
+  .report-list a { display: block; padding: 18px 24px; text-decoration: none; color: #1e3a5f; font-size: 1.05em; font-weight: bold; border-radius: 10px; transition: background 0.15s; }
+  .report-list a:hover { background: #e0f2fe; }
+  .report-list .meta { font-size: 0.82em; color: #64748b; font-weight: normal; margin-top: 4px; }
+  footer { text-align: center; color: #94a3b8; font-size: 0.8em; margin-top: 32px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>AM.R38DC 月次地震レポート</h1>
+    <p>静岡県三島市 Raspberry Shake 4D 観測点 ／ P2P地震情報データ使用</p>
+  </header>
+
+  <ul class="report-list" id="report-list">
+    <!-- レポートリンクはここに追加されていきます -->
+    <li><a href="report_202605.html">
+      2026年5月 地震レポート
+      <div class="meta">2026-05-30 生成</div>
+    </a></li>
+  </ul>
+
+  <footer>データソース: <a href="https://www.p2pquake.net/" style="color:#94a3b8">P2P地震情報</a> ／ 観測点: AM.R38DC</footer>
+</div>
+</body>
+</html>
