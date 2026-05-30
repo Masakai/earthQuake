@@ -4,20 +4,23 @@
 launchd から毎日 05:00 に呼び出される。
 
 処理フロー:
-  1. monthly_report.py を実行して report_YYYYMM.html を生成
-  2. gh-pages ブランチに HTML をコピーして git push
-  3. index.html のレポートリストを更新
+  1. monthly_report.py を実行して data/monthly_report/report_YYYYMM.html を生成
+  2. docs/reports/ にコピー
+  3. docs/index.html のリンクバーに新エントリを追加
+  4. master ブランチへ git commit & push
+     → GitHub Pages (master/docs) が自動更新される
 """
 
 import datetime
 import pathlib
-import re
 import subprocess
 import sys
 
-BASE_DIR = pathlib.Path(__file__).parent.parent
-LOG_FILE = BASE_DIR / 'logs' / 'fetch_p2p.log'
-GIT      = '/usr/bin/git'
+BASE_DIR   = pathlib.Path(__file__).parent.parent
+LOG_FILE   = BASE_DIR / 'logs' / 'fetch_p2p.log'
+DOCS_DIR   = BASE_DIR / 'docs'
+REPORTS_DIR = DOCS_DIR / 'reports'
+GIT        = '/usr/bin/git'
 
 
 def log(msg: str):
@@ -28,13 +31,12 @@ def log(msg: str):
         f.write(line + '\n')
 
 
-def run(cmd: list[str], cwd: str = None) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, cwd=cwd or str(BASE_DIR),
-                          capture_output=True, text=True)
+def run(cmd: list[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, cwd=str(BASE_DIR), capture_output=True, text=True)
 
 
-def publish_to_gh_pages(year: int, month: int, generated_at: str):
-    """生成済み HTML を gh-pages ブランチに push する。"""
+def publish_to_pages(year: int, month: int, generated_at: str) -> bool:
+    """docs/reports/ にレポートをコピーして master へ push する。"""
     report_name = f'report_{year}{month:02d}.html'
     report_src  = BASE_DIR / 'data' / 'monthly_report' / report_name
 
@@ -42,70 +44,64 @@ def publish_to_gh_pages(year: int, month: int, generated_at: str):
         log(f'[ERR] レポートファイルが見つかりません: {report_src}')
         return False
 
-    # gh-pages ブランチに切り替え
-    r = run([GIT, 'checkout', 'gh-pages'])
-    if r.returncode != 0:
-        log(f'[ERR] gh-pages チェックアウト失敗: {r.stderr.strip()}')
-        return False
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    dest = REPORTS_DIR / report_name
+    dest.write_bytes(report_src.read_bytes())
+    log(f'docs/reports/{report_name} にコピーしました')
 
-    try:
-        # レポート HTML をコピー
-        dest = BASE_DIR / report_name
-        dest.write_bytes(report_src.read_bytes())
+    # docs/index.html にリンクを追加
+    _update_index(year, month, generated_at)
 
-        # index.html を更新（既存リストに新エントリを追加）
-        _update_index(year, month, generated_at)
-
-        # コミット & push
-        run([GIT, 'add', report_name, 'index.html'])
-
-        # ステージされた変更があるか確認
-        staged = run([GIT, 'diff', '--cached', '--quiet'])
-        if staged.returncode == 0:
-            # 差分なし（既に同内容でコミット済み）
-            log('変更なし。push をスキップします')
-            return True
-
-        msg = f'report: {year}年{month}月 月次レポート公開'
-        r = run([GIT, 'commit', '-m', msg])
-        if r.returncode != 0:
-            log(f'[ERR] git commit 失敗: {r.stderr.strip()}')
-            return False
-
-        r = run([GIT, 'push', 'origin', 'gh-pages'])
-        if r.returncode != 0:
-            log(f'[ERR] git push 失敗: {r.stderr.strip()}')
-            return False
-
-        log(f'GitHub Pages 公開完了: https://masakai.github.io/earthQuake/{report_name}')
+    # コミット
+    run([GIT, 'add', f'docs/reports/{report_name}', 'docs/index.html'])
+    staged = run([GIT, 'diff', '--cached', '--quiet'])
+    if staged.returncode == 0:
+        log('変更なし。push をスキップします')
         return True
 
-    finally:
-        # 必ず master に戻る
-        run([GIT, 'checkout', 'master'])
+    msg = f'report: {year}年{month}月 月次レポート公開'
+    r = run([GIT, 'commit', '-m', msg])
+    if r.returncode != 0:
+        log(f'[ERR] git commit 失敗: {r.stderr.strip()}')
+        return False
+
+    r = run([GIT, 'push', 'origin', 'master'])
+    if r.returncode != 0:
+        log(f'[ERR] git push 失敗: {r.stderr.strip()}')
+        return False
+
+    url = f'https://masakai.github.io/earthQuake/reports/{report_name}'
+    log(f'GitHub Pages 公開完了: {url}')
+    return True
 
 
 def _update_index(year: int, month: int, generated_at: str):
-    """index.html のレポートリストに新エントリを追加する（重複スキップ）。"""
-    index_path  = BASE_DIR / 'index.html'
+    """docs/index.html のリンクバーに月次レポートのエントリを追加する（重複スキップ）。"""
+    index_path  = DOCS_DIR / 'index.html'
     report_name = f'report_{year}{month:02d}.html'
-    new_entry   = (
-        f'    <li><a href="{report_name}">\n'
-        f'      {year}年{month}月 地震レポート\n'
-        f'      <div class="meta">{generated_at} 生成</div>\n'
-        f'    </a></li>'
-    )
+    link_href   = f'reports/{report_name}'
 
     content = index_path.read_text(encoding='utf-8')
-
-    # 既に同月のエントリがあればスキップ
     if report_name in content:
         return
 
-    # <!-- レポートリンクはここに追加されていきます --> の直後に挿入
-    marker = '<!-- レポートリンクはここに追加されていきます -->'
-    content = content.replace(marker, marker + '\n' + new_entry)
+    new_entry = (
+        f'        <div class="link-item">\n'
+        f'            <a href="{link_href}">📊 {year}年{month}月 月次地震レポート</a>\n'
+        f'            <span>AM.R38DC 観測点による P2P地震情報まとめ（{generated_at} 生成・私的記録）</span>\n'
+        f'        </div>'
+    )
+
+    # link-bar-inner 閉じ </div> の直前に挿入
+    # docs/index.html の実際の構造: 最後の link-item → </div>\n</div>\n\n<!-- フッター -->\n<footer>
+    marker = '\n    </div>\n</div>\n\n<!-- フッター -->'
+    if marker not in content:
+        log('[WARN] index.html のマーカーが見つかりません。リンク追加をスキップします')
+        return
+
+    content = content.replace(marker, '\n' + new_entry + marker, 1)
     index_path.write_text(content, encoding='utf-8')
+    log(f'docs/index.html にレポートリンクを追加しました')
 
 
 def main():
@@ -114,7 +110,6 @@ def main():
     if today.day != 1:
         sys.exit(0)
 
-    # 前月を計算
     first_of_this_month = today.replace(day=1)
     last_month = first_of_this_month - datetime.timedelta(days=1)
     year, month = last_month.year, last_month.month
@@ -139,9 +134,9 @@ def main():
         sys.exit(1)
     log('月次レポート生成完了')
 
-    # 2. GitHub Pages へ公開
+    # 2. GitHub Pages (master/docs) へ公開
     generated_at = datetime.datetime.now().strftime('%Y-%m-%d')
-    ok = publish_to_gh_pages(year, month, generated_at)
+    ok = publish_to_pages(year, month, generated_at)
     if not ok:
         log('[WARN] GitHub Pages への公開に失敗しました（レポート自体は生成済み）')
         sys.exit(1)
