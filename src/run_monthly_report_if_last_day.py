@@ -76,7 +76,7 @@ def publish_to_pages(year: int, month: int, generated_at: str) -> bool:
 
 
 def _update_index(year: int, month: int, generated_at: str):
-    """docs/index.html のリンクバーに月次レポートのエントリを追加する（重複スキップ）。"""
+    """docs/index.html の月次レポート索引セクションに新エントリを追加する（重複スキップ）。"""
     index_path  = DOCS_DIR / 'index.html'
     report_name = f'report_{year}{month:02d}.html'
     link_href   = f'reports/{report_name}'
@@ -86,15 +86,15 @@ def _update_index(year: int, month: int, generated_at: str):
         return
 
     new_entry = (
-        f'        <div class="link-item">\n'
-        f'            <a href="{link_href}">📊 {year}年{month}月 月次地震レポート</a>\n'
-        f'            <span>AM.R38DC 観測点による P2P地震情報まとめ（{generated_at} 生成・私的記録）</span>\n'
-        f'        </div>'
+        f'            <a class="report-card" href="{link_href}">\n'
+        f'                <span class="report-month">{year}年{month}月</span>\n'
+        f'                <span class="report-desc">P2P地震情報まとめ・自局検出記録</span>\n'
+        f'                <span class="report-arrow">→</span>\n'
+        f'            </a>'
     )
 
-    # link-bar-inner 閉じ </div> の直前に挿入
-    # docs/index.html の実際の構造: 最後の link-item → </div>\n</div>\n\n<!-- フッター -->\n<footer>
-    marker = '\n    </div>\n</div>\n\n<!-- フッター -->'
+    # report-list の末尾カード直後に挿入
+    marker = '\n        </div>\n        <p class="report-notice">'
     if marker not in content:
         log('[WARN] index.html のマーカーが見つかりません。リンク追加をスキップします')
         return
