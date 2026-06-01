@@ -1463,8 +1463,8 @@ function _trigTsToMin(ts) {
     }
     // 時刻のみ形式（当日発生分）
     const now = new Date();
-    const [h, m] = ts.split(':').map(Number);
-    let d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
+    const [h, m, s] = ts.split(':').map(Number);
+    let d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s || 0, 0);
     // 翌0時をまたいだ場合（例：23:59のトリガが0:00以降に表示）
     if (d - now > 12 * 3600 * 1000) d = new Date(d.getTime() - 86400000);
     if (now - d > 12 * 3600 * 1000) d = new Date(d.getTime() + 86400000);
@@ -1478,17 +1478,41 @@ function _quakeTsToMin(t) {
     return dt.getTime() / 60000;
 }
 
-// P2P地震リストから最も近い地震を探す（±10分以内）
+// 震源からのP波推定到達時刻を秒で返す
+// 座標・深さ不明時は null
+function _estimatePArrivalSec(q) {
+    if (_stationLat == null || q.latitude == null || q.longitude == null) return null;
+    const horizKm = haversineKm(_stationLat, _stationLon, q.latitude, q.longitude);
+    const depthKm = (q.depth != null && q.depth >= 0) ? q.depth : 0;
+    const distKm  = Math.sqrt(horizKm * horizKm + depthKm * depthKm);
+    return distKm / 6.0;  // P波速度 6.0 km/s
+}
+
+// P2P地震リストからトリガに対応する地震を探す
+// 震源座標が既知: 発生時刻 + P波推定到達時刻 を基準に ±30秒
+// 震源座標が不明: フォールバックとして固定 ±5分窓
 function _findMatchingQuake(trigTs) {
-    const trigMin = _trigTsToMin(trigTs);
+    const trigSec = _trigTsToMin(trigTs) * 60;
     let best = null, bestDiff = Infinity;
     for (const q of _latestP2pQuakes) {
-        const qMin = _quakeTsToMin(q.time);
-        if (isNaN(qMin)) continue;
-        const diff = Math.abs(trigMin - qMin);
-        if (diff <= 10 && diff < bestDiff) {
-            best = q;
-            bestDiff = diff;
+        const qMs = new Date((q.time || '').replace(' ', 'T') + ':00+09:00').getTime();
+        if (isNaN(qMs)) continue;
+        const qSec = qMs / 1000;
+        const arrival = _estimatePArrivalSec(q);
+        if (arrival !== null) {
+            // 座標既知: トリガ時刻が「発生+P波到達±30秒」に収まるか
+            const diff = Math.abs(trigSec - (qSec + arrival));
+            if (diff <= 30 && diff < bestDiff) {
+                best = q;
+                bestDiff = diff;
+            }
+        } else {
+            // 座標不明: 固定±5分窓にフォールバック
+            const diffMin = Math.abs(trigSec - qSec) / 60;
+            if (diffMin <= 5 && diffMin < bestDiff / 60) {
+                best = q;
+                bestDiff = diffMin * 60;
+            }
         }
     }
     return best;
