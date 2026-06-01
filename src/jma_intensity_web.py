@@ -23,7 +23,7 @@ import time
 import uuid
 from collections import deque
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import numpy as np
 
@@ -87,6 +87,66 @@ _analyze_jobs: dict = {}  # job_id -> {status, out_path, error}
 _analyze_lock = threading.Lock()
 
 
+# ===== バンドパワー履歴（24時間・1分平均）=====
+_BP_HISTORY_MINUTES = 1440          # 24時間分
+_BP_ACCUM: list[list[float]] = []   # 現在分の集計中サンプル [バンド別パワー値（真値、dBではない）]
+_BP_ACCUM_MINUTE: int | None = None # 集計中の分（0-1439相当のエポック分）
+_BP_HISTORY_PATH = pathlib.Path(__file__).parent.parent / "data" / "bp_history.jsonl"
+_bp_history_lock = threading.Lock()
+
+# 形式: deque of {"t": unix_timestamp_秒, "v": [db0, db1, db2, db3]}（dB, 0.01dB精度）
+_bp_history: deque = deque(maxlen=_BP_HISTORY_MINUTES)
+
+
+def _bp_history_load() -> None:
+    """起動時にJSONLから履歴を復元する。24時間以内のエントリのみ読み込む。"""
+    if not _BP_HISTORY_PATH.exists():
+        return
+    cutoff = time.time() - _BP_HISTORY_MINUTES * 60
+    try:
+        with open(_BP_HISTORY_PATH, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    if entry.get("t", 0) >= cutoff:
+                        _bp_history.append(entry)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+def _bp_history_append(entry: dict) -> None:
+    """履歴に1分平均エントリを追加し、JSONLに追記する。"""
+    with _bp_history_lock:
+        _bp_history.append(entry)
+        try:
+            _BP_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(_BP_HISTORY_PATH, "a") as f:
+                f.write(json.dumps(entry) + "\n")
+        except Exception:
+            pass
+
+
+def _bp_history_snapshot() -> list[dict]:
+    """確定済み履歴＋現在集計中の分（暫定値）を返す。"""
+    with _bp_history_lock:
+        result = list(_bp_history)
+    # 現在集計中の分を暫定エントリとして末尾に追加
+    if _BP_ACCUM and _BP_ACCUM_MINUTE is not None:
+        n_bands = len(_BP_ACCUM[0])
+        avg = []
+        for b in range(n_bands):
+            # _BP_ACCUMはパワー真値（線形）で蓄積しているため、平均後にdB変換
+            vals = [s[b] for s in _BP_ACCUM if s[b] is not None]
+            avg.append(round(10.0 * math.log10(sum(vals) / len(vals)), 2) if vals else None)
+        result.append({"t": _BP_ACCUM_MINUTE * 60, "v": avg})
+    return result
+
+
 # ===== P2P地震情報（Web版: points/位置情報あり）=====
 
 def _parse_quake_item_web(item: dict) -> dict | None:
@@ -98,7 +158,8 @@ def _parse_quake_item_web(item: dict) -> dict | None:
     points = item.get("points", [])
     return {
         "id": item.get("id", ""),
-        "time": eq.get("time", "")[:16],
+        "time": eq.get("time", "")[:19],
+        "issue_type": item.get("issue", {}).get("type", ""),
         "name": hypo.get("name", "不明"),
         "magnitude": hypo.get("magnitude", 0.0),
         "depth": hypo.get("depth", 0),
@@ -251,7 +312,7 @@ def _compute_band_powers(raw_z: np.ndarray, fs: float) -> list[float]:
             continue
         power = float(np.mean(psd[idx]))
         if power > 0:
-            results.append(round(10.0 * math.log10(power), 1))
+            results.append(10.0 * math.log10(power))
         else:
             results.append(None)
     return results
@@ -259,12 +320,11 @@ def _compute_band_powers(raw_z: np.ndarray, fs: float) -> list[float]:
 
 async def broadcast_loop(shared: SharedState):
     """1秒ごとに全WebSocketクライアントへ状態をブロードキャスト。"""
+    global _BP_ACCUM, _BP_ACCUM_MINUTE
     _tick = 0
     _cached_band_powers: list | None = None
     while True:
         await asyncio.sleep(1.0)
-        if not _ws_clients:
-            continue
 
         snap = shared.snapshot()
 
@@ -272,8 +332,32 @@ async def broadcast_loop(shared: SharedState):
         if _tick % 10 == 0:
             fs = snap["fs"] or 100.0
             _cached_band_powers = _compute_band_powers(snap["raw_z"], fs)
+
+        # 1分平均を履歴に追記
+        if _cached_band_powers and any(v is not None for v in _cached_band_powers):
+            now_minute = int(time.time()) // 60
+            if _BP_ACCUM_MINUTE != now_minute:
+                # 前の分を確定して保存
+                if _BP_ACCUM and _BP_ACCUM_MINUTE is not None:
+                    n = len(_BP_ACCUM)
+                    n_bands = len(_BP_ACCUM[0])
+                    avg = []
+                    for b in range(n_bands):
+                        # _BP_ACCUMはパワー真値（線形）で蓄積しているため、平均後にdB変換
+                        vals = [s[b] for s in _BP_ACCUM if s[b] is not None]
+                        avg.append(round(10.0 * math.log10(sum(vals) / len(vals)), 2) if vals else None)
+                    entry = {"t": _BP_ACCUM_MINUTE * 60, "v": avg}
+                    asyncio.get_event_loop().run_in_executor(None, _bp_history_append, entry)
+                _BP_ACCUM = []
+                _BP_ACCUM_MINUTE = now_minute
+            # パワー真値（線形値）でaccumして1分後にdB変換することで丸め誤差を排除
+            _BP_ACCUM.append([10 ** (v / 10) if v is not None else None for v in _cached_band_powers])
+
         _tick += 1
         band_powers = _cached_band_powers
+
+        if not _ws_clients:
+            continue
 
         payload = {
             "fs": snap["fs"],
@@ -291,6 +375,7 @@ async def broadcast_loop(shared: SharedState):
             "p2p_quakes": list(snap["p2p_quakes"]),
             "p2p_eew": snap["p2p_eew"],
             "band_powers": band_powers,
+            "band_powers_history": _bp_history_snapshot(),
             "config": {
                 "sta": _args.sta,
                 "lta": _args.lta,
@@ -366,6 +451,7 @@ async def lifespan(app: FastAPI):
     log_path = pathlib.Path.home() / "Dropbox" / "earthQuake" / "logs" / "trigger_log.jsonl"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     shared.load_event_log(log_path, limit=50)
+    _bp_history_load()
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((host, port))
@@ -479,7 +565,10 @@ def _purge_old_analyze_jobs():
         _analyze_jobs.pop(jid, None)
 
 
-def _run_analyze(job_id: str, start_jst: str, duration: int, out_path: str):
+def _run_analyze(job_id: str, start_jst: str, duration: int, out_path: str,
+                 eq_name: str | None = None, eq_lat: float | None = None,
+                 eq_lon: float | None = None, eq_mag: float | None = None,
+                 eq_depth: float | None = None):
     """analyze_rs.py をサブプロセスで実行し、結果をジョブ辞書に記録する。"""
     cwd = pathlib.Path(__file__).parent.parent
     cmd = [
@@ -489,6 +578,14 @@ def _run_analyze(job_id: str, start_jst: str, duration: int, out_path: str):
         "--duration", str(duration),
         "--out", out_path,
     ]
+    if eq_lat is not None and eq_lon is not None:
+        cmd += ["--eq-lat", str(eq_lat), "--eq-lon", str(eq_lon)]
+        if eq_name:
+            cmd += ["--eq-name", eq_name]
+        if eq_mag is not None:
+            cmd += ["--eq-mag", str(eq_mag)]
+        if eq_depth is not None:
+            cmd += ["--eq-depth", str(eq_depth)]
     now = time.time()
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), timeout=300)
@@ -524,17 +621,30 @@ async def api_analyze_start(req: Request):
     if len(start_jst) == 16:
         start_jst += ":00"
     try:
-        datetime.strptime(start_jst, "%Y-%m-%d %H:%M:%S")
+        t_eq = datetime.strptime(start_jst, "%Y-%m-%d %H:%M:%S")
     except ValueError:
         return JSONResponse(status_code=422, content={"error": f"invalid time format: {raw_time}"})
+    # LTA窓が安定するよう、発生時刻からLTA秒だけ前を解析開始とする
+    lta_s = _args.lta if _args is not None else 20.0
+    start_jst = (t_eq - timedelta(seconds=lta_s)).strftime("%Y-%m-%d %H:%M:%S")
     duration = int(body.get("duration", 420))
+    eq_name  = body.get("eq_name") or None
+    eq_lat   = body.get("eq_lat")
+    eq_lon   = body.get("eq_lon")
+    eq_mag   = body.get("eq_mag")
+    eq_depth = body.get("eq_depth")
     job_id = str(uuid.uuid4())[:8]
     out_dir = pathlib.Path(__file__).parent.parent / "data"
     out_path = str(out_dir / f"analyze_{job_id}.png")
     with _analyze_lock:
         _purge_old_analyze_jobs()
         _analyze_jobs[job_id] = {"status": "running", "out_path": None, "error": None}
-    t = threading.Thread(target=_run_analyze, args=(job_id, start_jst, duration, out_path), daemon=True)
+    t = threading.Thread(
+        target=_run_analyze,
+        args=(job_id, start_jst, duration, out_path),
+        kwargs=dict(eq_name=eq_name, eq_lat=eq_lat, eq_lon=eq_lon, eq_mag=eq_mag, eq_depth=eq_depth),
+        daemon=True,
+    )
     t.start()
     return {"job_id": job_id}
 

@@ -328,13 +328,16 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
+        overflow: hidden;
     }
-    #p2p-panel { flex: 1 1 0; overflow: hidden; display: flex; flex-direction: column; }
-    #p2p-table-wrap { overflow-y: auto; flex: 1; }
+    #p2p-panel { flex: 0 0 auto; overflow: hidden; display: flex; flex-direction: column; }
+    #p2p-table-wrap { overflow-y: auto; max-height: 360px; }
     .tsunami-warn { color: #f85149; font-size: 10px; margin-left: 2px; }
 
     /* ===== バンドパワーパネル ===== */
     #bandpower-panel { flex: 0 0 auto; }
+    #bphistory-panel { flex: 1 1 0; overflow: hidden; display: flex; flex-direction: column; }
+    #bphistory-panel > div:last-child { flex: 1 1 0; position: relative; min-height: 0; }
     .bp-row {
         display: flex;
         align-items: center;
@@ -618,6 +621,21 @@
             </div>
         </div>
 
+        <!-- バンドパワー履歴グラフ -->
+        <div class="panel" id="bphistory-panel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div class="panel-title" style="margin-bottom:0;">バンドパワー履歴 (1分平均)</div>
+                <div id="bp-window-btns" style="display:flex;gap:4px;">
+                    <button onclick="_setBpWindow(60)"   id="bp-btn-60"   style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #30363d;background:#21262d;color:#8b949e;cursor:pointer;">1h</button>
+                    <button onclick="_setBpWindow(360)"  id="bp-btn-360"  style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #30363d;background:#21262d;color:#8b949e;cursor:pointer;">6h</button>
+                    <button onclick="_setBpWindow(1440)" id="bp-btn-1440" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #58a6ff;background:#21262d;color:#58a6ff;cursor:pointer;">24h</button>
+                </div>
+            </div>
+            <div style="position:relative; height:100%; min-height:80px;">
+                <canvas id="bpHistoryChart"></canvas>
+            </div>
+        </div>
+
     </div><!-- /col-right -->
 
 </div><!-- /main -->
@@ -838,7 +856,7 @@ const historyChart = new Chart(histCtx, {
 });
 
 // ===== 震源地図 =====
-const quakeMap = L.map('map', { zoomControl: true, attributionControl: false }).setView([36.5, 137.5], 5);
+const quakeMap = L.map('map', { zoomControl: true, attributionControl: false, minZoom: 5 }).setView([36.5, 137.5], 5);
 // ポリゴン用pane（markerPane=600より低い350に設定してマーカーが必ず上に来るようにする）
 quakeMap.createPane('cityPane');
 quakeMap.getPane('cityPane').style.zIndex = 350;
@@ -1335,19 +1353,20 @@ function updateP2PTable(quakes) {
         const cls = scaleClass(sc);
         const tsunami = (q.tsunami && q.tsunami !== 'None' && q.tsunami !== 'Unknown')
             ? '<span class="tsunami-warn">津波</span>' : '';
-        const time = esc((q.time || '').replace('T', ' ').slice(5, 16));
+        const time = esc((q.time || '').replace('T', ' ').slice(5, 19));
+        const issueChar = {ScalePrompt: 'S', Destination: 'D', DetailScale: 'F'}[q.issue_type] || '?';
         const dist = esc(distLabel(q.latitude, q.longitude));
         const clickable = q.latitude != null && q.longitude != null;
         const rowAttr = clickable
             ? ' class="trig-row-linked" style="cursor:pointer;" onclick="_onP2PRowClick(' + idx + ')"'
             : '';
-        const analyzeBtn = q.time
+        const analyzeBtn = (q.time && q.issue_type === 'DetailScale')
             ? '<button onclick="event.stopPropagation();_startAnalyze(' + idx + ')" ' +
               'style="font-size:10px;padding:2px 6px;background:#21262d;border:1px solid #30363d;' +
               'color:#58a6ff;border-radius:4px;cursor:pointer;">解析</button>'
             : '';
         return '<tr' + rowAttr + '>' +
-            '<td style="color:#8b949e;">' + time + '</td>' +
+            '<td style="color:#8b949e;">' + time + ' <span style="color:#6e7681;font-size:10px;">' + issueChar + '</span></td>' +
             '<td>' + esc(q.name || '不明') + '</td>' +
             '<td style="color:#58a6ff;">' + parseFloat(q.magnitude || 0).toFixed(1) + '</td>' +
             '<td style="color:#8b949e;">' + esc(String(q.depth || '--')) + 'km</td>' +
@@ -1366,7 +1385,14 @@ function _startAnalyze(idx) {
     fetch('/api/analyze', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({time: q.time, duration: 420})
+        body: JSON.stringify({
+            time: q.time, duration: 420,
+            eq_name:  q.name,
+            eq_lat:   q.latitude,
+            eq_lon:   q.longitude,
+            eq_mag:   q.magnitude,
+            eq_depth: q.depth,
+        })
     })
     .then(r => r.json())
     .then(data => {
@@ -1725,6 +1751,7 @@ function updateDashboard(data) {
         updateMap(d.p2p_quakes);
         updateBanner(d.p2p_quakes, d.p2p_eew);
         updateBandPowers(d.band_powers);
+        updateBpHistoryChart(d.band_powers_history);
     });
 }
 
@@ -1750,6 +1777,98 @@ function updateBandPowers(powers) {
         fillEl.style.width = pct.toFixed(1) + '%';
         valEl.textContent = db.toFixed(0) + ' dB';
     });
+}
+
+// ===== バンドパワー履歴グラフ =====
+const BP_COLORS = ['#58a6ff', '#f97316', '#3fb950', '#da3633'];
+const BP_LABELS = ['うねり(0.05-0.3Hz)', '地震/河川(1-5Hz)', '交通(5-15Hz)', '豪雨/風(15-44Hz)'];
+
+const bpHistoryChart = new Chart(document.getElementById('bpHistoryChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: BP_COLORS.map((color, i) => ({
+            label: BP_LABELS[i],
+            data: [],
+            borderColor: color,
+            backgroundColor: 'transparent',
+            borderWidth: 1,
+            pointRadius: 0,
+            tension: 0.2,
+        })),
+    },
+    options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+            legend: {
+                display: true,
+                labels: { color: '#8b949e', font: { size: 10 }, boxWidth: 12, padding: 6 },
+            },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y !== null ? ctx.parsed.y.toFixed(0) + ' dB' : '--'),
+                },
+            },
+        },
+        scales: {
+            x: {
+                ticks: { color: '#6e7681', font: { size: 10 }, maxTicksLimit: 6,
+                    callback: function(val, idx) {
+                        const lbl = this.getLabelForValue(val);
+                        return lbl ? lbl.slice(11, 16) : '';
+                    }
+                },
+                grid: { color: '#21262d' },
+            },
+            y: {
+                ticks: { color: '#6e7681', font: { size: 10 },
+                    callback: v => v + 'dB',
+                },
+                grid: { color: '#21262d' },
+            },
+        },
+    },
+});
+
+let _bpWindowMinutes = 1440;
+let _bpHistoryAll = [];
+
+function _setBpWindow(minutes) {
+    _bpWindowMinutes = minutes;
+    [60, 360, 1440].forEach(w => {
+        const btn = document.getElementById('bp-btn-' + w);
+        if (!btn) return;
+        const active = (w === minutes);
+        btn.style.borderColor = active ? '#58a6ff' : '#30363d';
+        btn.style.color       = active ? '#58a6ff' : '#8b949e';
+    });
+    _renderBpHistoryChart(_bpHistoryAll);
+}
+
+function _renderBpHistoryChart(history) {
+    const slice = history.slice(-_bpWindowMinutes);
+    const labels = slice.map(e => {
+        const d = new Date(e.t * 1000);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        return mm + '/' + dd + ' ' + hh + ':' + mi;
+    });
+    bpHistoryChart.data.labels = labels;
+    bpHistoryChart.data.datasets.forEach((ds, i) => {
+        ds.data = slice.map(e => (e.v && e.v[i] !== null) ? e.v[i] : null);
+    });
+    bpHistoryChart.update('none');
+}
+
+function updateBpHistoryChart(history) {
+    if (!history || history.length === 0) return;
+    _bpHistoryAll = history;
+    _renderBpHistoryChart(history);
 }
 
 // ===== WebSocket接続 =====

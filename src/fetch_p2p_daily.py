@@ -40,8 +40,17 @@ def fetch_page(offset: int, limit: int = 100) -> list[dict]:
         return json.loads(r.read())
 
 
+# issue.type の優先順位: 値が大きいほど確定度が高い
+_ISSUE_TYPE_RANK = {
+    'ScalePrompt': 1,   # 震度速報（震源不明）
+    'Destination': 2,   # 震源・規模に関する情報（震度未確定）
+    'DetailScale': 3,   # 各地の震度（確定報）
+    'Foreign':     1,   # 遠地地震
+}
+
+
 def parse_quake(eq: dict) -> dict | None:
-    """APIレスポンスの1エントリを正規化する。不正・震源なしはNoneを返す。"""
+    """APIレスポンスの1エントリを正規化する。発生時刻がないものはNoneを返す。"""
     info = eq.get('earthquake', {})
     t_str = info.get('time', '')
     if not t_str:
@@ -51,34 +60,40 @@ def parse_quake(eq: dict) -> dict | None:
     except ValueError:
         return None
     hypo = info.get('hypocenter', {})
-    lat  = hypo.get('latitude',  None)
-    lon  = hypo.get('longitude', None)
-    name = hypo.get('name',      '')
-    if not name or lat is None or lon is None:
-        return None
+    issue_type = eq.get('issue', {}).get('type', '')
     return {
-        'id':    eq.get('id', ''),
-        'time':  t_str,
-        'year':  dt.year,
-        'month': dt.month,
-        'day':   dt.day,
-        'name':  name,
-        'lat':   lat,
-        'lon':   lon,
-        'mag':   hypo.get('magnitude', -1),
-        'depth': hypo.get('depth',     -1),
-        'scale': info.get('maxScale',  -1),
+        'id':         eq.get('id', ''),
+        'time':       t_str,
+        'year':       dt.year,
+        'month':      dt.month,
+        'day':        dt.day,
+        'name':       hypo.get('name', ''),
+        'lat':        hypo.get('latitude',  None),
+        'lon':        hypo.get('longitude', None),
+        'mag':        hypo.get('magnitude', -1),
+        'depth':      hypo.get('depth',     -1),
+        'scale':      info.get('maxScale',  -1),
+        'issue_type': issue_type,
     }
 
 
 def quake_key(rec: dict) -> str:
-    """同一地震を識別するキー: 発生時刻(分まで) + 震源名。"""
-    return rec['time'][:16] + '_' + rec['name']
+    """同一地震を識別するキー: 発生時刻(分まで)。
+    同一時刻に複数報（ScalePrompt/Destination/DetailScale）が来るため
+    時刻のみをキーとし、issue_type の優先順位で上書きする。
+    """
+    return rec['time'][:16]
+
+
+def _is_better(new: dict, existing: dict) -> bool:
+    """new が existing より確定度が高いか判定する。"""
+    return (_ISSUE_TYPE_RANK.get(new.get('issue_type', ''), 0)
+            > _ISSUE_TYPE_RANK.get(existing.get('issue_type', ''), 0))
 
 
 def load_cache(year: int, month: int) -> dict[str, dict]:
     """キャッシュファイルを読み込み、quake_key→レコードのdictを返す。
-    同一地震で複数報がある場合は scale が大きい（確定報）を優先する。
+    同一時刻に複数報がある場合は issue_type の優先順位が高い（確定報）を残す。
     """
     path = CACHE_DIR / f'{year}{month:02d}.jsonl'
     records: dict[str, dict] = {}
@@ -91,7 +106,7 @@ def load_cache(year: int, month: int) -> dict[str, dict]:
         try:
             rec = json.loads(line)
             key = quake_key(rec)
-            if key not in records or rec['scale'] > records[key]['scale']:
+            if key not in records or _is_better(rec, records[key]):
                 records[key] = rec
         except Exception:
             pass
@@ -139,7 +154,7 @@ def fetch_for_month(year: int, month: int) -> int:
                 continue
             key = quake_key(rec)
             prev = existing.get(key)
-            if prev and prev['scale'] >= rec['scale']:
+            if prev and not _is_better(rec, prev):
                 continue
             if not prev:
                 added += 1

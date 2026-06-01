@@ -39,6 +39,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
+from scipy.signal import butter, sosfilt
 import geopandas as gpd
 
 import matplotlib
@@ -273,8 +274,9 @@ def compute_stalta(vec: np.ndarray, fs: float, sta_s: float, lta_s: float) -> np
     N = len(vec)
     ratio = np.zeros(N)
     for i in range(nlta, N):
-        lta_e = (cs[i] - cs[i - nlta]) / nlta + 1e-18
-        sta_e = (cs[i] - cs[max(0, i - nsta)]) / nsta + 1e-18
+        # LTAはSTA区間を除いた直前区間（Withers et al. 1998 標準定義）
+        lta_e = (cs[i - nsta] - cs[i - nlta]) / (nlta - nsta) + 1e-18
+        sta_e = (cs[i] - cs[i - nsta]) / nsta + 1e-18
         ratio[i] = sta_e / lta_e
     return ratio
 
@@ -438,6 +440,7 @@ def plot_analysis(
     available_en=None,
     sta_name='R38DC',
     gap_spans=None,
+    stalta_src=None,
 ):
     _setup_font()
 
@@ -546,9 +549,10 @@ def plot_analysis(
         ax_sgram.set_yticks([0.5, 1, 2, 4, 8, 10, 20])
         ax_sgram.tick_params(colors='#57606a', labelsize=7)
         ax_sgram.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=JST))
-        _sgram_dur = (times_ehz[-1] - times_ehz[0]).total_seconds()
+        _sgram_dur = (times_jst[-1] - times_jst[0]).total_seconds()
         _sgram_interval = max(60, int(_sgram_dur / 5 / 60) * 60)
         ax_sgram.xaxis.set_major_locator(mdates.SecondLocator(interval=_sgram_interval))
+        ax_sgram.set_xlim(times_jst[0], times_jst[-1])
         ax_sgram.set_xlabel('時刻 (JST)', color='#57606a', fontsize=8)
         ax_sgram.tick_params(axis='x', labelbottom=True, labelsize=8)
         for t_m, lbl in markers:
@@ -632,7 +636,8 @@ def plot_analysis(
     ax.fill_between(times_jst, 0, ratio_arr, where=ratio_arr >= trig_thr,
                     color='#bc4c00', alpha=0.3, label='トリガ')
     ax.set_ylabel('STA/LTA', color='#57606a')
-    ax.set_title(f'STA/LTA比  (STA={sta_s}s / LTA={lta_s}s)', color='#1f2328', fontsize=11, pad=6)
+    src_label = stalta_src if stalta_src else "+".join(available_en)
+    ax.set_title(f'STA/LTA比  ({src_label}  STA={sta_s}s / LTA={lta_s}s)', color='#1f2328', fontsize=11, pad=6)
     ax.legend(loc='upper right', fontsize=9,
               facecolor='#f6f8fa', edgecolor='#d0d7de', labelcolor='#1f2328')
     ax.set_ylim(bottom=0)
@@ -745,7 +750,29 @@ def main():
     ap.add_argument('--cache-dir', default='data',
                     help='MiniSEEDキャッシュディレクトリ (デフォルト: data/)')
     ap.add_argument('--out', help='出力PNGパス（省略時は自動生成）')
+    ap.add_argument('--eq-name',  type=str,   default=None, help='震源名（WebUIから渡される）')
+    ap.add_argument('--eq-lat',   type=float, default=None, help='震源緯度')
+    ap.add_argument('--eq-lon',   type=float, default=None, help='震源経度')
+    ap.add_argument('--eq-mag',   type=float, default=None, help='マグニチュード')
+    ap.add_argument('--eq-depth', type=float, default=None, help='震源深さ(km)')
     args = ap.parse_args()
+
+    # ===== WebUI config.json から sta/lta/trig を引き継ぐ =====
+    # コマンドラインで明示指定された場合はそちらを優先する
+    _cli_specified = set()
+    for token in sys.argv[1:]:
+        if token.startswith("--"):
+            _cli_specified.add(token.lstrip("-").split("=")[0].replace("-", "_"))
+    _web_config_path = pathlib.Path.home() / ".config" / "jma_intensity" / "config.json"
+    if _web_config_path.exists():
+        try:
+            _web_cfg = json.loads(_web_config_path.read_text())
+            for key in ("sta", "lta", "trig"):
+                if key in _web_cfg and key not in _cli_specified:
+                    setattr(args, key, float(_web_cfg[key]))
+            print(f"[INFO] WebUI設定を反映: sta={args.sta}s  lta={args.lta}s  trig={args.trig}")
+        except Exception as e:
+            print(f"[WARN] WebUI config.json 読み込み失敗: {e}")
 
     # ===== 観測点座標の解決 =====
     # 優先順位: --sta-lat/lon 引数 > FDSN自動取得 > .env
@@ -795,6 +822,25 @@ def main():
             t_end_utc = parse_jst(args.end)
         else:
             t_end_utc = t_start_utc + timedelta(seconds=args.duration)
+        if args.eq_lat is not None and args.eq_lon is not None:
+            quake_info = {
+                'name':      args.eq_name or '',
+                'latitude':  args.eq_lat,
+                'longitude': args.eq_lon,
+                'magnitude': args.eq_mag if args.eq_mag is not None else 0.0,
+                'depth':     args.eq_depth if args.eq_depth is not None else 0,
+            }
+            dlat = args.eq_lat - args.sta_lat
+            dlon = args.eq_lon - args.sta_lon
+            horiz_km = np.sqrt((dlat * 111.0)**2 +
+                               (dlon * 111.0 * np.cos(np.radians(args.sta_lat)))**2)
+            depth_km = max(0.0, quake_info['depth'] or 0)
+            dist_km  = np.sqrt(horiz_km**2 + depth_km**2)
+            p_delay  = dist_km / 6.0
+            t_eq_jst = datetime.strptime(args.start, '%Y-%m-%d %H:%M:%S').replace(tzinfo=JST)
+            t_p = t_eq_jst + timedelta(seconds=p_delay)
+            auto_marker = (t_p, f'P波推定({dist_km:.0f}km/{p_delay:.0f}s)')
+            print(f"震源距離: {dist_km:.0f}km（水平{horiz_km:.0f}km 深さ{depth_km:.0f}km）  P波推定到達: {t_p.strftime('%H:%M:%S')} JST")
 
     if t_end_utc <= t_start_utc:
         ap.error('終了時刻は開始時刻より後にしてください。')
@@ -883,10 +929,47 @@ def main():
         out = arr.copy()
         out[np.isnan(out)] = 0.0
         return out
-    vec_raw = np.sqrt(sum(
-        (nan_to_zero(segs[ch]) - np.nanmean(segs[ch]))**2 for ch in available_en
-    ))
-    ratio_arr = compute_stalta(vec_raw, fs, args.sta, args.lta)
+
+    # リアルタイム検出と同じロジック: EHZに1-10Hzバンドパスを適用して使用、
+    # EHZデータがなければENZ3成分合成にフォールバック
+    ehz_path = ms_path('EHZ')
+    stalta_src = None
+    if ehz_path.exists() and ehz_path.stat().st_size > 0:
+        try:
+            tr_ehz_stalta = obspy_read(str(ehz_path))[0]
+            fs_stalta = tr_ehz_stalta.stats.sampling_rate
+            i0_s = max(0, int((t0_obspy - tr_ehz_stalta.stats.starttime) * fs_stalta))
+            N_s  = int((t1_obspy - t0_obspy) * fs_stalta)
+            ehz_seg = tr_ehz_stalta.data.astype(float)[i0_s:i0_s + N_s]
+            ehz_dc  = ehz_seg - np.nanmean(ehz_seg)
+            nan_to_zero(ehz_dc)  # in-place ではないので再代入
+            ehz_dc  = nan_to_zero(ehz_dc)
+            nyq = fs_stalta / 2.0
+            sos = butter(4, [1.0 / nyq, 10.0 / nyq], btype='band', output='sos')
+            ehz_filtered = sosfilt(sos, ehz_dc)
+            vec_raw = np.abs(ehz_filtered)
+            fs_stalta_used = fs_stalta  # STA/LTA計算用fsは別変数に保持（fsはEN成分を維持）
+            stalta_src = "EHZ(1-10Hz BP)"
+            print(f"  STA/LTA: EHZチャンネルを使用（{stalta_src}）")
+        except Exception as e:
+            print(f"  [WARN] EHZ読み込み失敗、ENZ3成分にフォールバック: {e}")
+            stalta_src = None
+
+    if stalta_src is None:
+        vec_raw = np.sqrt(sum(
+            (nan_to_zero(segs[ch]) - np.nanmean(segs[ch]))**2 for ch in available_en
+        ))
+        fs_stalta_used = fs
+        stalta_src = "+".join(available_en)
+        print(f"  STA/LTA: EN3成分合成を使用（{stalta_src}）")
+
+    ratio_arr = compute_stalta(vec_raw, fs_stalta_used, args.sta, args.lta)
+    # EN成分（fs）とEHZ（fs_stalta_used）でサンプリングレートが異なる場合、
+    # ratio_arrの長さをNに合わせてトリム（超過分を切り捨て、短い場合はNaNパディング）
+    if len(ratio_arr) > N:
+        ratio_arr = ratio_arr[:N]
+    elif len(ratio_arr) < N:
+        ratio_arr = np.concatenate([ratio_arr, np.zeros(N - len(ratio_arr))])
 
     # ===== JMAフィルタ → 計測震度 =====
     print("計測震度計算中...")
@@ -981,6 +1064,7 @@ def main():
         available_en=available_en,
         sta_name=args.station,
         gap_spans=gap_spans_jst,
+        stalta_src=stalta_src,
     )
 
     import subprocess, platform
