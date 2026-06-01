@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [1.1.0] - 2026-06-01
+
+### Fixed
+- `analyze_rs.py`: STA/LTA の LTA 区間からSTA区間を除外し Withers et al. (1998) 標準定義に準拠
+  - 従来実装はLTAにSTA区間を含む定義誤りで、ピーク時の ratio が約1/8に低下していた
+- `jma_intensity_web.py`: バンドパワーをdBではなくパワー真値（線形値）で蓄積し、1分平均後にdB変換することで 0.1dB 丸め誤差を排除（精度 0.01dB）
+- `fetch_p2p_daily.py`: issue_type の優先順位（ScalePrompt < Destination < DetailScale）で同一時刻の複数報を正しく統合するよう修正
+
+### Added
+- `analyze_rs.py`: WebUI 設定（`~/.config/jma_intensity/config.json`）から sta/lta/trig を自動読み込みし、解析グラフの閾値線を WebUI と一致させる
+- `analyze_rs.py`: STA/LTA グラフのタイトルに使用センサ名（EHZ または EN成分）を表示
+
 ## [1.0.0] - 2026-05-28
 
 ### Added
