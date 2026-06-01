@@ -35,10 +35,37 @@ def run(cmd: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, cwd=str(BASE_DIR), capture_output=True, text=True)
 
 
+def generate_ogp(year: int, month: int) -> bool:
+    """OGP画像を生成して data/monthly_report/ に保存する。"""
+    yyyymm = f'{year}{month:02d}'
+    ogp_script = BASE_DIR / 'data' / 'monthly_report' / f'generate_ogp_{yyyymm}.py'
+
+    if not ogp_script.exists():
+        log(f'[WARN] OGP生成スクリプトが見つかりません: {ogp_script}')
+        return False
+
+    python = BASE_DIR / '.venv' / 'bin' / 'python'
+    result = subprocess.run(
+        [str(python), str(ogp_script)],
+        cwd=str(BASE_DIR),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        log(f'[WARN] OGP画像生成失敗: {result.stderr.strip()}')
+        return False
+
+    log(f'OGP画像生成完了: {result.stdout.strip()}')
+    return True
+
+
 def publish_to_pages(year: int, month: int, generated_at: str) -> bool:
     """docs/reports/ にレポートをコピーして master へ push する。"""
-    report_name = f'report_{year}{month:02d}.html'
+    yyyymm = f'{year}{month:02d}'
+    report_name = f'report_{yyyymm}.html'
+    ogp_name    = f'ogp_{yyyymm}.png'
     report_src  = BASE_DIR / 'data' / 'monthly_report' / report_name
+    ogp_src     = BASE_DIR / 'data' / 'monthly_report' / ogp_name
 
     if not report_src.exists():
         log(f'[ERR] レポートファイルが見つかりません: {report_src}')
@@ -49,11 +76,21 @@ def publish_to_pages(year: int, month: int, generated_at: str) -> bool:
     dest.write_bytes(report_src.read_bytes())
     log(f'docs/reports/{report_name} にコピーしました')
 
+    # OGP画像をコピー
+    files_to_add = [f'docs/reports/{report_name}', 'docs/index.html']
+    if ogp_src.exists():
+        ogp_dest = REPORTS_DIR / ogp_name
+        ogp_dest.write_bytes(ogp_src.read_bytes())
+        log(f'docs/reports/{ogp_name} にコピーしました')
+        files_to_add.append(f'docs/reports/{ogp_name}')
+    else:
+        log(f'[WARN] OGP画像が見つかりません: {ogp_src}')
+
     # docs/index.html にリンクを追加
     _update_index(year, month, generated_at)
 
     # コミット
-    run([GIT, 'add', f'docs/reports/{report_name}', 'docs/index.html'])
+    run([GIT, 'add'] + files_to_add)
     staged = run([GIT, 'diff', '--cached', '--quiet'])
     if staged.returncode == 0:
         log('変更なし。push をスキップします')
@@ -134,7 +171,10 @@ def main():
         sys.exit(1)
     log('月次レポート生成完了')
 
-    # 2. GitHub Pages (master/docs) へ公開
+    # 2. OGP画像生成
+    generate_ogp(year, month)
+
+    # 3. GitHub Pages (master/docs) へ公開
     generated_at = datetime.datetime.now().strftime('%Y-%m-%d')
     ok = publish_to_pages(year, month, generated_at)
     if not ok:

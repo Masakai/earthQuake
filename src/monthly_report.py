@@ -615,12 +615,27 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
     )
     generated_at  = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
 
+    yyyymm = f'{year}{month:02d}'
+    ogp_url = f'https://masakai.github.io/earthQuake/reports/ogp_{yyyymm}.png'
+    page_url = f'https://masakai.github.io/earthQuake/reports/report_{yyyymm}.html'
+
     return f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{title}</title>
+<meta property="og:type" content="article">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="有感地震{stats.get('total', 0)}件・最大M{stats['max_mag_q']['mag'] if stats.get('max_mag_q') else '-'}・最大震度{SCALE_LABEL.get(stats['max_scale_q']['scale'], '-') if stats.get('max_scale_q') else '-'} | AM.R38DC（静岡県三島市）による私的観測記録">
+<meta property="og:url" content="{page_url}">
+<meta property="og:image" content="{ogp_url}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="有感地震{stats.get('total', 0)}件・最大M{stats['max_mag_q']['mag'] if stats.get('max_mag_q') else '-'}・最大震度{SCALE_LABEL.get(stats['max_scale_q']['scale'], '-') if stats.get('max_scale_q') else '-'} | AM.R38DC（静岡県三島市）による私的観測記録">
+<meta name="twitter:image" content="{ogp_url}">
 <style>
   body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background:#f1f5f9; color:#1e293b; margin:0; padding:0; }}
   .container {{ max-width: 1000px; margin: 0 auto; padding: 24px 16px; }}
