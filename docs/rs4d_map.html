@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>国内RS4D観測点マップ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif; background: #1a1a2e; color: #e0e0e0; }
+  #header {
+    padding: 14px 20px;
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  #header h1 { font-size: 1rem; font-weight: 600; color: #e0e0e0; }
+  #header .sub { font-size: 0.8rem; color: #7a8aaa; }
+  #map { height: calc(100vh - 52px); }
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 16px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: #ccd;
+    text-decoration: none;
+  }
+  .back-btn:hover { background: rgba(255,255,255,0.14); }
+  .legend {
+    background: rgba(22,33,62,0.92);
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.9;
+    color: #ccd;
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div id="header">
+  <a href="../index.html" class="back-btn">← レポート一覧</a>
+  <div>
+    <h1>国内 Raspberry Shake RS4D 観測点マップ</h1>
+    <span class="sub">27局 ／ 自局: AM.R38DC（静岡県三島市）からの距離円付き</span>
+  </div>
+</div>
+<div id="map"></div>
+
+<script>
+const STATIONS = [
+  {
+    "code": "AM.R0BEF",
+    "lat": 35.1802,
+    "lon": 136.9274,
+    "elev_m": 12,
+    "pref": "愛知県",
+    "city": "名古屋市",
+    "active_since": "2019-06-02"
+  },
+  {
+    "code": "AM.R151E",
+    "lat": 35.5676,
+    "lon": 139.4114,
+    "elev_m": 109,
+    "pref": "神奈川県",
+    "city": "相模原市",
+    "active_since": "2021-07-18"
+  },
+  {
+    "code": "AM.R1C2B",
+    "lat": 42.8829,
+    "lon": 141.5975,
+    "elev_m": 19,
+    "pref": "北海道",
+    "city": "恵庭市",
+    "active_since": "2022-04-05"
+  },
+  {
+    "code": "AM.R1ED1",
+    "lat": 35.3784,
+    "lon": 139.237,
+    "elev_m": 108,
+    "pref": "神奈川県",
+    "city": "秦野市",
+    "active_since": "2021-12-16"
+  },
+  {
+    "code": "AM.R2231",
+    "lat": 35.7928,
+    "lon": 139.9123,
+    "elev_m": 25,
+    "pref": "千葉県",
+    "city": "松戸市",
+    "active_since": "2021-05-02"
+  },
+  {
+    "code": "AM.R38DC",
+    "lat": 35.1351,
+    "lon": 138.9269,
+    "elev_m": 120,
+    "pref": "静岡県",
+    "city": "三島市",
+    "active_since": "2018-01-08"
+  },
+  {
+    "code": "AM.R44B9",
+    "lat": 37.6126,
+    "lon": 138.9668,
+    "elev_m": 13,
+    "pref": "新潟県",
+    "city": "三条市",
+    "active_since": "2022-05-27"
+  },
+  {
+    "code": "AM.R4764",
+    "lat": 34.3333,
+    "lon": 135.5864,
+    "elev_m": 197,
+    "pref": "和歌山県",
+    "city": "橋本市",
+    "active_since": "2021-04-13"
+  },
+  {
+    "code": "AM.R503C",
+    "lat": 35.2973,
+    "lon": 136.7941,
+    "elev_m": 12,
+    "pref": "愛知県",
+    "city": "一宮市",
+    "active_since": "2025-05-02"
+  },
+  {
+    "code": "AM.R57EA",
+    "lat": 35.6667,
+    "lon": 139.6805,
+    "elev_m": 34,
+    "pref": "東京都",
+    "city": "渋谷区",
+    "active_since": "2021-07-30"
+  },
+  {
+    "code": "AM.R5E4A",
+    "lat": 38.2432,
+    "lon": 140.3494,
+    "elev_m": 197,
+    "pref": "山形県",
+    "city": "山形市",
+    "active_since": "2025-10-23"
+  },
+  {
+    "code": "AM.R6E01",
+    "lat": 33.2883,
+    "lon": 130.9469,
+    "elev_m": 108,
+    "pref": "大分県",
+    "city": "日田市",
+    "active_since": "2025-05-02"
+  },
+  {
+    "code": "AM.R8259",
+    "lat": 35.7658,
+    "lon": 139.5325,
+    "elev_m": 53,
+    "pref": "東京都",
+    "city": "東久留米市",
+    "active_since": "2020-07-12"
+  },
+  {
+    "code": "AM.R9B32",
+    "lat": 36.0,
+    "lon": 140.1629,
+    "elev_m": 25,
+    "pref": "茨城県",
+    "city": "牛久市",
+    "active_since": "2024-01-22"
+  },
+  {
+    "code": "AM.R9F7A",
+    "lat": 35.045,
+    "lon": 136.0554,
+    "elev_m": 140,
+    "pref": "滋賀県",
+    "city": "湖南市",
+    "active_since": "2022-03-17"
+  },
+  {
+    "code": "AM.RA358",
+    "lat": 35.8829,
+    "lon": 139.6279,
+    "elev_m": 48,
+    "pref": "埼玉県",
+    "city": "さいたま市",
+    "active_since": "2022-09-01"
+  },
+  {
+    "code": "AM.RAC10",
+    "lat": 35.6306,
+    "lon": 139.7247,
+    "elev_m": 115,
+    "pref": "東京都",
+    "city": "品川区",
+    "active_since": "2022-08-08"
+  },
+  {
+    "code": "AM.RB0E1",
+    "lat": 35.6577,
+    "lon": 139.3961,
+    "elev_m": 96,
+    "pref": "東京都",
+    "city": "日野市",
+    "active_since": "2020-09-14"
+  },
+  {
+    "code": "AM.RC740",
+    "lat": 26.2432,
+    "lon": 127.7605,
+    "elev_m": 119,
+    "pref": "沖縄県",
+    "city": "中頭郡西原町",
+    "active_since": "2018-01-29"
+  },
+  {
+    "code": "AM.RDBC2",
+    "lat": 36.0,
+    "lon": 140.1629,
+    "elev_m": 19,
+    "pref": "茨城県",
+    "city": "牛久市",
+    "active_since": "2025-01-11"
+  },
+  {
+    "code": "AM.RDE84",
+    "lat": 35.3874,
+    "lon": 139.5504,
+    "elev_m": 33,
+    "pref": "神奈川県",
+    "city": "横浜市",
+    "active_since": "2020-10-29"
+  },
+  {
+    "code": "AM.RE4F9",
+    "lat": 35.8018,
+    "lon": 139.2167,
+    "elev_m": 240,
+    "pref": "東京都",
+    "city": "青梅市",
+    "active_since": "2026-02-28"
+  },
+  {
+    "code": "AM.REC8D",
+    "lat": 35.7117,
+    "lon": 139.6391,
+    "elev_m": 42,
+    "pref": "東京都",
+    "city": "杉並区",
+    "active_since": "2019-07-03"
+  },
+  {
+    "code": "AM.RF91C",
+    "lat": 33.2973,
+    "lon": 129.8343,
+    "elev_m": 10,
+    "pref": "佐賀県",
+    "city": "伊万里市",
+    "active_since": "2020-06-30"
+  },
+  {
+    "code": "AM.S6EAF",
+    "lat": 26.8559,
+    "lon": 128.2583,
+    "elev_m": 101,
+    "pref": "沖縄県",
+    "city": "国頭郡国頭村",
+    "active_since": "2021-01-18"
+  },
+  {
+    "code": "AM.S9AF3",
+    "lat": 36.1261,
+    "lon": 140.0749,
+    "elev_m": 29,
+    "pref": "茨城県",
+    "city": "つくば市",
+    "active_since": "2025-02-25"
+  },
+  {
+    "code": "AM.SF44C",
+    "lat": 38.3243,
+    "lon": 140.8823,
+    "elev_m": 38,
+    "pref": "宮城県",
+    "city": "仙台市",
+    "active_since": "2021-12-24"
+  }
+];
+const MY_LAT = 35.1351;
+const MY_LON = 138.9269;
+
+const map = L.map('map', {
+  center: [36.5, 136.5],
+  zoom: 6,
+  zoomControl: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 14,
+}).addTo(map);
+
+// 距離円
+const circleStyle = { color: '#4a9eff', weight: 1, fill: false, dashArray: '4 4', opacity: 0.6 };
+L.circle([MY_LAT, MY_LON], { radius: 100000, ...circleStyle }).addTo(map)
+  .bindTooltip('100 km', {permanent:false, direction:'right'});
+L.circle([MY_LAT, MY_LON], { radius: 200000, ...circleStyle }).addTo(map)
+  .bindTooltip('200 km', {permanent:false, direction:'right'});
+L.circle([MY_LAT, MY_LON], { radius: 300000, ...circleStyle }).addTo(map)
+  .bindTooltip('300 km', {permanent:false, direction:'right'});
+
+// Haversine距離（km）
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// 観測点マーカー
+STATIONS.forEach(s => {
+  const isMine = s.code === 'AM.R38DC';
+  const dist = haversine(MY_LAT, MY_LON, s.lat, s.lon).toFixed(0);
+  const color = isMine ? '#ff6b35' : '#4a9eff';
+  const radius = isMine ? 10 : 7;
+  const icon = L.circleMarker([s.lat, s.lon], {
+    radius,
+    color: isMine ? '#ff4400' : '#1a6fcc',
+    weight: isMine ? 2 : 1,
+    fillColor: color,
+    fillOpacity: isMine ? 1.0 : 0.75,
+  });
+  const popup = `
+    <div style="font-family:'Hiragino Sans',sans-serif;font-size:13px;line-height:1.7;">
+      <strong style="color:#4a9eff;">${s.code}</strong><br>
+      ${s.pref} ${s.city}<br>
+      緯度 ${s.lat}° / 経度 ${s.lon}°<br>
+      標高 ${s.elev_m} m<br>
+      稼働開始: ${s.active_since}<br>
+      ${isMine ? '<span style="color:#ff6b35;font-weight:bold;">★ 自局</span>' : '自局から <strong>' + dist + ' km</strong>'}
+    </div>`;
+  icon.bindPopup(popup);
+  icon.bindTooltip(s.code.replace('AM.',''), {direction:'top', offset:[0,-4]});
+  icon.addTo(map);
+});
+
+// 凡例
+const legend = L.control({position: 'bottomright'});
+legend.onAdd = () => {
+  const div = L.DomUtil.create('div', 'legend');
+  div.innerHTML = `
+    <div class="legend-item"><div class="dot" style="background:#ff6b35;"></div> 自局 AM.R38DC</div>
+    <div class="legend-item"><div class="dot" style="background:#4a9eff;"></div> 他局（RS4D）</div>
+    <div style="margin-top:6px;border-top:1px solid #0f3460;padding-top:6px;">
+      <div style="color:#4a9eff;opacity:0.7;">--- 距離円: 100 / 200 / 300 km</div>
+    </div>`;
+  return div;
+};
+legend.addTo(map);
+</script>
+</body>
+</html>
