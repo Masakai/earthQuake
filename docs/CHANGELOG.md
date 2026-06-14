@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [1.2.0] - 2026-06-14
+
+### Changed
+- `jma_intensity_tui.py`: 地震警報の話速を震度に応じて変更。震度5以上（5弱/5強/6弱/6強/7）は `say -r 240`（約240wpm）で発声し緊迫感を出す。震度4以下は Kyoko のデフォルト話速（約175wpm）のまま
+  - `_say_speak(text, rate=None)` に話速引数を追加
+- `start_web.sh`: VoiceVox ENGINE の起動方式を VOICEVOX.app（`open -a`）から Docker コンテナ（`voicevox/voicevox_engine:cpu-latest`）方式へ変更
+  - エディタ込みアプリは不要となり HTTP API（audio_query / synthesis）のみで完結
+  - docker 未インストール時は macOS `say` にフォールバック
+  - イメージ初回取得を考慮し Engine 起動待ちを最大15秒→30秒に延長
+
 ## [1.1.1] - 2026-06-01
 
 ### Fixed

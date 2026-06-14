@@ -89,9 +89,17 @@ def _voicevox_speak(text: str, base_url: str, speaker_id: int, speed: float = 1.
         pass
 
 
-def _say_speak(text: str):
-    """macOS say コマンドで読み上げ（同期・完了まで待機）。"""
-    subprocess.run(["say", "-v", "Kyoko", text], check=False)
+def _say_speak(text: str, rate: int | None = None):
+    """macOS say コマンドで読み上げ（同期・完了まで待機）。
+
+    rate を指定すると say -r <words/分> で話速を変える。震度5以上は
+    速くして緊迫感を出す用途（Kyoko のデフォルトは約175wpm）。
+    """
+    cmd = ["say", "-v", "Kyoko"]
+    if rate is not None:
+        cmd += ["-r", str(rate)]
+    cmd.append(text)
+    subprocess.run(cmd, check=False)
 
 
 _SCALE_ALERT_PREFIX = {
@@ -198,6 +206,9 @@ class AlertSpeaker:
         prefix = _SCALE_ALERT_PREFIX.get(scale, "注意！地震です。")
         caution = _SCALE_MESSAGES.get(scale, "")
         text = f"{prefix}震度{scale}。計測震度{i_str}。{caution}"
+        # 震度5以上（5弱/5強/6弱/6強/7）は話速を上げて緊迫感を出す。
+        # 震度4以下は None（say のデフォルト話速 約175wpm）。
+        say_rate = 240 if scale[:1] in ("5", "6", "7") else None
         call_time = time.time()
 
         def _run():
@@ -206,7 +217,7 @@ class AlertSpeaker:
             if self._use_voicevox:
                 _voicevox_speak(text, self.VOICEVOX_URL, self._speaker_id)
             else:
-                _say_speak(text)
+                _say_speak(text, rate=say_rate)
             end_time = time.time()
             _log_alert_latency(
                 trig_time=trig_time,
