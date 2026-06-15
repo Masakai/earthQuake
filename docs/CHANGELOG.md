@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [1.3.0] - 2026-06-15
+
+### Added
+- `jma_intensity_web.py`: 読み取り専用 API `GET /api/events` を追加（統合システム fujimidai-observatory 連携）
+  - トリガ履歴 `logs/trigger_log.jsonl` を HTTP 経由・読み取り専用で取得するエンドポイント
+  - クエリパラメータ（すべて任意）: `date`（YYYY-MM-DD）/ `from` / `to`（期間）/ `limit`（新しい順、デフォルト 1000、0〜10000）/ `min_scale`（震度順序で比較、それ以上のみ）
+  - ヘルパー `_read_trigger_events()` を新設。震度は `_SCALE_ORDER`（"5弱"/"5強" 等を正しく扱う）で比較
+  - 正常レスポンス形式: `{"count": N, "events": [...]}`（既存キー date/ts/I/scale/ratio を保持、新しい順）
+  - 入力契約: 不正な `min_scale`（"0".."4","5弱","5強","6弱","6強","7" 以外）→ HTTP 422、`limit` が 0〜10000 の範囲外 → HTTP 422
+  - I/O・デコード障害は握りつぶさず伝播（障害をイベント0件に化けさせない方針）
+  - **無認証エンドポイント**。`10.0.1.28:8080` が LAN 外へ露出していないこと（非露出）を確認のうえリリース（2026-06-15）
+- `test_api_events.py`: 上記 API のテスト 23 件を追加（正常系・境界・異常系 422・UTF-8 多バイト・I/O エラー伝播）
+
 ## [1.2.1] - 2026-06-14
 
 ### Changed
