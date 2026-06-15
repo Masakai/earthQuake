@@ -42,7 +42,7 @@ except ImportError:
 
 import jinja2
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from jma_intensity_tui import (
@@ -702,6 +702,111 @@ async def get_geojson_city(pref_code: str, city_code: str):
         return JSONResponse(status_code=404, content={"error": "not found"})
     from fastapi.responses import FileResponse
     return FileResponse(str(path), media_type="application/json")
+
+
+# ===== トリガ履歴 読み取り専用 API（統合システム fujimidai-observatory 向け）=====
+
+# 震度（scale）の順序。文字列比較では "5弱" 等を正しく扱えないため、この順序で比較する。
+_SCALE_ORDER = ["0", "1", "2", "3", "4", "5弱", "5強", "6弱", "6強", "7"]
+_SCALE_RANK = {s: i for i, s in enumerate(_SCALE_ORDER)}
+
+_TRIGGER_LOG_PATH = pathlib.Path.home() / "Dropbox" / "earthQuake" / "logs" / "trigger_log.jsonl"
+
+# limit の上限。全行メモリ展開・ソートのコストを抑えるためのキャップ。
+_EVENTS_LIMIT_MAX = 10000
+
+
+def _read_trigger_events(
+    log_path: pathlib.Path,
+    date: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = 1000,
+    min_scale: str | None = None,
+) -> list[dict]:
+    """trigger_log.jsonl を読み、フィルタ後に新しい順で返す（読み取り専用）。
+
+    - 各行は json.loads。壊れた行・空行はスキップ。
+    - date/from/to は "date" フィールド（YYYY-MM-DD）の文字列比較で範囲判定する。
+    - min_scale は _SCALE_ORDER による震度順序で比較（"5弱" 等のため文字列比較は不可）。
+      _SCALE_ORDER に無い値を渡すと ValueError（fail-open を防ぐため黙って無視しない）。
+    - 返却は date,ts の降順（新しい順）で limit 件まで。既存キー名はそのまま保持。
+
+    I/O エラー・デコードエラーはここでは握りつぶさず呼び出し側へ伝播させる
+    （「障害」を「イベント0件」に化けさせない。見逃しの方が深刻という方針に従う）。
+    """
+    if min_scale is not None and min_scale not in _SCALE_RANK:
+        raise ValueError(f"invalid min_scale: {min_scale!r} (expected one of {_SCALE_ORDER})")
+
+    if not log_path.exists():
+        return []
+
+    min_rank = _SCALE_RANK.get(min_scale) if min_scale is not None else None
+
+    events: list[dict] = []
+    # 書き込み側（jma_intensity_tui.py:add_event）が encoding="utf-8" で "5弱" 等を
+    # 生 UTF-8 で書くため、読み取りも明示的に utf-8 を指定する（ロケール依存を排除）。
+    with open(log_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                ev = json.loads(line)
+            except Exception:
+                # 破損行のみスキップ（既存ログに空行・破損行が混じりうる）。
+                continue
+            if not isinstance(ev, dict):
+                continue
+            d = ev.get("date")
+            if date is not None and d != date:
+                continue
+            if date_from is not None and (d is None or d < date_from):
+                continue
+            if date_to is not None and (d is None or d > date_to):
+                continue
+            if min_rank is not None:
+                rank = _SCALE_RANK.get(ev.get("scale"))
+                if rank is None or rank < min_rank:
+                    continue
+            events.append(ev)
+
+    # 新しい順（date,ts 降順）。ts が無い行も落ちないよう空文字でソート。
+    events.sort(key=lambda e: (e.get("date", ""), e.get("ts", "")), reverse=True)
+    if limit is not None and limit >= 0:
+        events = events[:limit]
+    return events
+
+
+@app.get("/api/events")
+async def api_events(
+    date: str | None = None,
+    from_: str | None = Query(default=None, alias="from"),
+    to: str | None = None,
+    limit: int = Query(default=1000, ge=0, le=_EVENTS_LIMIT_MAX),
+    min_scale: str | None = None,
+):
+    """トリガ履歴（trigger_log.jsonl）を読み取り専用でJSON返却する。
+
+    クエリパラメータ（すべて任意）:
+      - date     : YYYY-MM-DD。その日のトリガのみ
+      - from / to: YYYY-MM-DD。期間フィルタ（date フィールドで範囲）
+      - limit    : 返却件数上限（新しい順、デフォルト 1000、0〜10000）
+      - min_scale: 指定があれば震度がそれ以上のみ（震度順序で比較）。
+                   不正値は 422（黙って全件返さない）。
+    """
+    try:
+        events = _read_trigger_events(
+            _TRIGGER_LOG_PATH,
+            date=date,
+            date_from=from_,
+            date_to=to,
+            limit=limit,
+            min_scale=min_scale,
+        )
+    except ValueError as e:
+        return JSONResponse(status_code=422, content={"error": str(e)})
+    return {"count": len(events), "events": events}
 
 
 @app.websocket("/ws")
