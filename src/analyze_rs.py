@@ -269,10 +269,21 @@ def download_channel_seedlink(station: str, channel: str, t_start: datetime, t_e
         from obspy.clients.seedlink.basic_client import Client
     except ImportError:
         return False
+    # SeedLinkは「終端が未来の区間」を要求すると、その時刻のデータが届くまで
+    # ブロックし続ける（Clientのtimeoutはこの待機には効かない）。発生直後の地震を
+    # 長いdurationで解析すると終端が未来にかかりハングするため、現在時刻の数秒手前で
+    # 終端をクランプする。未来のデータは存在しないので取れる範囲（=現在まで）で足りる。
+    now_utc = datetime.now(UTC)
+    safe_end = now_utc - timedelta(seconds=5)
+    req_end = t_end if t_end <= safe_end else safe_end
+    if req_end <= t_start:
+        # 区間全体が未来＝まだ1サンプルも存在しない。フォールバック断念。
+        print(f"\n  [INFO] {channel}: 区間が未来のためSeedLink取得不可", end=" ", flush=True)
+        return False
     try:
         cli = Client(RS_SEEDLINK_HOST, port=RS_SEEDLINK_PORT, timeout=30)
         st = cli.get_waveforms(NETWORK, station, LOCATION, channel,
-                               UTCDateTime(t_start), UTCDateTime(t_end))
+                               UTCDateTime(t_start), UTCDateTime(req_end))
     except Exception as e:
         # 自局に到達できない（LAN外実行など）場合はここに来る。フォールバック断念。
         print(f"\n  [INFO] {channel}: 自局SeedLink取得不可 ({e})", end=" ", flush=True)
