@@ -82,6 +82,17 @@ STATION_LON  = float(os.environ.get('STATION_LON', '0.0'))
 RS_SEEDLINK_HOST = os.environ.get('RS_SEEDLINK_HOST', '10.0.1.53')
 RS_SEEDLINK_PORT = int(os.environ.get('RS_SEEDLINK_PORT', '18000'))
 
+# HTTPS用SSLコンテキスト。
+# python.org製Python(macOS)はOpenSSLのデフォルト証明書パスが未設定のことがあり、
+# その場合 CERTIFICATE_VERIFY_FAILED でFDSN/P2P APIへのHTTPSが全滅する。
+# certifi があればそのバンドルで検証コンテキストを作る。無ければ None（標準挙動）。
+import ssl as _ssl
+try:
+    import certifi as _certifi
+    _SSL_CTX = _ssl.create_default_context(cafile=_certifi.where())
+except Exception:
+    _SSL_CTX = None
+
 _ROOT = pathlib.Path(__file__).parent.parent
 _NE_PROVINCES = _ROOT / 'data' / 'ne' / 'provinces' / 'ne_10m_admin_1_states_provinces.shp'
 _NE_COUNTRIES = _ROOT / 'data' / 'ne' / 'countries' / 'ne_10m_admin_0_countries_jpn.shp'
@@ -140,7 +151,7 @@ def _parse_p2p_entries(data: list) -> list:
 def fetch_p2p_quakes(limit: int = 20) -> list:
     url = P2P_API_BASE + '?' + urllib.parse.urlencode({'codes': 551, 'limit': limit})
     req = urllib.request.Request(url, headers={"User-Agent": "rs4d-analyze/1.0"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
+    with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
         data = json.loads(resp.read())
     return _parse_p2p_entries(data)
 
@@ -161,7 +172,7 @@ def fetch_p2p_quakes_by_date(date_str: str) -> list:
             {'codes': 551, 'limit': batch, 'offset': offset}
         )
         req = urllib.request.Request(url, headers={"User-Agent": "rs4d-analyze/1.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
             data = json.loads(resp.read())
         if not data:
             break
@@ -230,7 +241,7 @@ def fetch_station_coords(station: str) -> tuple[float, float] | None:
     req = urllib.request.Request(url, headers={"User-Agent": "rs4d-analyze/1.0"})
     lat, lon = None, None
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
             for line in resp.read().decode().splitlines():
                 if line.startswith('#') or not line.strip():
                     continue
@@ -290,7 +301,7 @@ def download_channel(station: str, channel: str, t_start: datetime, t_end: datet
     req = urllib.request.Request(url, headers={"User-Agent": "rs4d-analyze/1.0"})
     print(f"  {channel}: {start_str} → {end_str} ...", end=" ", flush=True)
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=60, context=_SSL_CTX) as resp:
             data = resp.read()
     except Exception as e:
         print(f"\n  [WARN] {channel}: 公式FDSNダウンロード失敗 ({e})")
