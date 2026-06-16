@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [1.4.0] - 2026-06-16
+
+### Added
+- `analyze_rs.py`: 公式FDSN（data.raspberryshake.org）にデータが無い場合、自局Raspberry Shake内蔵のSeedLink（`10.0.1.53:18000`、遅延約7秒）から波形を取得するフォールバックを追加
+  - 背景: 公式FDSNは発生直後のデータが20〜30分遅れるため、発生直後の解析が空振りしていた
+  - `download_channel` を二段化し、公式FDSNが空のとき `download_channel_seedlink`（新規）へフォールバック
+  - 接続先は `RS_SEEDLINK_HOST` / `RS_SEEDLINK_PORT`（`.env` で上書き可）
+  - 本番（発生直後シナリオ）で公式FDSN空→自局SeedLinkから35KB取得成功を確認
+
+### Fixed
+- `analyze_rs.py`: 公式FDSN / P2P API への HTTPS を certifi の証明書バンドルで検証するよう修正
+  - 原因: python.org 製 Python 3.12.1（本番）で `ssl.get_default_verify_paths()` の cafile/capath が共に None となり、HTTPS が `CERTIFICATE_VERIFY_FAILED` で全滅していた
+  - モジュール冒頭で `certifi.where()` から `_SSL_CTX = ssl.create_default_context(cafile=...)` を生成し、全 urlopen（P2P×2・FDSN station・FDSN dataselect）に `context=_SSL_CTX` を渡す
+  - certifi 未導入環境では `None` で標準挙動を維持（システム Python 等は無変更）
+- `analyze_rs.py`: SeedLink フォールバックで終端が未来の区間を要求するとハングする問題を修正
+  - 原因: SeedLink は終端が未来の区間を要求するとデータ到着までブロックし続ける（obspy SeedLink Client の timeout はこの待機に効かない）。WebUI は発生直後の地震を `--duration 420` で解析するため要求区間の終端が未来になりハングしていた
+  - `download_channel_seedlink` で `get_waveforms` 前に終端を「現在UTC−5秒」でクランプ。区間全体が未来なら即時 False を返す
+  - WebUI 相当（発生直後+duration420）の E2E がローカル12秒・本番14秒で完走することを確認
+
 ## [1.3.0] - 2026-06-15
 
 ### Added

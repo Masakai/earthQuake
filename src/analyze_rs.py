@@ -76,6 +76,23 @@ if _ENV.exists():
 STATION_LAT  = float(os.environ.get('STATION_LAT', '0.0'))
 STATION_LON  = float(os.environ.get('STATION_LON', '0.0'))
 
+# 自局Raspberry Shake SeedLink（公式FDSNにデータが無い発生直後のフォールバック取得先）
+# 公式FDSNは発生から20〜30分遅れるため、その穴埋めに自局のリアルタイム配信を使う。
+# デフォルトは自局固定IP。.env の RS_SEEDLINK_HOST / RS_SEEDLINK_PORT で上書き可能。
+RS_SEEDLINK_HOST = os.environ.get('RS_SEEDLINK_HOST', '10.0.1.53')
+RS_SEEDLINK_PORT = int(os.environ.get('RS_SEEDLINK_PORT', '18000'))
+
+# HTTPS用SSLコンテキスト。
+# python.org製Python(macOS)はOpenSSLのデフォルト証明書パスが未設定のことがあり、
+# その場合 CERTIFICATE_VERIFY_FAILED でFDSN/P2P APIへのHTTPSが全滅する。
+# certifi があればそのバンドルで検証コンテキストを作る。無ければ None（標準挙動）。
+import ssl as _ssl
+try:
+    import certifi as _certifi
+    _SSL_CTX = _ssl.create_default_context(cafile=_certifi.where())
+except Exception:
+    _SSL_CTX = None
+
 _ROOT = pathlib.Path(__file__).parent.parent
 _NE_PROVINCES = _ROOT / 'data' / 'ne' / 'provinces' / 'ne_10m_admin_1_states_provinces.shp'
 _NE_COUNTRIES = _ROOT / 'data' / 'ne' / 'countries' / 'ne_10m_admin_0_countries_jpn.shp'
@@ -134,7 +151,7 @@ def _parse_p2p_entries(data: list) -> list:
 def fetch_p2p_quakes(limit: int = 20) -> list:
     url = P2P_API_BASE + '?' + urllib.parse.urlencode({'codes': 551, 'limit': limit})
     req = urllib.request.Request(url, headers={"User-Agent": "rs4d-analyze/1.0"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
+    with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
         data = json.loads(resp.read())
     return _parse_p2p_entries(data)
 
@@ -155,7 +172,7 @@ def fetch_p2p_quakes_by_date(date_str: str) -> list:
             {'codes': 551, 'limit': batch, 'offset': offset}
         )
         req = urllib.request.Request(url, headers={"User-Agent": "rs4d-analyze/1.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
             data = json.loads(resp.read())
         if not data:
             break
@@ -224,7 +241,7 @@ def fetch_station_coords(station: str) -> tuple[float, float] | None:
     req = urllib.request.Request(url, headers={"User-Agent": "rs4d-analyze/1.0"})
     lat, lon = None, None
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
             for line in resp.read().decode().splitlines():
                 if line.startswith('#') or not line.strip():
                     continue
@@ -239,6 +256,50 @@ def fetch_station_coords(station: str) -> tuple[float, float] | None:
 
 
 # ===== MiniSEED ダウンロード =====
+def download_channel_seedlink(station: str, channel: str, t_start: datetime, t_end: datetime,
+                              out_path: pathlib.Path) -> bool:
+    """自局Raspberry Shake の SeedLink から指定区間を取得して MiniSEED で保存する。
+
+    公式FDSNにまだデータが無い発生直後の穴埋め用フォールバック。
+    取得できたら out_path に書き出して True を返す。
+    自局がLAN外で到達不能、またはデータが無い場合は False を返す（静かに諦める）。
+    """
+    try:
+        from obspy import UTCDateTime
+        from obspy.clients.seedlink.basic_client import Client
+    except ImportError:
+        return False
+    # SeedLinkは「終端が未来の区間」を要求すると、その時刻のデータが届くまで
+    # ブロックし続ける（Clientのtimeoutはこの待機には効かない）。発生直後の地震を
+    # 長いdurationで解析すると終端が未来にかかりハングするため、現在時刻の数秒手前で
+    # 終端をクランプする。未来のデータは存在しないので取れる範囲（=現在まで）で足りる。
+    now_utc = datetime.now(UTC)
+    safe_end = now_utc - timedelta(seconds=5)
+    req_end = t_end if t_end <= safe_end else safe_end
+    if req_end <= t_start:
+        # 区間全体が未来＝まだ1サンプルも存在しない。フォールバック断念。
+        print(f"\n  [INFO] {channel}: 区間が未来のためSeedLink取得不可", end=" ", flush=True)
+        return False
+    try:
+        cli = Client(RS_SEEDLINK_HOST, port=RS_SEEDLINK_PORT, timeout=30)
+        st = cli.get_waveforms(NETWORK, station, LOCATION, channel,
+                               UTCDateTime(t_start), UTCDateTime(req_end))
+    except Exception as e:
+        # 自局に到達できない（LAN外実行など）場合はここに来る。フォールバック断念。
+        print(f"\n  [INFO] {channel}: 自局SeedLink取得不可 ({e})", end=" ", flush=True)
+        return False
+    if not st or len(st) == 0:
+        return False
+    try:
+        st.write(str(out_path), format='MSEED')
+    except Exception as e:
+        print(f"\n  [WARN] {channel}: SeedLink結果の書き出し失敗 ({e})", end=" ", flush=True)
+        return False
+    total = sum(tr.stats.npts for tr in st)
+    print(f"[自局SeedLink] {out_path.stat().st_size:,} bytes ({total:,} samples)")
+    return True
+
+
 def download_channel(station: str, channel: str, t_start: datetime, t_end: datetime,
                      out_path: pathlib.Path):
     start_str = t_start.strftime('%Y-%m-%dT%H:%M:%S')
@@ -251,18 +312,22 @@ def download_channel(station: str, channel: str, t_start: datetime, t_end: datet
     req = urllib.request.Request(url, headers={"User-Agent": "rs4d-analyze/1.0"})
     print(f"  {channel}: {start_str} → {end_str} ...", end=" ", flush=True)
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=60, context=_SSL_CTX) as resp:
             data = resp.read()
     except Exception as e:
-        print(f"\n  [WARN] {channel}: ダウンロード失敗 ({e})（スキップ）")
-        return
+        print(f"\n  [WARN] {channel}: 公式FDSNダウンロード失敗 ({e})")
+        data = b''
     if data:
         out_path.write_bytes(data)
         print(f"{len(data):,} bytes")
-    else:
-        if out_path.exists():
-            out_path.unlink()
-        print("0 bytes (データなし・スキップ)")
+        return
+    # 公式FDSNにデータが無い（発生直後など）→ 自局RSのSeedLinkにフォールバック
+    print("公式FDSNにデータなし → 自局SeedLinkを試行 ...", end=" ", flush=True)
+    if download_channel_seedlink(station, channel, t_start, t_end, out_path):
+        return
+    if out_path.exists():
+        out_path.unlink()
+    print("0 bytes (データなし・スキップ)")
 
 
 # ===== STA/LTA =====
