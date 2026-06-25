@@ -56,6 +56,11 @@ from jma_intensity_tui import (
 from jma_intensity_realtime import Ring, jma_scale_from_I
 
 
+# アプリのバージョン。リリース時に git タグ（vX.Y.Z）と揃えて手動更新する。
+# WebUI のステータスバーに表示し、デプロイ反映を画面から確認できるようにする。
+__version__ = "1.5.0"
+
+
 # ===== .env から観測点座標を読み込む =====
 _ENV_PATH = pathlib.Path(__file__).parent.parent / '.env'
 _station_lat: float | None = None
@@ -521,6 +526,7 @@ async def index():
         confirm_window=_args.confirm_window,
         station_lat=_station_lat,
         station_lon=_station_lon,
+        app_version=__version__,
     )
     return HTMLResponse(content=html)
 
@@ -776,6 +782,12 @@ def _read_trigger_events(
     if limit is not None and limit >= 0:
         events = events[:limit]
     return events
+
+
+@app.get("/api/version")
+async def api_version():
+    """アプリのバージョンを返す（デプロイ反映確認用）。"""
+    return {"version": __version__}
 
 
 @app.get("/api/events")
