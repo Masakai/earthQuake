@@ -89,17 +89,21 @@ def _voicevox_speak(text: str, base_url: str, speaker_id: int, speed: float = 1.
         pass
 
 
-def _say_speak(text: str, rate: int | None = None):
-    """macOS say コマンドで読み上げ（同期・完了まで待機）。
+def _say_popen(text: str, rate: int | None = None) -> subprocess.Popen | None:
+    """macOS say コマンドで読み上げを開始し、プロセスハンドルを返す（非ブロッキング）。
 
     rate を指定すると say -r <words/分> で話速を変える。震度5以上は
     速くして緊迫感を出す用途（Kyoko のデフォルトは約175wpm）。
+    呼び出し側が terminate() で中断（言い直し）できるよう Popen を返す。
     """
     cmd = ["say", "-v", "Kyoko"]
     if rate is not None:
         cmd += ["-r", str(rate)]
     cmd.append(text)
-    subprocess.run(cmd, check=False)
+    try:
+        return subprocess.Popen(cmd)
+    except Exception:
+        return None
 
 
 _SCALE_ALERT_PREFIX = {
@@ -190,6 +194,10 @@ class AlertSpeaker:
         self._speaker_id: int | None = None
         self._use_voicevox = False
         self._check_voicevox()
+        # 言い直し（方式Z）用: 現在再生中の say プロセスと最後に発話した震度を保持。
+        # 発話中に震度スケールが上がったら、再生を terminate して新しい値で言い直す。
+        self._proc_lock = threading.Lock()
+        self._cur_proc: subprocess.Popen | None = None
 
     def _check_voicevox(self):
         # VoiceVox合成遅延のため現在は無効化（sayにフォールバック固定）
@@ -215,9 +223,19 @@ class AlertSpeaker:
             start_time = time.time()
             engine = "voicevox" if self._use_voicevox else "say"
             if self._use_voicevox:
+                # VoiceVox は同期再生（言い直し非対応）。現状は say フォールバック固定のため通常ここは通らない。
                 _voicevox_speak(text, self.VOICEVOX_URL, self._speaker_id)
             else:
-                _say_speak(text, rate=say_rate)
+                # 言い直し（方式Z）: 再生中のプロセスがあれば terminate してから新規再生。
+                # 呼び出し側（compute_loop）が「震度スケールが上がったとき」だけ speak() を呼ぶので、
+                # ここでは無条件に直前の発話を打ち切って最新の震度で読み直す。
+                with self._proc_lock:
+                    if self._cur_proc is not None and self._cur_proc.poll() is None:
+                        self._cur_proc.terminate()
+                    proc = _say_popen(text, rate=say_rate)
+                    self._cur_proc = proc
+                if proc is not None:
+                    proc.wait()
             end_time = time.time()
             _log_alert_latency(
                 trig_time=trig_time,
@@ -718,6 +736,22 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
     last_triggered_time = 0.0
     pending_queue: deque = deque()  # (trigger_time, trigger_ts, trigger_ratio) FIFO
 
+    # ===== 発話用ライブ監視の状態（STA/LTAトリガとは独立）=====
+    # トリガ履歴は STA/LTA 比で記録するが、発話はライブ計測震度 I_final が震度1相当（0.5）を
+    # 超えたかどうかで駆動する。遠地地震（S-P時間が長くトリガ発火から震度立ち上がりまで数十秒
+    # かかる）でも近地地震でも、「計測震度が実際に0.5を超えた時点」で発話できるようにするため。
+    #
+    # 方式Z（言い直し）: 0.5超過から speak_delay 秒ピークを見て一度発話したあとも監視を続け、
+    # 震度スケールが1段階以上上がったら AlertSpeaker.speak() を呼んで言い直す（再生中ならkill）。
+    # 同じ震度の中での数値変動では言い直さない（途切れ防止）。
+    _SPEAK_THRESHOLD_I = 0.5      # 震度1相当。これを超えたら発話対象
+    speak_active = False         # True: 0.5超過中（揺れ継続中）
+    speak_pending_since = None   # 0.5を超えてピーク観測を始めた時刻（None=初回発話前でない）
+    speak_peak_I = 0.0           # 観測中のピーク I_final
+    speak_peak_scale = "0"
+    spoken_I = 0.0               # 最後に発話した I 値（震度スケール上昇判定の基準）
+    spoken_scale = None          # 最後に発話した震度スケール（None=未発話）
+
     def sta_lta_ratio(vec, fs, sta_s, lta_s):
         nsta = max(1, int(round(sta_s * fs)))
         nlta = max(nsta + 1, int(round(lta_s * fs)))
@@ -813,18 +847,66 @@ def compute_loop(rings_counts, comps, shared: SharedState, args, stop_event, ale
         if triggered:
             last_triggered_time = t_now
             ts = datetime.now().strftime("%H:%M:%S")
-            pending_queue.append((t_now, ts, ratio))
+            # 各要素は [trig_time, trig_ts, trig_ratio, peak_I, peak_scale]。
+            # peak_I は発火時点の I_final で初期化し、confirm_window 経過まで毎ループ最大値を更新する。
+            pending_queue.append([t_now, ts, ratio, I_final, scale])
 
-        # トリガ後 confirm-window 秒経過したイベントを先頭から順に発火
+        # 確定待ちの全イベントについて、計測震度のピークを更新する。
+        # STA/LTA比のピーク（トリガ発火）から 90秒窓の計測震度Iが立ち上がるまで数十秒のラグがあるため、
+        # 発火直後の窓値ではなく confirm_window 期間内の最大I値をそのイベントの震度として記録する。
+        for ev in pending_queue:
+            if I_final > ev[3]:
+                ev[3] = I_final
+                ev[4] = scale
+
+        # トリガ後 confirm-window 秒経過したイベントを先頭から順に履歴へ記録（読み上げはしない）
         while pending_queue:
-            trig_time, trig_ts, trig_ratio = pending_queue[0]
+            trig_time, trig_ts, trig_ratio, peak_I, peak_scale = pending_queue[0]
             if t_now - trig_time < args.confirm_window:
                 break
             pending_queue.popleft()
-            shared.add_event(trig_ts, I_final, scale, trig_ratio)
-            # I値が震度1相当（0.5）未満は生活振動として発話しない
-            if I_final >= 0.5:
-                alert.speak(scale, I_final, trig_time=trig_time)
+            shared.add_event(trig_ts, peak_I, peak_scale, trig_ratio)
+
+        # ===== 発話: ライブ計測震度 I_final の監視（STA/LTAトリガとは独立・方式Z）=====
+        # 状態機械:
+        #   1) I_final が 0.5 を超えたら → ピーク観測を開始（speak_active=True）
+        #   2) 観測開始から speak_delay 秒のあいだ毎ループでピークを更新
+        #   3) speak_delay 経過時点のピーク値で初回発話
+        #   4) 発話後も監視を続け、震度スケールが上がったら言い直す（再生中ならkillして読み直す）
+        #   5) I_final が 0.5 を下回ったら状態をリセット（次の揺れに備える）
+        if I_final >= _SPEAK_THRESHOLD_I:
+            if not speak_active:
+                # 0.5超過の立ち上がり: ピーク観測開始
+                speak_active = True
+                speak_pending_since = t_now
+                speak_peak_I = I_final
+                speak_peak_scale = scale
+            else:
+                # 観測中/発話後: ピーク更新
+                if I_final > speak_peak_I:
+                    speak_peak_I = I_final
+                    speak_peak_scale = scale
+                if spoken_scale is None:
+                    # 初回発話前: speak_delay 経過でピーク値を発話
+                    if t_now - speak_pending_since >= args.speak_delay:
+                        alert.speak(speak_peak_scale, speak_peak_I, trig_time=speak_pending_since)
+                        spoken_I = speak_peak_I
+                        spoken_scale = speak_peak_scale
+                else:
+                    # 発話済み: 震度スケールが上がったら言い直す。
+                    # scale は I の単調増加で決まるため、scale が変化しかつ I が上回れば必ず「上昇」。
+                    if speak_peak_scale != spoken_scale and speak_peak_I > spoken_I:
+                        alert.speak(speak_peak_scale, speak_peak_I, trig_time=speak_pending_since)
+                        spoken_I = speak_peak_I
+                        spoken_scale = speak_peak_scale
+        else:
+            # 0.5未満に戻った: 状態リセット（次の揺れで再発話できるように）
+            speak_active = False
+            speak_pending_since = None
+            speak_peak_I = 0.0
+            speak_peak_scale = "0"
+            spoken_I = 0.0
+            spoken_scale = None
 
         # 推移履歴に追記
         with shared._lock:
@@ -923,7 +1005,9 @@ def main():
     ap.add_argument("--rt-window", type=float, default=90.0,
                     help="I値計算に使う波形窓長（秒）")
     ap.add_argument("--confirm-window", type=float, default=10.0,
-                    help="トリガ後に揺れ継続を確認する窓（秒）。発話までのラグに直結する")
+                    help="トリガ後に計測震度ピークを追跡して履歴に記録するまでの窓（秒）")
+    ap.add_argument("--speak-delay", type=float, default=2.0,
+                    help="計測震度が0.5を超えてから初回発話するまでの待機（秒）。短いほど速報的。発話後に震度が上がれば言い直す")
     ap.add_argument("--sta", type=float, default=1.0)
     ap.add_argument("--lta", type=float, default=20.0)
     ap.add_argument("--trig", type=float, default=3.5)
