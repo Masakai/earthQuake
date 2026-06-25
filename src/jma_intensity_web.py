@@ -56,6 +56,11 @@ from jma_intensity_tui import (
 from jma_intensity_realtime import Ring, jma_scale_from_I
 
 
+# アプリのバージョン。リリース時に git タグ（vX.Y.Z）と揃えて手動更新する。
+# WebUI のステータスバーに表示し、デプロイ反映を画面から確認できるようにする。
+__version__ = "1.5.0"
+
+
 # ===== .env から観測点座標を読み込む =====
 _ENV_PATH = pathlib.Path(__file__).parent.parent / '.env'
 _station_lat: float | None = None
@@ -521,6 +526,7 @@ async def index():
         confirm_window=_args.confirm_window,
         station_lat=_station_lat,
         station_lon=_station_lon,
+        app_version=__version__,
     )
     return HTMLResponse(content=html)
 
@@ -778,6 +784,12 @@ def _read_trigger_events(
     return events
 
 
+@app.get("/api/version")
+async def api_version():
+    """アプリのバージョンを返す（デプロイ反映確認用）。"""
+    return {"version": __version__}
+
+
 @app.get("/api/events")
 async def api_events(
     date: str | None = None,
@@ -841,7 +853,9 @@ def main():
     ap.add_argument("--rt-window", type=float, default=90.0,
                     help="I値計算に使う波形窓長（秒）")
     ap.add_argument("--confirm-window", type=float, default=10.0,
-                    help="トリガ後に揺れ継続を確認する窓（秒）。発話までのラグに直結する")
+                    help="トリガ後に計測震度ピークを追跡して履歴に記録するまでの窓（秒）")
+    ap.add_argument("--speak-delay", type=float, default=2.0,
+                    help="計測震度が0.5を超えてから初回発話するまでの待機（秒）。短いほど速報的。発話後に震度が上がれば言い直す")
     ap.add_argument("--sta", type=float, default=1.0, help="STA 窓長[秒]")
     ap.add_argument("--lta", type=float, default=20.0, help="LTA 窓長[秒]")
     ap.add_argument("--trig", type=float, default=3.5, help="STA/LTA しきい値")
