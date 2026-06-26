@@ -441,7 +441,7 @@
 
 <!-- ヒーロー -->
 <header class="hero">
-    <div class="badge">Raspberry Shake 4D + JMA Algorithm</div>
+    <div class="badge">Raspberry Shake 4D + JMA Algorithm · v1.5.0</div>
     <h1>リアルタイム<em>震度モニター</em><br>ブラウザで見る</h1>
     <p>Raspberry Shake 4D の波形データをリアルタイムに受信し、気象庁の計測震度アルゴリズムで震度を算出。ブラウザから地図つきで確認できます。</p>
     <div class="hero-actions">
@@ -487,7 +487,7 @@
             <div class="feature-card">
                 <div class="feature-icon">🔔</div>
                 <h3>音声アラート</h3>
-                <p>震度に応じた音声読み上げ。VoiceVox 優先、未起動時は macOS say にフォールバック。</p>
+                <p>震度に応じた音声読み上げ（macOS <code>say -v Kyoko</code>）。計測震度が震度1相当（I≥0.5）を超えた時点で発話し、揺れが強まれば言い直します。</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">⚡</div>
@@ -579,17 +579,16 @@
                 <h3>ソフトウェア</h3>
                 <ul>
                     <li>Python 3.10 以上</li>
-                    <li>macOS（音声アラートに afplay / say を使用）</li>
-                    <li>VoiceVox Engine（任意）</li>
+                    <li>macOS（音声アラートに say を使用・macOS 専用）</li>
                 </ul>
             </div>
             <div class="req-card">
                 <h3>Python パッケージ</h3>
                 <ul>
-                    <li>numpy / obspy</li>
+                    <li>numpy / scipy / obspy</li>
                     <li>rich（TUI 版）</li>
-                    <li>fastapi / uvicorn（Web 版）</li>
-                    <li>websocket-client</li>
+                    <li>fastapi / uvicorn / jinja2（Web 版）</li>
+                    <li>websocket-client / matplotlib</li>
                 </ul>
             </div>
         </div>
@@ -618,7 +617,7 @@
 <span class="cmd">cd</span> earthQuake
 <span class="cmd">python3 -m venv</span> .venv
 <span class="cmd">source</span> .venv/bin/activate
-<span class="cmd">pip install</span> numpy obspy rich websocket-client fastapi uvicorn</pre>
+<span class="cmd">pip install</span> numpy scipy obspy rich websocket-client fastapi uvicorn jinja2 matplotlib</pre>
                 </div>
             </div>
             <div class="qs-step">

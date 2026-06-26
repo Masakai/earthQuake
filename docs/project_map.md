@@ -1,6 +1,6 @@
 # earthQuake Project Map
 
-最終更新: 2026-06-16
+最終更新: 2026-06-26
 
 ## 概要
 
@@ -104,9 +104,15 @@ jma_intensity_web.py  ←→  jma_intensity_tui.py (SharedState)
 | `broadcast_loop()` | 1秒ごとに WebSocket で全クライアントへ状態配信 |
 | `fetch_p2p_quakes()` | P2P地震情報 API から最新50件取得 |
 | `GET /` | dashboard.html を Jinja2 レンダリングして返す |
-| `WebSocket /ws` | クライアントとの双方向通信 |
+| `WebSocket /ws` | クライアントとの双方向通信（1秒ごと状態配信） |
 | `POST /api/config` | STA/LTA閾値・窓幅等のパラメータをランタイム変更 |
 | `POST /api/analyze` | 指定イベントの波形解析（analyze_rs.py 呼び出し） |
+| `GET /api/analyze/{job_id}` | 解析ジョブのステータス確認（ポーリング） |
+| `GET /api/analyze_img/{job_id}` | 解析結果 PNG 画像の取得 |
+| `GET /api/stations` | 気象庁震度観測点マスター（JSON） |
+| `GET /api/geojson/{pref}` / `{pref}/{city}` | 市区町村コード一覧 / GeoJSON 取得 |
+| `GET /api/version` | アプリバージョン（`{"version": "1.5.0"}`） |
+| `GET /api/events` | トリガ履歴 JSON（読み取り専用・無認証、fujimidai-observatory 連携） |
 
 **入出力**:
 - 入力: UDP port 8888（RS DATACAST 形式）
@@ -114,7 +120,7 @@ jma_intensity_web.py  ←→  jma_intensity_tui.py (SharedState)
 - ログ: `logs/trigger_log.jsonl`（トリガ検出時に追記）
 - 設定: `.env`（STATION_LAT, STATION_LON 等）
 
-**CLI引数**: `--station`, `--bind`, `--channels`, `--sta`, `--lta`, `--trig`, `--det-hold`, `--confirm-window`, `--web-port`, `--rt-window`
+**CLI引数**: `--station`, `--bind`, `--channels`, `--sta`, `--lta`, `--trig`, `--det-hold`, `--confirm-window`, `--speak-delay`, `--web-port`, `--rt-window`
 
 ---
 
@@ -316,10 +322,12 @@ MiniSEED ファイル (data/)
 
 | 項目 | デフォルト値 | 場所 |
 |---|---|---|
-| STA 窓 | 1.0 秒 | `--sta` CLI引数 |
-| LTA 窓 | 10.0 秒 | `--lta` CLI引数 |
-| トリガ閾値 | 3.5 | `--trig` CLI引数（UI で可変） |
-| 確認窓 | 2.0 秒 | `--confirm-window` |
+| STA 窓 | 1.0 秒 | `--sta` CLI引数（UI で可変 0.1〜30.0） |
+| LTA 窓 | 20.0 秒 | `--lta` CLI引数（UI で可変 1.0〜300.0） |
+| トリガ閾値 | 3.5 | `--trig` CLI引数（UI で可変 0.5〜50.0） |
+| 再検出抑制 | 20.0 秒 | `--det-hold`（UI で可変 1.0〜600.0） |
+| 確認窓 | 10.0 秒 | `--confirm-window`（UI で可変 1.0〜60.0、トリガ確定までの最大待機） |
+| 発話遅延 | 2.0 秒 | `--speak-delay`（起動時固定。I≥0.5 観測後、初回発話までのピーク観測時間） |
 | Web ポート | 8080 | `--web-port` |
 | UDP ポート | 8888 | `--bind` |
 | P2P 取得件数 | 50件 | `jma_intensity_web.py` |
