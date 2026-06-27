@@ -295,6 +295,21 @@
         align-items: center;
         gap: 5px;
     }
+    /* バッジ表示トグル行はクリック可能にする（凡例本体は pointer-events:none） */
+    .map-legend .leg-toggle {
+        pointer-events: auto;
+        cursor: pointer;
+        user-select: none;
+        margin-bottom: 4px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #30363d;
+        color: #e6edf3;
+    }
+    .map-legend .leg-toggle input {
+        vertical-align: middle;
+        margin: 0 4px 0 0;
+        cursor: pointer;
+    }
     .map-legend .leg-swatch {
         width: 12px;
         height: 12px;
@@ -870,6 +885,8 @@ let _mapMarkers = [];
 let _mapQuakeKey = null;
 let _cityLayer = null;
 let _badgeLayer = null;  // 観測点震度バッジレイヤー
+// 観測点震度バッジの表示ON/OFF（localStorageに永続化、デフォルトON）
+let _badgeVisible = localStorage.getItem('badgeVisible') !== '0';
 
 // 気象庁観測点マスター: name → {lat, lon, pref}（起動時に一度ロード）
 let _stationMaster = null;
@@ -902,9 +919,23 @@ fetch('/api/stations')
             ['1',  '#69b7ea', '震度１'],
             ['0',  '#a0d8ef', '震度０'],
         ];
-        div.innerHTML = items.map(([, col, label]) =>
+        const toggleHtml =
+            `<label class="leg-toggle"><input type="checkbox" id="badge-toggle"${_badgeVisible ? ' checked' : ''}>観測点バッジ</label>`;
+        div.innerHTML = toggleHtml + items.map(([, col, label]) =>
             `<div class="leg-row"><span class="leg-swatch" style="background:${col}"></span><span style="color:#e6edf3">${label}</span></div>`
         ).join('');
+        // 地図へのクリック・スクロール伝播を止める
+        L.DomEvent.disableClickPropagation(div);
+        const cb = div.querySelector('#badge-toggle');
+        cb.addEventListener('change', () => {
+            _badgeVisible = cb.checked;
+            localStorage.setItem('badgeVisible', _badgeVisible ? '1' : '0');
+            if (_badgeVisible) {
+                if (_activeQuake) drawBadgeLayer(_activeQuake);
+            } else {
+                if (_badgeLayer) { quakeMap.removeLayer(_badgeLayer); _badgeLayer = null; }
+            }
+        });
         return div;
     };
     legend.addTo(quakeMap);
@@ -1044,6 +1075,7 @@ function fetchCityGeoJson(code) {
 // 観測点震度バッジを描画（_stationMasterが未ロードの場合は何もしない）
 function drawBadgeLayer(quake) {
     if (_badgeLayer) { quakeMap.removeLayer(_badgeLayer); _badgeLayer = null; }
+    if (!_badgeVisible) return;  // トグルOFF時は描画しない
     if (!quake || !quake.points || quake.points.length === 0) return;
     if (!_stationMaster) return;
 

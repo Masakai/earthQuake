@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [1.5.1] - 2026-06-27
+
+### Added
+- `templates/dashboard.html`: 地図上の観測点震度バッジの表示ON/OFFトグルを追加
+  - 右下の震度凡例の最上部にチェックボックス「観測点バッジ」を配置（デフォルトON）
+  - OFFにすると観測点ごとの震度バッジを非表示にし、地震を選択し直しても描画しない
+  - 状態を `localStorage`（キー `badgeVisible`）に永続化し、リロード後も維持
+  - 凡例本体は `pointer-events:none` のため、トグル行のみクリック可能にし `L.DomEvent.disableClickPropagation` で地図への伝播を遮断
+  - 制御は `drawBadgeLayer` 冒頭の1判定に集約（呼び出し箇所が複数あるため漏れを防止）
+
 ## [1.5.0] - 2026-06-25
 
 ### Changed
