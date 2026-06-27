@@ -1106,23 +1106,79 @@ function drawBadgeLayer(quake) {
     _badgeLayer.addTo(quakeMap);
 }
 
+// 政令指定都市（区を持つ20市）。気象庁addrは「市」を略す表記もあるため両形を照合する
+const SEIREI = ['札幌市','仙台市','さいたま市','千葉市','横浜市','川崎市','相模原市','新潟市','静岡市','浜松市','名古屋市','京都市','大阪市','堺市','神戸市','岡山市','広島市','北九州市','福岡市','熊本市'];
+// 「市なし名」→「市あり正式名」の逆引き（例: '札幌'→'札幌市'）
+const SEIREI_NOCITY = (() => {
+    const m = {};
+    SEIREI.forEach(s => { m[s.slice(0, -1)] = s; });
+    return m;
+})();
+// 異体字の正規化テーブル（addr→GeoJSON表記）。確認済みは梼/檮の1件のみ
+const ADDR_NORM = {'梼':'檮'};
+function normAddr(s) {
+    let out = '';
+    for (const ch of s) out += (ADDR_NORM[ch] || ch);
+    return out;
+}
+
+// keys内の (政令市名, 区名) を addr 文字列から照合する。一致すれば [N03_004, N03_005] を返す
+function matchSeirei(s, keySet, citiesWithKu) {
+    // 「市あり名」「市なし名」の両方を頭候補とし、長いものを優先（誤マッチ防止）
+    const heads = [];
+    for (const nocity in SEIREI_NOCITY) {
+        const full = SEIREI_NOCITY[nocity];
+        if (citiesWithKu.has(full)) {
+            heads.push([full, full]);
+            heads.push([nocity, full]);
+        }
+    }
+    heads.sort((a, b) => b[0].length - a[0].length);
+    for (const [head, full] of heads) {
+        if (s.startsWith(head)) {
+            const rest = s.slice(head.length);
+            const m = rest.match(/^(.+?区)/);  // 直後の「〜区」を最短一致で取る
+            if (m && keySet.has(full + ' ' + m[1])) {
+                return [full, m[1]];
+            }
+        }
+    }
+    return null;
+}
+
+// addr を市区町村へ照合する。戻り値 [N03_004, N03_005|null]、塗り対象外は null
+// keySet: その県の "N03_004 N03_005|''" 文字列集合
+function resolveCity(addr, keySet) {
+    addr = normAddr(addr);
+    const citiesWithKu = new Set();  // 区を持つ政令市名（N03_004）
+    const plain = new Set();         // 区なし市町村名（N03_004）
+    keySet.forEach(k => {
+        const sp = k.indexOf(' ');
+        const c = k.slice(0, sp);
+        const ku = k.slice(sp + 1);
+        if (ku) citiesWithKu.add(c); else plain.add(c);
+    });
+    // 1) 政令市＋区。先頭、および県名プレフィックス0〜2文字除去後を試す（'大阪堺市堺区…'対策）
+    for (let cut = 0; cut <= 2; cut++) {
+        const r = matchSeirei(addr.slice(cut), keySet, citiesWithKu);
+        if (r) return r;
+    }
+    // 2) 区なし市町村の最長前方一致。先頭、およびプレフィックス1〜4文字除去後を試す
+    for (let cut = 0; cut <= 4; cut++) {
+        const sub = addr.slice(cut);
+        let best = null;
+        plain.forEach(c => {
+            if (sub.startsWith(c) && (best === null || c.length > best.length)) best = c;
+        });
+        if (best) return [best, null];
+    }
+    return null;  // 塗らない（空港等）
+}
+
 // 市区町村震度レイヤーを描画
 function drawCityLayer(quake) {
     if (_cityLayer) { quakeMap.removeLayer(_cityLayer); _cityLayer = null; }
     if (!quake || !quake.points || quake.points.length === 0) return;
-
-    // 市区町村名 → 最大震度 のマップ（pref付きキーで衝突防止）
-    const cityScale = {};  // "pref::市区町村" → scale
-    quake.points.forEach(p => {
-        if (!p.pref || !p.addr) return;
-        // addr から市区町村名を抽出（「八戸市湊町」→「八戸市」「湊町」の前半）
-        const city = extractCity(p.addr);
-        const key = p.pref + '::' + city;
-        const cur = cityScale[key];
-        if (!cur || toScaleNum(p.scale) > toScaleNum(cur)) {
-            cityScale[key] = p.scale;
-        }
-    });
 
     // 必要な都道府県コードを特定してGeoJSONを並列取得
     const prefsNeeded = [...new Set(quake.points.map(p => p.pref).filter(Boolean))];
@@ -1131,24 +1187,51 @@ function drawCityLayer(quake) {
         .filter(Boolean);
 
     Promise.all(fetches).then(results => {
-        // 全都道府県のfeatureを結合
+        // 全都道府県のfeatureを結合し、県ごとの市区町村キー集合を構築
         const allFeatures = [];
+        const keysByPref = {};  // pref → Set("N03_004 N03_005|''")
         results.forEach(({pref, data}) => {
+            const keySet = keysByPref[pref] || (keysByPref[pref] = new Set());
             (data.features || []).forEach(f => {
                 f._pref = pref;  // 後でマッチに使う
                 allFeatures.push(f);
+                const c = f.properties.N03_004 || '';
+                const ku = f.properties.N03_005 || '';
+                keySet.add(c + ' ' + ku);
             });
+        });
+
+        // 市区町村キー → 最大震度 のマップ（pref付きキーで衝突防止）
+        // 区を持つ政令市は "pref::市::区"、それ以外は "pref::市町村"
+        const cityScale = {};
+        quake.points.forEach(p => {
+            if (!p.pref || !p.addr) return;
+            const keySet = keysByPref[p.pref];
+            if (!keySet) return;
+            const r = resolveCity(p.addr, keySet);
+            if (!r) return;  // 塗り対象外（空港等）
+            const [city, ku] = r;
+            const key = p.pref + '::' + city + (ku ? '::' + ku : '');
+            const cur = cityScale[key];
+            if (!cur || toScaleNum(p.scale) > toScaleNum(cur)) {
+                cityScale[key] = p.scale;
+            }
         });
 
         const merged = { type: 'FeatureCollection', features: allFeatures };
 
+        // feature から照合キーを作る（政令市の区はN03_005付き）
+        const featureKey = feature => {
+            const pref = feature._pref || '';
+            const cityName = feature.properties.N03_004 || '';
+            const ku = feature.properties.N03_005 || '';
+            return pref + '::' + cityName + (ku ? '::' + ku : '');
+        };
+
         _cityLayer = L.geoJSON(merged, {
             pane: 'cityPane',
             style: feature => {
-                const pref = feature._pref || '';
-                const cityName = feature.properties.N03_004 || '';
-                const key = pref + '::' + cityName;
-                const scale = cityScale[key];
+                const scale = cityScale[featureKey(feature)];
                 if (!scale) {
                     return { fillColor: 'transparent', fillOpacity: 0, color: 'transparent', weight: 0, opacity: 0 };
                 }
@@ -1157,13 +1240,15 @@ function drawCityLayer(quake) {
                 return { fillColor: col, fillOpacity: 0.5, color: col, weight: 1.5, opacity: 0.5 };
             },
             onEachFeature: (feature, layer) => {
-                const pref = feature._pref || '';
-                const cityName = feature.properties.N03_004 || '';
-                const key = pref + '::' + cityName;
-                const scale = cityScale[key];
+                const scale = cityScale[featureKey(feature)];
                 if (scale) {
+                    const pref = feature._pref || '';
+                    const cityName = feature.properties.N03_004 || '';
+                    const ku = feature.properties.N03_005 || '';
+                    // 政令市は「浜松市中央区」のように市＋区を表示
+                    const label = cityName + (ku || '');
                     layer.bindPopup(
-                        '<b>' + cityName + '</b>（' + pref + '）<br>震度 ' + scale,
+                        '<b>' + label + '</b>（' + pref + '）<br>震度 ' + scale,
                         {closeButton: false}
                     );
                     layer.on('click', e => { layer.openPopup(); L.DomEvent.stopPropagation(e); });
@@ -1180,18 +1265,6 @@ function drawCityLayer(quake) {
         // 成功・失敗にかかわらずバッジを描画
         drawBadgeLayer(quake);
     });
-}
-
-// addr文字列から市区町村名を抽出
-// 例: 「八戸市湊町」→「八戸市」、「那覇市」→「那覇市」、「本島北部」→「本島北部」
-function extractCity(addr) {
-    if (!addr) return addr;
-    // 「市」「区」を優先して探す（「大町市役所」が「大町」にマッチしないよう）
-    // 次に「町」「村」「郡」
-    let m = addr.match(/^(.+?[市区])/);
-    if (m) return m[1];
-    m = addr.match(/^(.+?[町村郡])/);
-    return m ? m[1] : addr;
 }
 
 // ズーム変化に応じてレイヤーの表示/非表示を切替

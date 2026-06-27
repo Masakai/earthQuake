@@ -58,7 +58,7 @@ from jma_intensity_realtime import Ring, jma_scale_from_I
 
 # アプリのバージョン。リリース時に git タグ（vX.Y.Z）と揃えて手動更新する。
 # WebUI のステータスバーに表示し、デプロイ反映を画面から確認できるようにする。
-__version__ = "1.5.1"
+__version__ = "1.5.2"
 
 
 # ===== .env から観測点座標を読み込む =====
@@ -528,7 +528,17 @@ async def index():
         station_lon=_station_lon,
         app_version=__version__,
     )
-    return HTMLResponse(content=html)
+    # CSS/JS はこの HTML にインライン埋め込みのため、ブラウザが HTML をキャッシュすると
+    # デプロイ後も古い画面が表示される。HTML は毎回サーバーから取得させる（小さいので負荷は軽微）。
+    # GeoJSON 等の不変な静的データ（/api/geojson）はキャッシュさせたいので、ここでは / のみに付与する。
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 _CONFIG_LIMITS = {
