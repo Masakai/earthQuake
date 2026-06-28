@@ -58,7 +58,7 @@ from jma_intensity_realtime import Ring, jma_scale_from_I
 
 # アプリのバージョン。リリース時に git タグ（vX.Y.Z）と揃えて手動更新する。
 # WebUI のステータスバーに表示し、デプロイ反映を画面から確認できるようにする。
-__version__ = "1.5.2"
+__version__ = "1.6.0"
 
 
 # ===== .env から観測点座標を読み込む =====

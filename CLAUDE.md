@@ -29,4 +29,4 @@ pytest src/test_api_events.py -v     # /api/events（23テスト）
 
 ## バージョン
 
-- 現行 v1.5.0。`src/jma_intensity_web.py` の `__version__` を git タグと揃えて手動更新する。
+- 現行 v1.6.0。`src/jma_intensity_web.py` の `__version__` を git タグと揃えて手動更新する。
