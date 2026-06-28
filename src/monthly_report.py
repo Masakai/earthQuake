@@ -76,6 +76,32 @@ SCALE_LABEL = {
     45: '5弱', 50: '5強', 55: '6弱', 60: '6強', 70: '7',
 }
 
+
+def jma_scale_from_I(I: float) -> str:
+    """計測震度I → 震度階級ラベル（jma_intensity_realtime.jma_scale_from_I と同一基準）。"""
+    if I < 0.5: return '0'
+    if I < 1.5: return '1'
+    if I < 2.5: return '2'
+    if I < 3.5: return '3'
+    if I < 4.5: return '4'
+    if I < 5.0: return '5弱'
+    if I < 5.5: return '5強'
+    if I < 6.0: return '6弱'
+    if I < 6.5: return '6強'
+    return '7'
+
+
+def local_intensity_badge(li: dict | None) -> str:
+    """自局検出の表示文字列を返す。一般向けに震度階級を主、計測震度を併記。
+
+    例: '<span class="local-I">自局 震度1（計測震度0.61）</span>'。検出なしは空文字。
+    """
+    if not li or li.get('I') is None:
+        return ''
+    I = li['I']
+    return (f'　<span class="local-I">自局 震度{jma_scale_from_I(I)}'
+            f'（計測震度{I:.2f}）</span>')
+
 # 震度 → 色（JMA準拠）
 SCALE_COLOR = {
     10: '#3b82f6',   # 1: 青
@@ -133,6 +159,50 @@ def load_trigger_records(year: int, month: int) -> list[dict]:
     return recs
 
 
+def build_local_intensity_lookup(recs: list[dict]) -> dict:
+    """トリガ記録を秒精度の datetime をキーに整列して返す（地震突合用）。
+
+    各要素: {'dt': datetime, 'I': float|None, 'scale': str}
+    """
+    out = []
+    for r in recs:
+        date_str = r.get('date', '')
+        ts = r.get('ts', '')
+        try:
+            dt = datetime.datetime.strptime(f'{date_str} {ts[:8]}',
+                                            '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            continue
+        try:
+            I = float(r.get('I'))
+        except (TypeError, ValueError):
+            I = None
+        out.append({'dt': dt, 'I': I, 'scale': str(r.get('scale', ''))})
+    out.sort(key=lambda x: x['dt'])
+    return out
+
+
+def local_intensity_for(quake_dt: datetime.datetime, trig_list: list[dict],
+                        tol_minutes: int = 3) -> dict | None:
+    """地震発生時刻 ±tol 分のトリガのうち、計測震度I最大のものを返す。
+
+    返り値: {'I': float, 'scale': str} または検出なしで None。
+    地震球マップの突合(tol=3分)と揃える。同一窓に複数トリガがあれば最大I。
+    """
+    if quake_dt is None:
+        return None
+    tol = datetime.timedelta(minutes=tol_minutes)
+    best = None
+    for t in trig_list:
+        if abs((t['dt'] - quake_dt).total_seconds()) > tol.total_seconds():
+            continue
+        if t['I'] is None:
+            continue
+        if best is None or t['I'] > best['I']:
+            best = {'I': t['I'], 'scale': t['scale']}
+    return best
+
+
 def compute_station_topics(year: int, month: int, quakes: list[dict],
                            detected_hhmm: set[str]) -> dict:
     """自局(AM.R38DC)の月間トピックを集計する。
@@ -143,6 +213,7 @@ def compute_station_topics(year: int, month: int, quakes: list[dict],
     }
     """
     recs = load_trigger_records(year, month)
+    trig_list = build_local_intensity_lookup(recs)
     topics = {'total': len(recs), 'max_I': None, 'max_ratio': None,
               'busiest_day': None, 'detected_quakes': []}
     if recs:
@@ -170,6 +241,11 @@ def compute_station_topics(year: int, month: int, quakes: list[dict],
     for q in quakes:
         key = q['time'][:16].replace('/', '-')   # YYYY-MM-DD HH:MM
         if key in detected_hhmm:
+            # 自局での計測震度（地震発生±3分の最大I）を付加する
+            li = local_intensity_for(q.get('dt'), trig_list)
+            q = dict(q)
+            q['local_I'] = li['I'] if li else None
+            q['local_scale'] = li['scale'] if li else None
             topics['detected_quakes'].append(q)
     return topics
 
@@ -201,13 +277,30 @@ def make_station_topics_html(topics: dict) -> str:
         rows = []
         for q in sorted(dq, key=lambda x: x['time'], reverse=True)[:10]:
             scale = SCALE_LABEL.get(q['scale'], '-')
+            if q.get('local_I') is not None:
+                I = q['local_I']
+                local = f'震度{jma_scale_from_I(I)}<span class="local-sub">（計測震度{I:.2f}）</span>'
+            else:
+                local = '—'
             rows.append(
-                f'<li>{q["time"]}　{q["name"]}　'
-                f'M{q["mag"]}　最大震度{scale}</li>'
+                '<tr>'
+                f'<td class="nowrap">{q["time"]}</td>'
+                f'<td>{q["name"]}</td>'
+                f'<td class="num">M{q["mag"]}</td>'
+                f'<td class="num">{scale}</td>'
+                f'<td class="local-cell">{local}</td>'
+                '</tr>'
             )
         parts.append('<p>このうち、全国の有感地震のうち自局(AM.R38DC)で波形を検出できたものは'
                      f'<b>{len(dq)}件</b>です（新しい順・最大10件を表示）。</p>')
-        parts.append('<ul class="detected-list">' + ''.join(rows) + '</ul>')
+        parts.append(
+            '<table class="detected-table">'
+            '<thead><tr>'
+            '<th>発生時刻</th><th>震源</th><th>M</th><th>最大震度</th><th>自局震度</th>'
+            '</tr></thead><tbody>'
+            + ''.join(rows) +
+            '</tbody></table>'
+        )
     else:
         parts.append('<p>今月は全国の有感地震と一致する自局検出はありませんでした'
                      '（自局トリガの多くは近傍の微小な揺れや生活ノイズです）。</p>')
@@ -717,10 +810,36 @@ def make_table(quakes: list[dict], detected_hhmm: set[str] | None = None) -> str
            '</tr></thead><tbody>' + ''.join(rows) + '</tbody></table>'
 
 
+# ===== 解説・総評（手動 or 外部ファイル）=====
+# 月ごとの総評は data/monthly_report/commentary_YYYYMM.html に置けば、
+# 再生成しても消えずに「解説・総評」セクションへ埋め込まれる。
+# ファイルが無ければ手動記入用のプレースホルダを出す（従来動作）。
+COMMENTARY_PLACEHOLDER = (
+    '  <p class="placeholder">※ ここに手動で解説を記入してください。<br>\n'
+    '  （data/monthly_report/commentary_YYYYMM.html を作成するか、'
+    'このセクションのHTMLを直接編集してください）</p>'
+)
+
+
+def load_manual_commentary(year: int, month: int) -> str:
+    """月次の解説・総評セクションの中身(HTML断片)を返す。
+
+    data/monthly_report/commentary_YYYYMM.html があればその内容を、
+    無ければプレースホルダを返す。再生成しても総評が残るようにするための仕組み。
+    """
+    path = BASE_DIR / 'data' / 'monthly_report' / f'commentary_{year}{month:02d}.html'
+    if path.exists():
+        body = path.read_text(encoding='utf-8').strip()
+        if body:
+            return body
+    return COMMENTARY_PLACEHOLDER
+
+
 # ===== HTMLレポート組み立て =====
 def build_html(year: int, month: int, quakes: list[dict], stats: dict,
                detected_hhmm: set[str] | None = None) -> str:
     title = f'{year}年{month}月 月次地震レポート'
+    manual_commentary = load_manual_commentary(year, month)
     map_b64       = make_epicenter_map(quakes, year, month)
     daily_b64     = make_daily_chart(quakes, year, month)
     mag_b64       = make_mag_chart(quakes, year, month)
@@ -736,14 +855,22 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
         print(f'[WARN] 地震球マップ生成に失敗: {e}')
         bb_sec = None
     if bb_sec:
-        # 主要地震の個別解説リスト
+        # 主要地震の個別解説リスト。自局検出があれば計測震度を併記する。
+        trig_list = build_local_intensity_lookup(load_trigger_records(year, month))
         comm_items = []
         for c in bb_sec['commentary']:
             scale = SCALE_LABEL.get(c['scale'], '-')
+            # 発生時刻(YYYY/MM/DD HH:MM:SS)を datetime にして自局トリガと突合
+            try:
+                qdt = datetime.datetime.strptime(c['time'][:19], '%Y/%m/%d %H:%M:%S')
+            except (ValueError, KeyError):
+                qdt = None
+            li = local_intensity_for(qdt, trig_list)
+            local = local_intensity_badge(li)
             comm_items.append(
                 f'<dt>{c["time"]}　{c["name"]}　'
                 f'M{c["mag"]}（Mw{c["mw"]:.1f}）　最大震度{scale}　'
-                f'<span class="ftype">{c["ftype"]}型</span></dt>'
+                f'<span class="ftype">{c["ftype"]}型</span>{local}</dt>'
                 f'<dd>{c["text"]}</dd>'
             )
         commentary_html = ('<h3>主要地震の発震機構（地震球の読み方）</h3>'
@@ -823,8 +950,13 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
   .beachball-commentary dt {{ font-weight: bold; color: #1e3a5f; margin-top: 12px; font-size: 0.95em; }}
   .beachball-commentary dd {{ margin: 4px 0 0 0; color: #334155; font-size: 0.9em; line-height: 1.6; }}
   .beachball-commentary .ftype {{ display: inline-block; background: #fde9dd; color: #9a3412; border-radius: 4px; padding: 1px 8px; font-size: 0.85em; }}
-  .detected-list {{ margin: 8px 0 0 0; padding-left: 1.2em; }}
-  .detected-list li {{ margin: 3px 0; color: #334155; font-size: 0.9em; }}
+  .local-I {{ display: inline-block; background: #dcfce7; color: #166534; border-radius: 4px; padding: 1px 8px; font-size: 0.85em; font-weight: bold; }}
+  .detected-table {{ margin: 8px 0 0 0; }}
+  .detected-table td {{ font-size: 0.9em; }}
+  .detected-table .num {{ text-align: right; white-space: nowrap; }}
+  .detected-table .nowrap {{ white-space: nowrap; }}
+  .detected-table .local-cell {{ white-space: nowrap; color: #166534; font-weight: bold; }}
+  .detected-table .local-sub {{ color: #64748b; font-weight: normal; font-size: 0.88em; }}
   footer {{ text-align: center; color: #94a3b8; font-size: 0.8em; margin-top: 24px; }}
 </style>
 </head>
@@ -867,9 +999,7 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
 
 <div class="manual-commentary" id="manual-commentary">
   <h2>解説・総評</h2>
-  <p class="placeholder">※ ここに手動で解説を記入してください。<br>
-  （このセクションのHTMLを直接編集するか、テキストエディタで <!-- COMMENTARY --> タグを置換してください）</p>
-  <!-- COMMENTARY -->
+{manual_commentary}
 </div>
 
 <div class="card">

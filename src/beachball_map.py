@@ -58,6 +58,7 @@ _PROJECT = pathlib.Path(__file__).parent.parent
 _NE_PROVINCES = _PROJECT / 'data' / 'ne' / 'provinces' / 'ne_10m_admin_1_states_provinces.shp'
 _NE_COUNTRIES = _PROJECT / 'data' / 'ne' / 'countries' / 'ne_10m_admin_0_countries_jpn.shp'
 _RS4D_JSON = _PROJECT / '国内RS4D.json'
+_CACHE_DIR = _PROJECT / 'data' / 'p2p_cache'
 
 # ===== 配色（analyze_rs.py の地図と揃える） =====
 _SEA = '#dce8f0'
@@ -136,6 +137,57 @@ def fetch_p2p(start: datetime.datetime, end: datetime.datetime,
         offset += limit
         if offset > 2000:  # 安全弁
             break
+    quakes.sort(key=lambda q: q['dt'])
+    return quakes
+
+
+def load_p2p_cache(year: int, month: int,
+                   start: datetime.datetime, end: datetime.datetime,
+                   min_mag: float = 0.0) -> list[dict]:
+    """P2Pキャッシュ(data/p2p_cache/YYYYMM.jsonl)から [start, end] の地震を返す。
+
+    過去月は API の取得範囲(offset安全弁2000件)を超えて遡れないため、
+    fetch_p2p_daily.py が日々ためているキャッシュを使う。無ければ空リスト。
+    """
+    path = _CACHE_DIR / f'{year}{month:02d}.jsonl'
+    if not path.exists():
+        return []
+    quakes: list[dict] = []
+    for line in path.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except Exception:
+            continue
+        t_str = rec.get('time', '')
+        try:
+            dt = datetime.datetime.strptime(t_str[:19], '%Y/%m/%d %H:%M:%S')
+        except ValueError:
+            try:
+                dt = datetime.datetime.strptime(t_str[:16], '%Y/%m/%d %H:%M')
+            except ValueError:
+                continue
+        if dt < start or dt > end:
+            continue
+        mag = rec.get('mag', rec.get('magnitude', -1))
+        lat = rec.get('lat', rec.get('latitude', None))
+        lon = rec.get('lon', rec.get('longitude', None))
+        if mag is None or mag < min_mag:
+            continue
+        if lat in (None, -200, -200.0) or lon in (None, -200, -200.0):
+            continue
+        quakes.append({
+            'dt': dt,
+            'time': t_str,
+            'name': rec.get('name', ''),
+            'lat': lat,
+            'lon': lon,
+            'mag': mag,
+            'depth': rec.get('depth', -1),
+            'scale': rec.get('scale', rec.get('maxScale', -1)),
+        })
     quakes.sort(key=lambda q: q['dt'])
     return quakes
 
@@ -659,7 +711,11 @@ def make_month_beachball_section(year: int, month: int,
     else:
         end = datetime.datetime(year, month + 1, 1) - datetime.timedelta(seconds=1)
     try:
-        p2p = fetch_p2p(start, end)
+        # 過去月は API では遡れないため、まずキャッシュを使う。
+        # キャッシュが無い（当月など）場合は API へフォールバック。
+        p2p = load_p2p_cache(year, month, start, end)
+        if not p2p:
+            p2p = fetch_p2p(start, end)
         fnet = fetch_fnet(start, end)
     except Exception as e:
         print(f'[WARN] 地震球マップのデータ取得に失敗: {e}')

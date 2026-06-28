@@ -178,7 +178,7 @@ def _update_index(year: int, month: int, generated_at: str):
     new_entry = (
         f'            <a class="report-card" href="{link_href}">\n'
         f'                <span class="report-month">{year}年{month}月</span>\n'
-        f'                <span class="report-desc">P2P地震情報まとめ・自局検出記録</span>\n'
+        f'                <span class="report-desc">P2P地震情報まとめ・自局トピック・発震機構解マップ</span>\n'
         f'                <span class="report-arrow">→</span>\n'
         f'            </a>'
     )
