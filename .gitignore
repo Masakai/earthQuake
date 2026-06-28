@@ -25,6 +25,11 @@ data/**/
 data/knet/*
 !data/knet/README.md
 
+# 月次レポートの解説・総評（手書きの正本。GitHub Pages公開物の入力ソース）は追跡する
+!data/monthly_report/
+data/monthly_report/*
+!data/monthly_report/commentary_*.html
+
 # ルート直下に散らばる解析画像も除外
 /bandpower_*.png
 /dashboard_bandpower*.png

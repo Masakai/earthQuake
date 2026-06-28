@@ -13,6 +13,7 @@ import argparse
 import datetime
 import json
 import pathlib
+import ssl
 import sys
 import time
 import urllib.request
@@ -20,6 +21,22 @@ import urllib.request
 BASE_DIR  = pathlib.Path(__file__).parent.parent
 CACHE_DIR = BASE_DIR / 'data' / 'p2p_cache'
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _make_ssl_context():
+    """HTTPS用SSLコンテキスト。Python(特に3.12)はシステムCAを見つけられず
+    証明書検証に失敗することがあるため、certifi があればそのCA束を使う。"""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        try:
+            return ssl.create_default_context()
+        except Exception:
+            return None
+
+
+_SSL_CTX = _make_ssl_context()
 
 LOG_FILE  = BASE_DIR / 'logs' / 'fetch_p2p.log'
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -36,7 +53,7 @@ def log(msg: str):
 def fetch_page(offset: int, limit: int = 100) -> list[dict]:
     url = f'https://api.p2pquake.net/v2/history?codes=551&limit={limit}&offset={offset}'
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req, timeout=15) as r:
+    with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as r:
         return json.loads(r.read())
 
 
