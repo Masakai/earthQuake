@@ -17,9 +17,25 @@ import datetime
 import io
 import json
 import pathlib
+import ssl
 import sys
 import time
 import urllib.request
+
+
+def _make_ssl_context():
+    """HTTPS用SSLコンテキスト。certifi があればそのCA束を使う（Python3.12でのCA未検出対策）。"""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        try:
+            return ssl.create_default_context()
+        except Exception:
+            return None
+
+
+_SSL_CTX = _make_ssl_context()
 
 import geopandas as gpd
 import matplotlib
@@ -97,6 +113,107 @@ def load_trigger_hhmm_set(year: int, month: int) -> set[str]:
     return result
 
 
+def load_trigger_records(year: int, month: int) -> list[dict]:
+    """trigger_log.jsonl から指定年月の全トリガ記録を返す（I・ratio込み）。"""
+    recs: list[dict] = []
+    if not TRIGGER_LOG.exists():
+        return recs
+    prefix = f'{year}-{month:02d}-'
+    for line in TRIGGER_LOG.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            d = json.loads(line)
+            if not d.get('date', '').startswith(prefix):
+                continue
+            recs.append(d)
+        except Exception:
+            pass
+    return recs
+
+
+def compute_station_topics(year: int, month: int, quakes: list[dict],
+                           detected_hhmm: set[str]) -> dict:
+    """自局(AM.R38DC)の月間トピックを集計する。
+
+    返り値: {
+      'total': トリガ総数, 'max_I': 最大計測震度, 'max_ratio': 最大STA/LTA比,
+      'busiest_day': (日付, 件数), 'detected_quakes': [自局検出した有感地震…],
+    }
+    """
+    recs = load_trigger_records(year, month)
+    topics = {'total': len(recs), 'max_I': None, 'max_ratio': None,
+              'busiest_day': None, 'detected_quakes': []}
+    if recs:
+        def _f(x):
+            try:
+                return float(x)
+            except (TypeError, ValueError):
+                return None
+        Is = [(_f(r.get('I')), r) for r in recs]
+        Is = [(v, r) for v, r in Is if v is not None]
+        if Is:
+            topics['max_I'] = max(Is, key=lambda t: t[0])
+        Rs = [(_f(r.get('ratio')), r) for r in recs]
+        Rs = [(v, r) for v, r in Rs if v is not None]
+        if Rs:
+            topics['max_ratio'] = max(Rs, key=lambda t: t[0])
+        # 日別件数
+        from collections import Counter
+        cnt = Counter(r.get('date', '') for r in recs)
+        if cnt:
+            day, c = cnt.most_common(1)[0]
+            topics['busiest_day'] = (day, c)
+
+    # 自局が検出した有感地震（P2P地震の発生時刻がトリガ時刻セットに含まれるもの）
+    for q in quakes:
+        key = q['time'][:16].replace('/', '-')   # YYYY-MM-DD HH:MM
+        if key in detected_hhmm:
+            topics['detected_quakes'].append(q)
+    return topics
+
+
+def make_station_topics_html(topics: dict) -> str:
+    """自局トピックのHTMLを組み立てる。"""
+    total = topics['total']
+    parts = ['<h2>自局トピック（AM.R38DC／静岡県三島市）</h2>']
+    # サマリー数値
+    maxI = topics['max_I']
+    maxR = topics['max_ratio']
+    busy = topics['busiest_day']
+    items = [f'今月の自局トリガ総数は<b>{total}件</b>でした。']
+    if maxI:
+        v, r = maxI
+        items.append(f'最大の計測震度は<b>{v:.2f}</b>（{r.get("date","")} {r.get("ts","")}、'
+                     f'震度階級{r.get("scale","?")}相当）。')
+    if maxR:
+        v, r = maxR
+        items.append(f'最も強いトリガ（STA/LTA比）は<b>{v:.1f}</b>（{r.get("date","")} {r.get("ts","")}）。')
+    if busy:
+        day, c = busy
+        items.append(f'最もトリガが多かった日は<b>{day}</b>の{c}件でした。')
+    parts.append('<p>' + ' '.join(items) + '</p>')
+
+    # 自局が検出した有感地震
+    dq = topics['detected_quakes']
+    if dq:
+        rows = []
+        for q in sorted(dq, key=lambda x: x['time'], reverse=True)[:10]:
+            scale = SCALE_LABEL.get(q['scale'], '-')
+            rows.append(
+                f'<li>{q["time"]}　{q["name"]}　'
+                f'M{q["mag"]}　最大震度{scale}</li>'
+            )
+        parts.append('<p>このうち、全国の有感地震のうち自局(AM.R38DC)で波形を検出できたものは'
+                     f'<b>{len(dq)}件</b>です（新しい順・最大10件を表示）。</p>')
+        parts.append('<ul class="detected-list">' + ''.join(rows) + '</ul>')
+    else:
+        parts.append('<p>今月は全国の有感地震と一致する自局検出はありませんでした'
+                     '（自局トリガの多くは近傍の微小な揺れや生活ノイズです）。</p>')
+    return '\n'.join(parts)
+
+
 # ===== キャッシュ読み込み =====
 CACHE_DIR = BASE_DIR / 'data' / 'p2p_cache'
 
@@ -134,7 +251,7 @@ def _fetch_from_api(year: int, month: int) -> list[dict]:
         url = f'https://api.p2pquake.net/v2/history?codes=551&limit=100&offset={offset}'
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=15) as r:
+            with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as r:
                 batch = json.loads(r.read())
         except Exception as e:
             print(f'[WARN] API取得失敗 offset={offset}: {e}')
@@ -609,6 +726,44 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
     mag_b64       = make_mag_chart(quakes, year, month)
     commentary    = generate_commentary(quakes, stats, year, month)
     table_html    = make_table(quakes, detected_hhmm)
+
+    # 発震機構解（地震球）マップ＋主要地震の個別解説。F-netのMT解とP2P地震を突合して生成。
+    # 取得失敗やマッチ0件のときは None が返るので、その場合はセクションを出さない。
+    try:
+        import beachball_map
+        bb_sec = beachball_map.make_month_beachball_section(year, month)
+    except Exception as e:
+        print(f'[WARN] 地震球マップ生成に失敗: {e}')
+        bb_sec = None
+    if bb_sec:
+        # 主要地震の個別解説リスト
+        comm_items = []
+        for c in bb_sec['commentary']:
+            scale = SCALE_LABEL.get(c['scale'], '-')
+            comm_items.append(
+                f'<dt>{c["time"]}　{c["name"]}　'
+                f'M{c["mag"]}（Mw{c["mw"]:.1f}）　最大震度{scale}　'
+                f'<span class="ftype">{c["ftype"]}型</span></dt>'
+                f'<dd>{c["text"]}</dd>'
+            )
+        commentary_html = ('<h3>主要地震の発震機構（地震球の読み方）</h3>'
+                           f'<dl class="beachball-commentary">{"".join(comm_items)}</dl>'
+                           ) if comm_items else ''
+        section_beachball = (
+            '<h2>発震機構解マップ（地震球）</h2>\n'
+            '<p>防災科研 F-net のモーメントテンソル解を、P2P地震情報の地震に重ねた図です。'
+            'おおむねM3.5以上の地震が対象で、断層の動き方（逆断層・正断層・横ずれ）を'
+            '球の塗り分けで表します。橙の点が震源の実際の位置、青い三角はRS4D観測点です。</p>\n'
+            f'<img class="chart" src="data:image/png;base64,{bb_sec["img_b64"]}" alt="発震機構解マップ">\n'
+            f'{commentary_html}'
+        )
+    else:
+        section_beachball = ''
+
+    # 自局トピック（AM.R38DC）
+    topics = compute_station_topics(year, month, quakes, detected_hhmm or set())
+    section_station_topics = make_station_topics_html(topics)
+
     det_count     = sum(
         1 for q in quakes
         if q['time'][:16].replace('/', '-') in (detected_hhmm or set())
@@ -664,6 +819,12 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
   .manual-commentary .placeholder {{ color: #b45309; font-style: italic; }}
   .notice {{ background: #fef9c3; border-left: 4px solid #eab308; border-radius: 6px; padding: 10px 16px; margin-bottom: 20px; font-size: 0.85em; color: #713f12; }}
   .notice a {{ color: #713f12; }}
+  .beachball-commentary {{ margin-top: 12px; }}
+  .beachball-commentary dt {{ font-weight: bold; color: #1e3a5f; margin-top: 12px; font-size: 0.95em; }}
+  .beachball-commentary dd {{ margin: 4px 0 0 0; color: #334155; font-size: 0.9em; line-height: 1.6; }}
+  .beachball-commentary .ftype {{ display: inline-block; background: #fde9dd; color: #9a3412; border-radius: 4px; padding: 1px 8px; font-size: 0.85em; }}
+  .detected-list {{ margin: 8px 0 0 0; padding-left: 1.2em; }}
+  .detected-list li {{ margin: 3px 0; color: #334155; font-size: 0.9em; }}
   footer {{ text-align: center; color: #94a3b8; font-size: 0.8em; margin-top: 24px; }}
 </style>
 </head>
@@ -693,6 +854,12 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
   <h2>震源分布図</h2>
   <img class="chart" src="data:image/png;base64,{map_b64}" alt="震源地図">
 </div>
+
+<div class="card">
+  {section_station_topics}
+</div>
+
+{f'<div class="card">{chr(10)}  {section_beachball}{chr(10)}</div>' if section_beachball else ''}
 
 <div class="card">
   {commentary}
