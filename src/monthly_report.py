@@ -304,6 +304,20 @@ def make_station_topics_html(topics: dict) -> str:
     else:
         parts.append('<p>今月は全国の有感地震と一致する自局検出はありませんでした'
                      '（自局トリガの多くは近傍の微小な揺れや生活ノイズです）。</p>')
+
+    # 自局の地盤特性に関する恒久的な注記（地点固有値であることの断り）
+    parts.append(
+        '<p class="station-note">'
+        '※ 自局の計測震度の読み方：自局（AM.R38DC）は箱根西麓の突端（標高約130m）に位置し、'
+        'ボーリング記録（東駿河湾環状道路の地質調査）では火山灰質ローム・火山灰質土が7〜12m厚く堆積し、'
+        'その下に溶岩が累重しています。表層が厚く軟らかいため揺れを増幅しやすい地盤です。'
+        '一方、気象庁の三島市公式観測点（東本町・標高約21m）は表土のすぐ下から溶岩盤が始まる硬質地盤で、'
+        '揺れにくい側です。両地点は約3.3km離れ地盤も逆のため、自局の計測震度が公式の三島市震度より'
+        '高めに出ることがあります（例：2026/06/26 山梨県東部・富士五湖 M5.6 で自局は計測震度4.65＝震度5弱相当、'
+        '公式の三島市は震度4）。自局の値は増幅しやすい当該地点の<b>地点固有の参考値</b>であり、'
+        '地域を代表する震度や公式震度の代替ではありません。'
+        '</p>'
+    )
     return '\n'.join(parts)
 
 
@@ -957,6 +971,7 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
   .detected-table .nowrap {{ white-space: nowrap; }}
   .detected-table .local-cell {{ white-space: nowrap; color: #166534; font-weight: bold; }}
   .detected-table .local-sub {{ color: #64748b; font-weight: normal; font-size: 0.88em; }}
+  .station-note {{ margin-top: 12px; padding: 10px 14px; background: #f8fafc; border-left: 3px solid #94a3b8; border-radius: 4px; font-size: 0.85em; color: #475569; line-height: 1.7; }}
   footer {{ text-align: center; color: #94a3b8; font-size: 0.8em; margin-top: 24px; }}
 </style>
 </head>
