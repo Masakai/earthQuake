@@ -17,6 +17,7 @@
 13. [計測震度算出ロジックの正当性検証](#13-計測震度算出ロジックの正当性検証)
 14. [K-NET / KiK-net 強震波形解析](#14-k-net--kik-net-強震波形解析)
 15. [トラブルシューティング](#15-トラブルシューティング)
+16. [HVSR週次モニタリング](#16-hvsr週次モニタリング)
 
 ---
 
@@ -667,6 +668,87 @@ RS4D との通信が一時的に途絶した後に受信が再開すると、LTA
 3. LTA エネルギーが極小（実質ゼロ）の場合は STA/LTA = 0 を返すガード
 
 通信断が続く場合は RS4D の DATACAST 設定と LAN 環境を確認してください。
+
+---
+
+## 16. HVSR週次モニタリング
+
+R38DC観測点（RS4D）で、深夜帯の常時微動を用いたHVSR（水平/上下スペクトル比、Nakamura法）を週次で計算・記録し、地盤特性の経時変化をWebダッシュボードで可視化する機能です。
+
+設計書: `documents/designs/2026-07-14-hvsr-weekly-monitoring.md`
+
+### 目的・限界
+
+崖崩れ検知等の警報機能ではなく、地盤特性の週次推移を人が目で確認するためのモニタリング機能です。単独観測点（R38DC 1局）のデータのみを使うため、他観測点との相互比較・妥当性検証はできません。ENZ/ENN/ENEはMEMS加速度計であり、ノイズフロアが未知数のため、得られたピークが真の地盤共振周波数かセンサー自身の特性由来かを区別する手段はありません。振幅の絶対値（地盤増幅率）も定量評価せず、週次推移としての相対比較に限定した参考指標として扱います。
+
+### `src/microseism.py` の H/V 比計算との違い
+
+本プロジェクトには既に `src/microseism.py` にH/V比（水平/上下スペクトル比）を計算するロジック（`compute_hrms_psd`・`detect_microseism_peak`）があります。これは指定イベントのオンデマンド解析レポートの1パネルとしてWelch法PSDベースでH/V比を算出するもので、`src/hvsr_weekly.py` の週次HVSRとは手法・目的が異なります。
+
+| | `microseism.py` の H/V 比 | `hvsr_weekly.py` の HVSR |
+|---|---|---|
+| 手法 | Welch法PSD | FFT + 5%コサインテーパー + Konno-Ohmachi平滑化 |
+| 対象区間 | 指定イベント（オンデマンド解析） | 深夜帯（02:00-05:00 JST）常時微動、週次固定 |
+| アンチトリガ | なし | STA/LTA比 [0.5, 2.0] 範囲外の窓を棄却 |
+| スタッキング | なし（単発PSD） | 有効窓の対数平均でスタッキング |
+| 蓄積 | なし（都度画像出力） | `data/hvsr_history.jsonl` に週次追記 |
+| 位置づけ | 診断参考値（"H/V is diagnostic only; not site amplification"） | 同上（地盤増幅係数ではない） |
+
+いずれも「地盤増幅係数ではない診断参考値」という位置づけは共通ですが、別実装・別ファイルとして独立に存在します。
+
+### 実行方法
+
+```bash
+# 通常実行（深夜02:00-05:00 JSTのデータをダウンロードし、履歴に1行追記）
+.venv/bin/python3 src/hvsr_weekly.py
+
+# ダウンロードのみ確認（履歴には追記しない）
+.venv/bin/python3 src/hvsr_weekly.py --dry-run
+
+# 過去日を指定して手動再計算（バックフィル用）
+.venv/bin/python3 src/hvsr_weekly.py --date 2026-07-13
+```
+
+ログは `logs/hvsr_weekly.log` に出力されます。
+
+**保守上の注意**: `src/hvsr_weekly.py` の `download_channel()` / `download_channel_seedlink()` / `compute_stalta()` は `src/analyze_rs.py` の同名関数をコピーして複製したものです（importではなく複製。理由は `analyze_rs.py` がトップレベルでgeopandas・matplotlibを読み込む重量級モジュールであり、週次バッチに不要な依存を持ち込まないため）。将来 `analyze_rs.py` 側にバグ修正が入っても `hvsr_weekly.py` 側には自動反映されないため、修正時は両方のファイルを確認してください。
+
+### アルゴリズム概要
+
+- 対象チャンネル: ENZ/ENN/ENE（MEMS 3成分）。EHZ（ジオフォン、水平成分なし）は除外。
+- 窓長40秒・50%オーバーラップ、5%コサインテーパー。
+- 各窓のSTA/LTA比（STA=1.0秒/LTA=20.0秒）を計算し、`[0.5, 2.0]` の範囲を外れる時刻を含む窓を棄却（SESAME準拠のアンチトリガ。リアルタイム地震検知の `trig=3.5` とは意味論が別物）。
+- 有効窓についてFFT→水平2成分（ENN, ENE）幾何平均→H/V比→対数平均でスタッキング。
+- Konno-Ohmachi平滑化（`b=40`、`normalize=True`）を0.2〜20Hzの対数等間隔81点に適用してピーク周波数・ピーク振幅を抽出。
+- 有効窓数が45窓（目標値）未満の場合は `status: "insufficient_data"`、0窓の場合は `status: "failed"`（HVSR値はnull）として記録します。障害を「データ0件」に化けさせないため、失敗を明示的に記録する方針です。
+
+### SESAME (2004) 信頼性クライテリアの記録範囲
+
+`data/hvsr_history.jsonl` の各レコードには `sesame_criteria` フィールドを持たせています。**これはSESAME (2004) ガイドライン原典が定める9個の下位クライテリア（「reliable curve」3条件のAND判定、「clear peak」6条件中5条件の判定）のうち、`window_length_ok`・`amplitude_ok`・`stability_ok` の3項目のみを選択的に記録したものであり、原典の正式な合否判定ではありません**。3項目すべてを満たす場合でも「地盤特性が正しく求まっている」ことを保証するものではなく、警報・自動判定には使用しません。WebUI上でも「参考情報であり自動警報ではない」旨をバッジのツールチップに明記しています。
+
+### `GET /api/hvsr_history`
+
+HVSR週次履歴を読み取り専用でJSON返却するAPIです。`/api/events` と同様、無認証・読み取り専用エンドポイントです。`--web-bind` の既定値（`0.0.0.0`）に関する注意（6章参照）が本エンドポイントにも適用されます。
+
+クエリパラメータ:
+
+- `limit`: 返却件数上限（直近の週から、既定52週=1年分、最大520週=10年分）
+
+```bash
+curl http://localhost:8080/api/hvsr_history?limit=10
+```
+
+レスポンス形式:
+
+```json
+{"count": 2, "history": [{"week_start": "2026-07-06", "status": "ok", "peak_frequency_hz": 0.91, "sesame_criteria": {...}, ...}, ...]}
+```
+
+### 本番運用（iMac側）
+
+計算バッチ（`hvsr_weekly.py`）・蓄積ファイル（`data/hvsr_history.jsonl`）・Web表示プロセス（`jma_intensity_web.py`）は全てiMac本番機（`/Users/masakai/earthquake`）に同居させます。理由は、表示先のWebダッシュボードがiMac上で常時稼働しており、蓄積ファイルの実体もiMac側に必要なためです（開発機では週次バッチを実行しません）。
+
+launchd登録用のplistテンプレートは `scripts/launchd/com.riverruns.earthquake-hvsr-weekly.plist` としてリポジトリ内でバージョン管理しています。実体はscpでiMac側 `/Users/masakai/Library/LaunchAgents/` へ転送・配置し、`launchctl load` で登録します（初回登録時のみ。既存常駐サービスの再起動に使う `launchctl kickstart -k` とは操作が異なります）。
 
 ---
 
