@@ -25,8 +25,10 @@ source .venv/bin/activate
 python src/test_template_parity.py   # Jinja2 テンプレート整合
 pytest src/verify_filter.py -v       # JMA フィルタ・震度計算（41テスト）
 pytest src/test_api_events.py -v     # /api/events（23テスト）
+pytest src/test_hvsr_weekly.py -v         # HVSR週次計算（34テスト）
+pytest src/test_api_hvsr_history.py -v    # /api/hvsr_history（12テスト）
 ```
 
 ## バージョン
 
-- 現行 v1.6.0。`src/jma_intensity_web.py` の `__version__` を git タグと揃えて手動更新する。
+- 現行 v1.7.0。`src/jma_intensity_web.py` の `__version__` を git タグと揃えて手動更新する。
