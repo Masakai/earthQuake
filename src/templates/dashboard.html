@@ -362,7 +362,7 @@
     #bphistory-panel { flex: 0 0 auto; overflow: hidden; display: flex; flex-direction: column; }
     #bphistory-panel > div:last-child { height: 110px; position: relative; min-height: 0; }
 
-    /* ===== HVSR週次モニタリングパネル =====
+    /* ===== HVSR日次モニタリングパネル =====
        #col-right は元々 overflow: hidden で、パネル合計高さがカラム全体を超えると
        スクロールバーは出ず末尾パネルが無言で見切れる問題があった（レビュー指摘・中重大度）。
        #col-right 自体を overflow-y: auto に変更した（上記参照）ため、hvsr-panel は
@@ -682,17 +682,17 @@
             </div>
         </div>
 
-        <!-- HVSR週次モニタリング（試験） -->
+        <!-- HVSR日次モニタリング（試験） -->
         <div class="panel" id="hvsr-panel">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <div class="panel-title" style="margin-bottom:0;">HVSR週次推移（試験）</div>
+                <div class="panel-title" style="margin-bottom:0;">HVSR日次推移（試験）</div>
                 <span style="font-size:10px;color:#8b949e;">常時微動・Nakamura法</span>
             </div>
-            <!-- (a) ピーク周波数の週次推移（折れ線） -->
+            <!-- (a) ピーク周波数の日次推移（折れ線） -->
             <div class="hvsr-chart-wrap">
                 <canvas id="hvsrTrendChart"></canvas>
             </div>
-            <!-- (b) 最新週のHVSR曲線（周波数-H/V比） -->
+            <!-- (b) 最新日のHVSR曲線（周波数-H/V比） -->
             <div class="hvsr-chart-wrap" style="margin-top:8px;">
                 <canvas id="hvsrCurveChart"></canvas>
             </div>
@@ -2055,8 +2055,8 @@ function updateBpHistoryChart(history) {
     _renderBpHistoryChart(history);
 }
 
-// ===== HVSR週次モニタリング（試験）=====
-// 起動時に /api/hvsr_history を1回fetchして描画する。週次でしか更新されない
+// ===== HVSR日次モニタリング（試験）=====
+// 起動時に /api/hvsr_history を1回fetchして描画する。日次でしか更新されない
 // データのためWebSocket経由のリアルタイム更新は行わない（SharedStateに触れない）。
 // 既存の帯域パワー4色（#58a6ff/#f97316/#3fb950/#da3633）と衝突しないよう
 // 新規アクセント色 #a371f7（既存の#stalta-peak-lineと同系統の紫）を使う。
@@ -2161,7 +2161,7 @@ function _updateSesameBadges(sesameCriteria) {
 }
 
 function _renderHvsrTrendChart(history) {
-    const labels = history.map(e => e.week_start);
+    const labels = history.map(e => e.capture_date || e.week_start);
     const data = history.map(e => ({
         y: e.peak_frequency_hz,
         // status="ok"以外（insufficient_data/failed）は塗りつぶしなしの丸で区別する
@@ -2190,12 +2190,13 @@ function _updateHvsrStatusNote(latest) {
         note.textContent = 'HVSR履歴データがありません（初回計測待ち）。';
         return;
     }
+    const dateLabel = latest.capture_date || latest.week_start;
     if (latest.status === 'failed') {
-        note.textContent = `最新週(${latest.week_start}): 有効窓0件のため計算失敗（参考値なし）`;
+        note.textContent = `最新日(${dateLabel}): 有効窓0件のため計算失敗（参考値なし）`;
     } else if (latest.status === 'insufficient_data') {
-        note.textContent = `最新週(${latest.week_start}): データ不足のため参考値（有効窓 ${latest.n_windows_used}/${latest.n_windows_total}）`;
+        note.textContent = `最新日(${dateLabel}): データ不足のため参考値（有効窓 ${latest.n_windows_used}/${latest.n_windows_total}）`;
     } else {
-        note.textContent = `最新週(${latest.week_start}): 有効窓 ${latest.n_windows_used}/${latest.n_windows_total}`;
+        note.textContent = `最新日(${dateLabel}): 有効窓 ${latest.n_windows_used}/${latest.n_windows_total}`;
     }
 }
 

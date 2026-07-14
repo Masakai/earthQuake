@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-    HVSR週次モニタリングバッチ（src/hvsr_weekly.py）のlaunchd定時実行設定テンプレート。
+    HVSR日次モニタリングバッチ（src/hvsr_weekly.py）のlaunchd定時実行設定テンプレート。
+    ファイル名・Labelは導入時（週次実行）の名残でhvsr-weeklyのままだが、実際の
+    実行間隔は2026-07-15より毎日（StartCalendarIntervalにWeekdayキーを持たない
+    ため、Hour:Minuteに毎日起動する）。iMac本番機側の登録名との一致を優先し、
+    ファイル名・Labelはあえて変更していない。
 
     このファイルは開発機のリポジトリ内でバージョン管理するテンプレートであり、
     実体はscpでiMac本番機の /Users/masakai/Library/LaunchAgents/ へ転送・配置する
@@ -14,9 +18,8 @@
     スコープ外（developer/release-managerフェーズ、または実際の運用作業時に実施）。
 
     命名は既存の稼働中サービス com.riverruns.earthquake-web の命名規則
-    （com.riverruns.*）に揃えている。実行タイミング（毎週月曜04:00）は
-    設計書「オープンクエスチョン」2.に記載の通り暫定値であり、深夜取得ブロック
-    （02:00〜05:00 JST）終了後に十分なマージンを置いて起動する想定。
+    （com.riverruns.*）に揃えている。実行タイミング（毎日05:30 JST）は
+    深夜取得ブロック（02:00〜05:00 JST）終了後30分のマージンを置いて起動する。
 -->
 <plist version="1.0">
 <dict>
@@ -32,19 +35,18 @@
     <key>WorkingDirectory</key>
     <string>/Users/masakai/earthquake</string>
 
-    <!-- 毎週月曜 04:00 JST に起動する（深夜取得ブロック 02:00-05:00 JST 終了後の
-         マージンを見込んだ暫定値。設計書オープンクエスチョン2.参照）。 -->
+    <!-- 毎日 05:30 JST に起動する（深夜取得ブロック 02:00-05:00 JST 終了後、
+         30分のマージンを見込んで起動する）。Weekdayキーを持たないため
+         StartCalendarIntervalの仕様上、指定Hour:Minuteに毎日起動する。 -->
     <key>StartCalendarInterval</key>
     <dict>
-        <key>Weekday</key>
-        <integer>1</integer>
         <key>Hour</key>
-        <integer>4</integer>
+        <integer>5</integer>
         <key>Minute</key>
-        <integer>0</integer>
+        <integer>30</integer>
     </dict>
 
-    <!-- 常駐サービス（com.riverruns.earthquake-web）とは異なり、週次の短時間バッチ
+    <!-- 常駐サービス（com.riverruns.earthquake-web）とは異なり、短時間バッチ
          のためKeepAliveは設定しない（定時起動→終了を繰り返す）。 -->
     <key>RunAtLoad</key>
     <false/>

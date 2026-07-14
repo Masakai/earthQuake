@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-GET /api/hvsr_history（HVSR週次モニタリング履歴 読み取り専用API）のユニットテスト。
+GET /api/hvsr_history（HVSR日次モニタリング履歴 読み取り専用API）のユニットテスト。
 
 test_api_events.py のASGI直接呼び出しパターンを踏襲する。
 
@@ -24,7 +24,7 @@ import jma_intensity_web  # noqa: E402
 
 SAMPLE_ENTRIES = [
     {
-        "week_start": "2026-06-29", "computed_at": "2026-06-30T04:03:00+09:00",
+        "capture_date": "2026-07-12", "computed_at": "2026-07-12T05:33:00+09:00",
         "station": "R38DC", "status": "ok",
         "n_windows_total": 539, "n_windows_used": 103, "reject_ratio": 0.809,
         "window_length_s": 40.0, "window_overlap": 0.5,
@@ -36,7 +36,7 @@ SAMPLE_ENTRIES = [
         "weather_note": "",
     },
     {
-        "week_start": "2026-07-06", "computed_at": "2026-07-07T04:03:00+09:00",
+        "capture_date": "2026-07-13", "computed_at": "2026-07-13T05:33:00+09:00",
         "station": "R38DC", "status": "insufficient_data",
         "n_windows_total": 539, "n_windows_used": 12, "reject_ratio": 0.978,
         "window_length_s": 40.0, "window_overlap": 0.5,
@@ -48,7 +48,7 @@ SAMPLE_ENTRIES = [
         "weather_note": "大雨",
     },
     {
-        "week_start": "2026-07-13", "computed_at": "2026-07-14T04:03:00+09:00",
+        "capture_date": "2026-07-14", "computed_at": "2026-07-14T05:33:00+09:00",
         "station": "R38DC", "status": "failed",
         "n_windows_total": 539, "n_windows_used": 0, "reject_ratio": 1.0,
         "window_length_s": 40.0, "window_overlap": 0.5,
@@ -120,8 +120,8 @@ def _asgi_get(app, path: str, params: dict | None = None) -> tuple[int, dict]:
 def test_read_all_skips_broken_lines(history_file):
     entries = jma_intensity_web._read_hvsr_history(history_file)
     assert len(entries) == len(SAMPLE_ENTRIES)
-    weeks = [e["week_start"] for e in entries]
-    assert weeks == ["2026-06-29", "2026-07-06", "2026-07-13"]
+    dates = [e["capture_date"] for e in entries]
+    assert dates == ["2026-07-12", "2026-07-13", "2026-07-14"]
 
 
 def test_read_missing_file_returns_empty(tmp_path):
@@ -153,16 +153,16 @@ def test_endpoint_all(app_with_history):
     status, data = _asgi_get(app_with_history, "/api/hvsr_history")
     assert status == 200
     assert data["count"] == 3
-    assert [e["week_start"] for e in data["history"]] == [
-        "2026-06-29", "2026-07-06", "2026-07-13",
+    assert [e["capture_date"] for e in data["history"]] == [
+        "2026-07-12", "2026-07-13", "2026-07-14",
     ]
 
 
 def test_endpoint_limit(app_with_history):
     _, data = _asgi_get(app_with_history, "/api/hvsr_history", {"limit": 2})
     assert data["count"] == 2
-    # limitは直近の週（新しい順で切り出した後、古い順に戻す）
-    assert [e["week_start"] for e in data["history"]] == ["2026-07-06", "2026-07-13"]
+    # limitは直近の日（新しい順で切り出した後、古い順に戻す）
+    assert [e["capture_date"] for e in data["history"]] == ["2026-07-13", "2026-07-14"]
 
 
 def test_endpoint_limit_zero(app_with_history):
@@ -203,10 +203,35 @@ def test_endpoint_reflects_file_change_via_mtime(app_with_history, history_file)
     assert data["count"] == 3
 
     new_entry = dict(SAMPLE_ENTRIES[-1])
-    new_entry["week_start"] = "2026-07-20"
+    new_entry["capture_date"] = "2026-07-15"
     with history_file.open("a", encoding="utf-8") as f:
         f.write(json.dumps(new_entry, ensure_ascii=False) + "\n")
 
     _, data2 = _asgi_get(app_with_history, "/api/hvsr_history")
     assert data2["count"] == 4
-    assert data2["history"][-1]["week_start"] == "2026-07-20"
+    assert data2["history"][-1]["capture_date"] == "2026-07-15"
+
+
+def test_endpoint_sorts_legacy_week_start_records_before_capture_date(monkeypatch, tmp_path):
+    """capture_date移行前（週次実行時代）のweek_startのみのレコードも、
+    capture_dateフィールドを持つ新しいレコードとの混在時に日付順で正しく並ぶこと
+    （後方互換フォールバック: capture_date優先、なければweek_start）。"""
+    legacy_entry = dict(SAMPLE_ENTRIES[0])
+    del legacy_entry["capture_date"]
+    legacy_entry["week_start"] = "2026-07-06"
+
+    p = tmp_path / "hvsr_history.jsonl"
+    lines = [json.dumps(legacy_entry, ensure_ascii=False)] + \
+        [json.dumps(e, ensure_ascii=False) for e in SAMPLE_ENTRIES[1:]]
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    monkeypatch.setattr(jma_intensity_web, "_HVSR_HISTORY_PATH", p)
+    monkeypatch.setattr(jma_intensity_web, "_hvsr_history_cache", [])
+    monkeypatch.setattr(jma_intensity_web, "_hvsr_history_mtime", None)
+
+    _, data = _asgi_get(jma_intensity_web.app, "/api/hvsr_history")
+    assert data["count"] == 3
+    # 2026-07-06 (legacy week_start) -> 2026-07-13 -> 2026-07-14 の順
+    assert data["history"][0]["week_start"] == "2026-07-06"
+    assert data["history"][1]["capture_date"] == "2026-07-13"
+    assert data["history"][2]["capture_date"] == "2026-07-14"

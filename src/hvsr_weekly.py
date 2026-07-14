@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-HVSR（水平/上下スペクトル比、Nakamura法）週次モニタリングバッチ
+HVSR（水平/上下スペクトル比、Nakamura法）日次モニタリングバッチ
 
 深夜帯（既定 02:00〜05:00 JST）の常時微動データ（ENZ/ENN/ENE）をダウンロードし、
 40秒窓・50%オーバーラップでSTA/LTAアンチトリガにより地震・突発ノイズ区間を除外した上で、
-H/V比を対数平均でスタッキング、Konno-Ohmachi平滑化を適用して週次のHVSR曲線・
+H/V比を対数平均でスタッキング、Konno-Ohmachi平滑化を適用してその日のHVSR曲線・
 ピーク周波数を算出し、data/hvsr_history.jsonl に1行追記する。
+
+当初は週次実行として設計したが、2026-07-15にファイルサイズ・読み込み時間の
+実測（10年分でも約8MB・約56ms、既存の同期I/O実装で許容範囲）を踏まえ毎日実行に
+変更した。1回の計算対象（深夜帯3時間分・目標45有効窓）自体は変更していない。
 
 設計書: documents/designs/2026-07-14-hvsr-weekly-monitoring.md
 レビュー: documents/reviews/2026-07-14-hvsr-weekly-monitoring-review.md
@@ -106,12 +110,16 @@ def log(msg: str) -> None:
 
 
 # =====================================================================
-# 以下2関数は src/analyze_rs.py の同名関数をコピーして複製したものです。
-# このロジックは analyze_rs.py/hvsr_weekly.py の対となる関数と重複しています。
-# 修正時は両方を確認してください。
+# download_channel_seedlink() / compute_stalta() は src/analyze_rs.py の
+# 同名関数をコピーして複製したものです。このロジックは analyze_rs.py と
+# 重複しています。修正時は両方を確認してください。
+#
+# download_channel() は analyze_rs.py 版（公式FDSN優先）と異なり、
+# 本ファイルでは自局SeedLinkを優先する独自の取得順序に変更している
+# （理由は同関数のdocstring参照）。
 #
 # importではなくコピーする理由: analyze_rs.py はモジュールのトップレベルで
-# geopandas・matplotlib（Agg初期化含む）を読み込んでおり、週次バッチである
+# geopandas・matplotlib（Agg初期化含む）を読み込んでおり、日次バッチである
 # 本ファイルがグラフ描画・地図描画を一切行わないにもかかわらず、素朴に
 # `from analyze_rs import download_channel` すると不要な重量級依存が
 # 毎回ロードされてしまう。これを避けるため関数のみを複製する。
@@ -121,7 +129,7 @@ def download_channel_seedlink(station: str, channel: str, t_start: datetime, t_e
                               out_path: pathlib.Path) -> bool:
     """自局Raspberry Shake の SeedLink から指定区間を取得して MiniSEED で保存する。
 
-    公式FDSNにまだデータが無い発生直後の穴埋め用フォールバック。
+    HVSR日次バッチの主取得経路（download_channel()から優先的に呼ばれる）。
     取得できたら out_path に書き出して True を返す。
     自局がLAN外で到達不能、またはデータが無い場合は False を返す（静かに諦める）。
     """
@@ -161,9 +169,9 @@ def download_channel_seedlink(station: str, channel: str, t_start: datetime, t_e
     return True
 
 
-def download_channel(station: str, channel: str, t_start: datetime, t_end: datetime,
-                     out_path: pathlib.Path):
-    """公式FDSN→自局SeedLinkフォールバックでMiniSEEDを取得し out_path に保存する。"""
+def download_channel_fdsn(station: str, channel: str, t_start: datetime, t_end: datetime,
+                          out_path: pathlib.Path) -> bool:
+    """公式FDSNからMiniSEEDを取得し out_path に保存する。取得できたらTrueを返す。"""
     start_str = t_start.strftime('%Y-%m-%dT%H:%M:%S')
     end_str   = t_end.strftime('%Y-%m-%dT%H:%M:%S')
     url = (
@@ -172,20 +180,37 @@ def download_channel(station: str, channel: str, t_start: datetime, t_end: datet
         f"&starttime={start_str}&endtime={end_str}"
     )
     req = urllib.request.Request(url, headers={"User-Agent": "hvsr-weekly/1.0"})
-    log(f"{channel}: {start_str} -> {end_str} ダウンロード中...")
+    log(f"{channel}: {start_str} -> {end_str} 公式FDSNダウンロード中...")
     try:
         with urllib.request.urlopen(req, timeout=60, context=_SSL_CTX) as resp:
             data = resp.read()
     except Exception as e:
         log(f"[WARN] {channel}: 公式FDSNダウンロード失敗 ({e})")
-        data = b''
-    if data:
-        out_path.write_bytes(data)
-        log(f"{channel}: {len(data):,} bytes")
-        return
-    # 公式FDSNにデータが無い（発生直後など）→ 自局RSのSeedLinkにフォールバック
-    log(f"{channel}: 公式FDSNにデータなし -> 自局SeedLinkを試行")
+        return False
+    if not data:
+        return False
+    out_path.write_bytes(data)
+    log(f"{channel}: {len(data):,} bytes")
+    return True
+
+
+def download_channel(station: str, channel: str, t_start: datetime, t_end: datetime,
+                     out_path: pathlib.Path):
+    """自局SeedLink→公式FDSNフォールバックでMiniSEEDを取得し out_path に保存する。
+
+    自局SeedLinkを優先する理由: 公式FDSNは自局からクラウド集約サーバーへの
+    送信・反映を経由するため最短でも30分程度のタイムラグがある。自局は
+    同一LAN内の実機に直接アクセスするため低遅延・確実に取得できる
+    （バッチ起動時刻は深夜取得ブロック終了05:00 JSTから30分後の05:30 JSTで、
+    区間全体が過去になっているため、自局SeedLinkの「未来区間はブロックする」
+    制約にも抵触しない）。公式FDSNは自局がLAN外にある場合や自局側の障害時の
+    フォールバックとして残す。
+    """
+    log(f"{channel}: 自局SeedLinkを試行")
     if download_channel_seedlink(station, channel, t_start, t_end, out_path):
+        return
+    log(f"{channel}: 自局SeedLink取得不可 -> 公式FDSNを試行")
+    if download_channel_fdsn(station, channel, t_start, t_end, out_path):
         return
     if out_path.exists():
         out_path.unlink()
@@ -363,9 +388,9 @@ def sesame_criteria_ok(peak_frequency_hz: float, peak_amplitude: float,
 
 def compute_hvsr_from_traces(enz: np.ndarray, enn: np.ndarray, ene: np.ndarray, fs: float
                               ) -> dict:
-    """3成分の連続波形（同一長・同一サンプリングレート）からHVSR週次レコードを計算する。
+    """3成分の連続波形（同一長・同一サンプリングレート）からHVSR日次レコードを計算する。
 
-    戻り値は data/hvsr_history.jsonl の1レコード相当の辞書（week_start/computed_at/
+    戻り値は data/hvsr_history.jsonl の1レコード相当の辞書（capture_date/computed_at/
     capture_window/weather_note は呼び出し側で付与する）。
     """
     n_samples = min(len(enz), len(enn), len(ene))
@@ -474,11 +499,6 @@ def capture_window_for_date(target_date_jst) -> tuple[datetime, datetime]:
     return start_jst.astimezone(UTC), end_jst.astimezone(UTC)
 
 
-def week_start_for_date(target_date_jst):
-    """対象日を含む週の月曜日（JST基準）の日付を返す。"""
-    return target_date_jst - timedelta(days=target_date_jst.weekday())
-
-
 def append_history(entry: dict) -> None:
     _HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
     with _HISTORY_PATH.open("a", encoding="utf-8") as f:
@@ -486,14 +506,14 @@ def append_history(entry: dict) -> None:
 
 
 def run(target_date_jst=None, dry_run: bool = False) -> dict:
-    """週次バッチ本体。target_date_jst省略時は実行時点の日付を使う。"""
+    """日次バッチ本体。target_date_jst省略時は実行時点の日付を使う。"""
     if target_date_jst is None:
         target_date_jst = datetime.now(JST).date()
 
     t_start, t_end = capture_window_for_date(target_date_jst)
-    week_start = week_start_for_date(target_date_jst)
+    capture_date = target_date_jst.isoformat()
 
-    log(f"HVSR週次バッチ開始: 対象日={target_date_jst} 取得区間={t_start.isoformat()} - {t_end.isoformat()}")
+    log(f"HVSR日次バッチ開始: 対象日={target_date_jst} 取得区間={t_start.isoformat()} - {t_end.isoformat()}")
 
     channels = ["ENZ", "ENN", "ENE"]
     paths = {}
@@ -511,7 +531,7 @@ def run(target_date_jst=None, dry_run: bool = False) -> dict:
     if missing:
         log(f"[ERROR] チャンネル取得失敗のためHVSR計算を中止します: {missing}")
         entry = {
-            "week_start": week_start.isoformat(),
+            "capture_date": capture_date,
             "computed_at": datetime.now(JST).isoformat(),
             "station": STATION,
             "capture_window": {"start": t_start.isoformat(), "end": t_end.isoformat()},
@@ -543,7 +563,7 @@ def run(target_date_jst=None, dry_run: bool = False) -> dict:
     result = compute_hvsr_from_traces(traces["ENZ"], traces["ENN"], traces["ENE"], fs)
 
     entry = {
-        "week_start": week_start.isoformat(),
+        "capture_date": capture_date,
         "computed_at": datetime.now(JST).isoformat(),
         "station": STATION,
         "capture_window": {"start": t_start.isoformat(), "end": t_end.isoformat()},
@@ -551,14 +571,14 @@ def run(target_date_jst=None, dry_run: bool = False) -> dict:
         **result,
     }
     append_history(entry)
-    log(f"HVSR週次バッチ完了: status={entry['status']} "
+    log(f"HVSR日次バッチ完了: status={entry['status']} "
         f"n_windows_used={entry['n_windows_used']}/{entry['n_windows_total']} "
         f"peak_frequency_hz={entry.get('peak_frequency_hz')}")
     return entry
 
 
 def main():
-    ap = argparse.ArgumentParser(description="HVSR週次モニタリングバッチ")
+    ap = argparse.ArgumentParser(description="HVSR日次モニタリングバッチ")
     ap.add_argument("--dry-run", action="store_true", help="ダウンロードのみ確認し、履歴には追記しない")
     ap.add_argument("--date", type=str, default=None,
                     help="過去日を指定して手動再計算（YYYY-MM-DD、バックフィル対応）")

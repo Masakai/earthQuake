@@ -831,20 +831,25 @@ async def api_events(
     return {"count": len(events), "events": events}
 
 
-# ===== HVSR週次モニタリング 読み取り専用 API =====
+# ===== HVSR日次モニタリング 読み取り専用 API =====
 #
-# 計算・蓄積は src/hvsr_weekly.py（別プロセス・iMac側launchdで週次実行）が行い、
+# 計算・蓄積は src/hvsr_weekly.py（別プロセス・iMac側launchdで毎日実行）が行い、
 # ここでは data/hvsr_history.jsonl を読んでJSON化して返すのみ。
 # SharedState・broadcast_loop・lifespan内のスレッド起動処理には一切触れない
 # （設計書 documents/designs/2026-07-14-hvsr-weekly-monitoring.md の最上位制約）。
+#
+# 2026-07-15: 週次実行から毎日実行に変更したのに伴い、レコードのキーを
+# week_start（週の月曜日）から capture_date（対象日そのもの）に変更した。
+# 変更前に記録された古いレコードは week_start フィールドのまま残るため、
+# _read_hvsr_history/api_hvsr_history 側で両方を読める後方互換を維持する。
 
 _HVSR_HISTORY_PATH = pathlib.Path(__file__).parent.parent / "data" / "hvsr_history.jsonl"
-_HVSR_HISTORY_LIMIT_DEFAULT = 52   # 1年分
-_HVSR_HISTORY_LIMIT_MAX = 520      # 10年分
+_HVSR_HISTORY_LIMIT_DEFAULT = 365   # 1年分
+_HVSR_HISTORY_LIMIT_MAX = 3650      # 10年分
 
 # mtimeベースの軽量キャッシュ（起動時ロード＋ファイル変化時のみ全量再読み込み）。
 # _bp_history のような deque への都度 .append() 更新ではなく全量再読み込み方式にした
-# 理由: hvsr_history.jsonl は週次でしか更新されないため、都度追記を追跡する仕組みは
+# 理由: hvsr_history.jsonl は1日1レコードしか増えないため、都度追記を追跡する仕組みは
 # 不要で、ファイル全体を読み直す方が実装が単純。
 _hvsr_history_cache: list[dict] = []
 _hvsr_history_mtime: float | None = None
@@ -870,17 +875,18 @@ def _read_hvsr_history(path: pathlib.Path) -> list[dict]:
 
 
 def _hvsr_history_snapshot() -> list[dict]:
-    """mtimeが変化していればファイルを全量再読み込みし、週次推移の全件を返す（新しい順ではなく記録順）。
+    """mtimeが変化していればファイルを全量再読み込みし、日次推移の全件を返す（新しい順ではなく記録順）。
 
     このハンドラは同期ファイルI/Oを run_in_executor に逃がさず async def 内で直接
     実行している。/api/events の _read_trigger_events と同様、実行中はイベントループ
     全体をブロックする（レビュー指摘: 中重大度）。ここで同期実装のまま許容できると
     判断した根拠は次の2点:
-      1. hvsr_history.jsonl は週1レコードしか増えない。10年運用しても520行程度に
-         収まる。実測（開発機、freq_hz/hv_ratio各81点を含む520行の合成データ、
-         20回平均）では os.stat が約0.02ms、_read_hvsr_history の全量読み込みが
-         約8ms。合計しても1リクエストあたり10ms未満で、broadcast_loopの1秒tick
-         を圧迫する量ではないと判断できる規模。
+      1. hvsr_history.jsonl は1日1レコードしか増えない。10年運用しても3650行程度に
+         収まる。実測（開発機、freq_hz/hv_ratio各81点を含む1レコード約2.3KBの実データ
+         から換算）では10年分でも約8MB・全量読み込みは約56ms程度と推定できる規模。
+         合計しても1リクエストあたり数十ms程度で、broadcast_loopの1秒tickを
+         致命的に圧迫する量ではないと判断した（週次1回運用時の「10ms未満」からは
+         上振れするため、ファイルサイズが今後さらに増える場合は判断を見直すこと）。
       2. リクエスト頻度も低い（WebUIが起動時に1回fetchするのみで、bp_historyや
          events のような高頻度ポーリング対象ではない）。
     ファイルサイズ・リクエスト頻度のいずれかが将来変わる場合は、この判断を
@@ -902,18 +908,20 @@ def _hvsr_history_snapshot() -> list[dict]:
 async def api_hvsr_history(
     limit: int = Query(default=_HVSR_HISTORY_LIMIT_DEFAULT, ge=0, le=_HVSR_HISTORY_LIMIT_MAX),
 ):
-    """HVSR週次モニタリング履歴（data/hvsr_history.jsonl）を読み取り専用でJSON返却する。
+    """HVSR日次モニタリング履歴（data/hvsr_history.jsonl）を読み取り専用でJSON返却する。
 
     クエリパラメータ:
-      - limit: 返却件数上限（新しい順=直近の週から、デフォルト52週=1年分、最大520週=10年分）
+      - limit: 返却件数上限（新しい順=直近の日から、デフォルト365日=1年分、最大3650日=10年分）
 
     無認証・読み取り専用。/api/events と同様、個人情報・機微情報を含まないため
     追加のアクセス制御は不要と判断する（設計書「セキュリティ」節参照）。
     """
     history = _hvsr_history_snapshot()
-    # week_start昇順で記録されている前提だが、念のため明示的にソートしてから
+    # capture_date昇順で記録されている前提だが、念のため明示的にソートしてから
     # 新しい順にlimit件を切り出し、時系列表示用に古い順へ戻す。
-    sorted_history = sorted(history, key=lambda e: e.get("week_start", ""))
+    # 2026-07-15以前の週次実行時代のレコードは capture_date を持たないため
+    # week_start にフォールバックする（後方互換）。
+    sorted_history = sorted(history, key=lambda e: e.get("capture_date") or e.get("week_start", ""))
     if limit is not None and limit >= 0:
         sorted_history = sorted_history[-limit:] if limit > 0 else []
     return {"count": len(sorted_history), "history": sorted_history}

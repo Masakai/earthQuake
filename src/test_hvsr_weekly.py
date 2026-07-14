@@ -281,7 +281,7 @@ def test_integration_with_cached_miniseed():
     assert "sesame_criteria" in result
 
 
-# ===== capture_window_for_date / week_start_for_date のテスト =====
+# ===== capture_window_for_date のテスト =====
 
 def test_capture_window_for_date_is_02_to_05_jst():
     import datetime
@@ -292,16 +292,6 @@ def test_capture_window_for_date_is_02_to_05_jst():
     assert start_jst.hour == 2
     assert end_jst.hour == 5
     assert (end_jst - start_jst).total_seconds() == 3 * 3600
-
-
-def test_week_start_for_date_returns_monday():
-    import datetime
-    # 2026-07-13は月曜日
-    d = datetime.date(2026, 7, 13)
-    assert hw.week_start_for_date(d) == d
-    # 2026-07-16は木曜日 -> 週初めは同じ月曜日
-    d2 = datetime.date(2026, 7, 16)
-    assert hw.week_start_for_date(d2) == d
 
 
 # ===== run() の失敗パスのテスト =====
@@ -342,7 +332,7 @@ def test_run_writes_failed_entry_when_download_fails(tmp_path, monkeypatch):
     import json
     written = json.loads(lines[0])
     assert written["status"] == "failed"
-    assert written["week_start"] == "2026-07-13"
+    assert written["capture_date"] == "2026-07-13"
 
 
 def test_run_writes_failed_entry_when_one_channel_missing(tmp_path, monkeypatch):
