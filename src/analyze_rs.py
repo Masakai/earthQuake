@@ -746,23 +746,49 @@ def plot_analysis(
 
     dist_str = f'  /  震源距離 {dist_km:.0f}km' if dist_km > 0 else ''
 
-    # Si-Midorikawa (1999) 距離減衰式の逆算で推定M
-    # log10(a[gal]) = 0.61M - 1.73*log10(r[km]) - 0.00030*r + 0.167
-    # 地殻内地震向け係数。プレート境界地震（駿河トラフ等）には誤差±0.5程度。
+    # 司・翠川(1999)日本建築学会構造系論文集No.523 式(2)(8)、Table7（拘束条件あり・
+    # 等価震源距離・地殻内地震）による距離減衰式の逆算で推定M。
+    #   log10(A) = a*Mw + h*D - log10(Xeq+c) - k*Xeq + e,  c = 0.0043*10^(0.50*Mw)
+    #   a=0.50, h=0.0043, k=0.003, e=0.61（地殻内地震、d=0.00）
+    # Aは工学的基盤（岩盤）上のPGA[cm/s^2]。地表(一般地盤)は平均1.4倍（4.1節）と補正。
+    # Xeqは断層面のすべり分布を考慮した等価震源距離だが、点震源近似として震源距離で代用。
+    # Mj->Mw変換は宇津(1982): Mw = Mj - 0.171（岩切・干場・大竹 2012 式(1)）。
+    # 逆に得られる推定Mjには、上記近似・地盤増幅率の地点差・観測点固有の増幅特性
+    # （自局は軟弱地盤で公式観測点より震度が上振れする傾向）による系統誤差が残るため
+    # 参考値として扱う。
     est_M_str = ''
     if dist_km > 0 and a_peak > 0:
-        r = dist_km
-        est_M = (np.log10(a_peak) - 0.167 + 1.73 * np.log10(r) + 0.00030 * r) / 0.61
+        depth_km_est = quake_info.get('depth', 0) if quake_info else 0
+        D_est = depth_km_est if depth_km_est and depth_km_est > 0 else 0.0
+        Xeq = dist_km
+        a_si, h_si, k_si, e_si = 0.50, 0.0043, 0.003, 0.61
+        AMP_ROCK_TO_SURFACE = 1.4
+
+        def _predict_surface_gal(mw):
+            c = 0.0043 * 10 ** (0.50 * mw)
+            log_a_rock = a_si * mw + h_si * D_est - np.log10(Xeq + c) - k_si * Xeq + e_si
+            return (10 ** log_a_rock) * AMP_ROCK_TO_SURFACE
+
+        # 二分法でMwを逆算（式が超越方程式のため解析的に解けない）
+        mw_lo, mw_hi = 2.0, 9.0
+        for _ in range(60):
+            mw_mid = (mw_lo + mw_hi) / 2
+            if _predict_surface_gal(mw_mid) < a_peak:
+                mw_lo = mw_mid
+            else:
+                mw_hi = mw_mid
+        est_Mw = (mw_lo + mw_hi) / 2
+        est_Mj = est_Mw + 0.171
+
         official_mag = quake_info.get('magnitude', 0) if quake_info else 0
-        # Si-Midorikawa (1999) 式は r<200km 程度の近地強震向けであり、遠地は誤差が大きい
-        caveat = '参考値' if dist_km > 200 else '±0.5程度'
-        est_M_str = f'  /  推定M {est_M:.1f}（公式M{official_mag}、{caveat}）'
+        caveat = '参考値' if dist_km > 200 else '±0.8程度'
+        est_M_str = f'  /  推定M {est_Mj:.1f}（公式M{official_mag}、{caveat}）'
 
     fig.suptitle(
         f'{title}\n'
         f'最大加速度: {a_peak:.3f} gal  /  計測震度: I={I_peak:.2f}（震度{scale_peak}）'
         f'  /  STA/LTA最大: {r_peak:.2f}{dist_str}{est_M_str}',
-        color='#1f2328', fontsize=12,
+        color='#1f2328', fontsize=15, fontweight='bold',
     )
 
     plt.savefig(str(out_path), dpi=150, bbox_inches='tight',
@@ -1098,13 +1124,15 @@ def main():
     # ===== 出力パス =====
     out_path = pathlib.Path(args.out) if args.out else cache_dir / f"analysis_{tag}.png"
 
-    q_name = quake_info['name'] if quake_info else ''
-    q_mag  = quake_info['magnitude'] if quake_info else ''
+    q_name  = quake_info['name'] if quake_info else ''
+    q_mag   = quake_info['magnitude'] if quake_info else ''
+    q_depth = quake_info.get('depth', 0) if quake_info else 0
+    depth_str = f'  深さ{q_depth:.0f}km' if q_depth else ''
     title  = (
         f"AM.{args.station}  "
         f"{t_start_jst.strftime('%Y-%m-%d %H:%M:%S')} 〜 {t_end_jst.strftime('%H:%M:%S')} JST"
         f"（{duration_s:.0f}秒）"
-        + (f"  {q_name} M{q_mag}" if q_name else "")
+        + (f"  {q_name} M{q_mag}{depth_str}" if q_name else "")
     )
 
     print("グラフを生成中...")
