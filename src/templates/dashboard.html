@@ -337,13 +337,21 @@
     .chart-wrap { position: relative; height: 118px; }
 
     /* ===== 右カラム ===== */
+    /* HVSRパネル追加（5パネル構成）に伴い overflow: hidden から overflow-y: auto に変更。
+       従来はパネル数が少なく合計高さがカラム内に収まっていたが、画面高さが低い環境
+       （1080p未満・ウィンドウ分割時等）では5パネル合計がカラム高さを超え、
+       overflow: hidden のままだと末尾パネル（hvsr-panel）が無言で見切れることを
+       実機（ヘッドレスChrome、window-size 1600x700・1600x1400）で確認した
+       （レビュー指摘・中重大度、documents/reviews/2026-07-14-hvsr-weekly-monitoring-review.md）。
+       overflow-y: auto にすることで、収まらない場合はカラム全体がスクロール可能になり、
+       見切れではなくスクロールで到達可能になる。 */
     #col-right {
         grid-column: 3;
         grid-row: 1;
         display: flex;
         flex-direction: column;
         gap: 8px;
-        overflow: hidden;
+        overflow-y: auto;
     }
     #p2p-panel { flex: 0 0 auto; overflow: hidden; display: flex; flex-direction: column; }
     #p2p-table-wrap { overflow-y: auto; max-height: 360px; }
@@ -351,8 +359,29 @@
 
     /* ===== バンドパワーパネル ===== */
     #bandpower-panel { flex: 0 0 auto; }
-    #bphistory-panel { flex: 1 1 0; overflow: hidden; display: flex; flex-direction: column; }
-    #bphistory-panel > div:last-child { flex: 1 1 0; position: relative; min-height: 0; }
+    #bphistory-panel { flex: 0 0 auto; overflow: hidden; display: flex; flex-direction: column; }
+    #bphistory-panel > div:last-child { height: 110px; position: relative; min-height: 0; }
+
+    /* ===== HVSR週次モニタリングパネル =====
+       #col-right は元々 overflow: hidden で、パネル合計高さがカラム全体を超えると
+       スクロールバーは出ず末尾パネルが無言で見切れる問題があった（レビュー指摘・中重大度）。
+       #col-right 自体を overflow-y: auto に変更した（上記参照）ため、hvsr-panel は
+       flex: 0 0 auto で必要な最小高さ（2チャート分）を確保する固定サイズパネルとし、
+       収まらない場合は #col-right 側のスクロールで到達可能にする。
+       実機確認（ヘッドレスChrome、window-size 1600x700）で、#col-right の
+       scrollHeight > clientHeight となりスクロール可能であることを確認済み。 */
+    #hvsr-panel { flex: 0 0 auto; display: flex; flex-direction: column; min-height: 260px; }
+    #hvsr-panel > div.hvsr-chart-wrap { height: 110px; position: relative; }
+    .sesame-badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 8px;
+        font-size: 9px;
+        border: 1px solid #30363d;
+        background: #21262d;
+        color: #8b949e;
+    }
+    .sesame-badge.ok { color: #3fb950; border-color: #3fb95055; }
     .bp-row {
         display: flex;
         align-items: center;
@@ -650,6 +679,30 @@
             </div>
             <div style="position:relative; height:100%; min-height:80px;">
                 <canvas id="bpHistoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- HVSR週次モニタリング（試験） -->
+        <div class="panel" id="hvsr-panel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div class="panel-title" style="margin-bottom:0;">HVSR週次推移（試験）</div>
+                <span style="font-size:10px;color:#8b949e;">常時微動・Nakamura法</span>
+            </div>
+            <!-- (a) ピーク周波数の週次推移（折れ線） -->
+            <div class="hvsr-chart-wrap">
+                <canvas id="hvsrTrendChart"></canvas>
+            </div>
+            <!-- (b) 最新週のHVSR曲線（周波数-H/V比） -->
+            <div class="hvsr-chart-wrap" style="margin-top:8px;">
+                <canvas id="hvsrCurveChart"></canvas>
+            </div>
+            <div id="hvsr-status-note" style="font-size:10px;color:#8b949e;margin-top:4px;"></div>
+            <!-- SESAME簡易クライテリアバッジ。自動警報ではなく参考情報 -->
+            <div id="hvsr-sesame-badges" style="display:flex;gap:6px;margin-top:4px;font-size:9px;"
+                 title="SESAME(2004)信頼性クライテリアの一部を参考表示（自動警報ではありません）">
+                <span class="sesame-badge" data-key="window_length_ok">窓長</span>
+                <span class="sesame-badge" data-key="amplitude_ok">振幅</span>
+                <span class="sesame-badge" data-key="stability_ok">安定性</span>
             </div>
         </div>
 
@@ -2001,6 +2054,176 @@ function updateBpHistoryChart(history) {
     _bpHistoryAll = history;
     _renderBpHistoryChart(history);
 }
+
+// ===== HVSR週次モニタリング（試験）=====
+// 起動時に /api/hvsr_history を1回fetchして描画する。週次でしか更新されない
+// データのためWebSocket経由のリアルタイム更新は行わない（SharedStateに触れない）。
+// 既存の帯域パワー4色（#58a6ff/#f97316/#3fb950/#da3633）と衝突しないよう
+// 新規アクセント色 #a371f7（既存の#stalta-peak-lineと同系統の紫）を使う。
+const HVSR_ACCENT_COLOR = '#a371f7';
+
+const hvsrTrendChart = new Chart(document.getElementById('hvsrTrendChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'ピーク周波数 (Hz)',
+            data: [],
+            borderColor: HVSR_ACCENT_COLOR,
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            pointRadius: ctx => {
+                const raw = ctx.raw;
+                return (raw && raw.filled === false) ? 4 : 2;
+            },
+            pointBackgroundColor: ctx => {
+                const raw = ctx.raw;
+                return (raw && raw.filled === false) ? 'transparent' : HVSR_ACCENT_COLOR;
+            },
+            pointBorderColor: HVSR_ACCENT_COLOR,
+            tension: 0.15,
+            parsing: { yAxisKey: 'y' },
+        }],
+    },
+    options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => {
+                        const raw = ctx.raw;
+                        const y = raw && raw.y !== undefined ? raw.y : ctx.parsed.y;
+                        return 'ピーク周波数: ' + (y !== null && y !== undefined ? y.toFixed(2) + ' Hz' : '--');
+                    },
+                },
+            },
+        },
+        scales: {
+            x: { ticks: { color: '#6e7681', font: { size: 9 }, maxTicksLimit: 6 }, grid: { color: '#21262d' } },
+            y: { ticks: { color: '#6e7681', font: { size: 9 } }, grid: { color: '#21262d' } },
+        },
+    },
+});
+
+const hvsrCurveChart = new Chart(document.getElementById('hvsrCurveChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: '最新週 H/V比',
+            data: [],
+            borderColor: HVSR_ACCENT_COLOR,
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.1,
+        }],
+    },
+    options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => 'H/V: ' + (ctx.parsed.y !== null ? ctx.parsed.y.toFixed(2) : '--'),
+                },
+            },
+        },
+        scales: {
+            x: {
+                type: 'logarithmic',
+                ticks: { color: '#6e7681', font: { size: 9 } },
+                grid: { color: '#21262d' },
+                title: { display: true, text: 'Hz', color: '#6e7681', font: { size: 9 } },
+            },
+            y: { ticks: { color: '#6e7681', font: { size: 9 } }, grid: { color: '#21262d' } },
+        },
+    },
+});
+
+function _updateSesameBadges(sesameCriteria) {
+    const badges = document.querySelectorAll('#hvsr-sesame-badges .sesame-badge');
+    badges.forEach(el => {
+        el.classList.remove('ok');
+        if (!sesameCriteria) {
+            el.style.display = 'none';
+            return;
+        }
+        el.style.display = 'inline-block';
+        const key = el.dataset.key;
+        if (sesameCriteria[key] === true) el.classList.add('ok');
+    });
+}
+
+function _renderHvsrTrendChart(history) {
+    const labels = history.map(e => e.week_start);
+    const data = history.map(e => ({
+        y: e.peak_frequency_hz,
+        // status="ok"以外（insufficient_data/failed）は塗りつぶしなしの丸で区別する
+        filled: e.status === 'ok',
+    }));
+    hvsrTrendChart.data.labels = labels;
+    hvsrTrendChart.data.datasets[0].data = data;
+    hvsrTrendChart.update('none');
+}
+
+function _renderHvsrCurveChart(latest) {
+    if (!latest || !latest.freq_hz || !latest.hv_ratio) {
+        hvsrCurveChart.data.labels = [];
+        hvsrCurveChart.data.datasets[0].data = [];
+        hvsrCurveChart.update('none');
+        return;
+    }
+    hvsrCurveChart.data.labels = latest.freq_hz;
+    hvsrCurveChart.data.datasets[0].data = latest.hv_ratio;
+    hvsrCurveChart.update('none');
+}
+
+function _updateHvsrStatusNote(latest) {
+    const note = document.getElementById('hvsr-status-note');
+    if (!latest) {
+        note.textContent = 'HVSR履歴データがありません（初回計測待ち）。';
+        return;
+    }
+    if (latest.status === 'failed') {
+        note.textContent = `最新週(${latest.week_start}): 有効窓0件のため計算失敗（参考値なし）`;
+    } else if (latest.status === 'insufficient_data') {
+        note.textContent = `最新週(${latest.week_start}): データ不足のため参考値（有効窓 ${latest.n_windows_used}/${latest.n_windows_total}）`;
+    } else {
+        note.textContent = `最新週(${latest.week_start}): 有効窓 ${latest.n_windows_used}/${latest.n_windows_total}`;
+    }
+}
+
+function updateHvsrPanel(history) {
+    if (!history || history.length === 0) {
+        _updateHvsrStatusNote(null);
+        _updateSesameBadges(null);
+        return;
+    }
+    _renderHvsrTrendChart(history);
+    const latest = history[history.length - 1];
+    _renderHvsrCurveChart(latest.status === 'failed' ? null : latest);
+    _updateHvsrStatusNote(latest);
+    // status="failed"の週（有効窓0件）はクライテリア計算の前提となる値が存在しないため
+    // バッジ自体を表示しない
+    _updateSesameBadges(latest.status === 'failed' ? null : latest.sesame_criteria);
+}
+
+fetch('/api/hvsr_history')
+    .then(r => {
+        if (!r.ok) throw new Error(`/api/hvsr_history ${r.status}`);
+        return r.json();
+    })
+    .then(d => updateHvsrPanel(d.history))
+    .catch(err => {
+        console.error('[hvsr_history] load failed:', err);
+        _updateHvsrStatusNote(null);
+    });
 
 // ===== WebSocket接続 =====
 let _ws = null;

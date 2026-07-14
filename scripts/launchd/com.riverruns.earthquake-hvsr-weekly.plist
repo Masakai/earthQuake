@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    HVSR週次モニタリングバッチ（src/hvsr_weekly.py）のlaunchd定時実行設定テンプレート。
+
+    このファイルは開発機のリポジトリ内でバージョン管理するテンプレートであり、
+    実体はscpでiMac本番機の /Users/masakai/Library/LaunchAgents/ へ転送・配置する
+    （開発機側の ~/Library/LaunchAgents/ に置いても本番としては機能しない）。
+
+    設計書: documents/designs/2026-07-14-hvsr-weekly-monitoring.md
+      「実装タスク」5. iMac本番機へのデプロイ（launchd plist登録を含む）を参照。
+
+    本番投入・launchctl load によるiMac側での実際の登録は、本テンプレート作成の
+    スコープ外（developer/release-managerフェーズ、または実際の運用作業時に実施）。
+
+    命名は既存の稼働中サービス com.riverruns.earthquake-web の命名規則
+    （com.riverruns.*）に揃えている。実行タイミング（毎週月曜04:00）は
+    設計書「オープンクエスチョン」2.に記載の通り暫定値であり、深夜取得ブロック
+    （02:00〜05:00 JST）終了後に十分なマージンを置いて起動する想定。
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.riverruns.earthquake-hvsr-weekly</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/masakai/earthquake/.venv/bin/python3</string>
+        <string>/Users/masakai/earthquake/src/hvsr_weekly.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/masakai/earthquake</string>
+
+    <!-- 毎週月曜 04:00 JST に起動する（深夜取得ブロック 02:00-05:00 JST 終了後の
+         マージンを見込んだ暫定値。設計書オープンクエスチョン2.参照）。 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- 常駐サービス（com.riverruns.earthquake-web）とは異なり、週次の短時間バッチ
+         のためKeepAliveは設定しない（定時起動→終了を繰り返す）。 -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/masakai/earthquake/logs/hvsr_weekly_launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/masakai/earthquake/logs/hvsr_weekly_launchd_error.log</string>
+</dict>
+</plist>
