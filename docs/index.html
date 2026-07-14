@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>rs4d-jma-intensity — Raspberry Shake リアルタイム震度モニター</title>
-<meta name="description" content="Raspberry Shake 4D の UDP ストリームをリアルタイムに受信し、気象庁計測震度を算出・表示するダッシュボード">
+<title>rs4d-jma-intensity — 個人地震観測所（Raspberry Shake 4D）</title>
+<meta name="description" content="Raspberry Shake 4D 1台で、リアルタイム震度算出・地震検知・地盤特性解析・月次レポート自動公開までを行う個人地震観測所のソフトウェア一式">
 <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -442,23 +442,23 @@
 
 <!-- ヒーロー -->
 <header class="hero">
-    <div class="badge">Raspberry Shake 4D + JMA Algorithm · v1.5.0</div>
-    <h1>リアルタイム<em>震度モニター</em><br>ブラウザで見る</h1>
-    <p>Raspberry Shake 4D の波形データをリアルタイムに受信し、気象庁の計測震度アルゴリズムで震度を算出。ブラウザから地図つきで確認できます。</p>
+    <div class="badge">Raspberry Shake 4D + JMA Algorithm · v1.7.0</div>
+    <h1>個人地震観測所を<br>ブラウザで持つ</h1>
+    <p>Raspberry Shake 4D 1台の常時微動データから、リアルタイム震度算出・地震検知・地盤特性（HVSR）解析・月次レポート自動公開までを行うソフトウェア一式です。気象庁の公式観測点と自宅の地盤の違いを継続的に検証しています。</p>
     <div class="hero-actions">
         <a class="btn btn-primary" href="https://github.com/Masakai/earthQuake">GitHub で見る</a>
-        <a class="btn btn-secondary" href="guide.html">しくみを読む</a>
+        <a class="btn btn-secondary" href="#reports">月次レポートを見る</a>
     </div>
 </header>
 
 <!-- スクリーンショット -->
 <div class="screenshot-wrap">
     <div class="screenshot-main">
-        <img src="web-dashboard-full-2026-06-26.png" alt="Webダッシュボード全体表示">
+        <img src="web-dashboard-full-2026-07-14.png" alt="Webダッシュボード全体表示（HVSR週次モニタリングパネル追加後）">
     </div>
     <div class="screenshot-grid">
         <img src="web-dashboard-map-zoom-2026-06-26.png" alt="震源周辺の市区町村震度を拡大表示">
-        <img src="web-dashboard-city-layer-2026-06-26.png" alt="市区町村レイヤーと震度凡例">
+        <img src="web-dashboard-hvsr-panel-2026-07-14.png" alt="HVSR週次推移パネル（試験運用中、初回データ）">
     </div>
 </div>
 
@@ -513,6 +513,21 @@
                 <div class="feature-icon">🔬</div>
                 <h3>ワンクリック波形解析</h3>
                 <p>P2P地震情報テーブルの「解析」ボタンを押すだけで、自局波形のダウンロードとスペクトログラム解析を自動実行。結果画像をモーダル表示します。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🗻</div>
+                <h3>HVSR地盤特性解析（試験運用）</h3>
+                <p>深夜帯の常時微動データから水平/上下スペクトル比（Nakamura法）を週次で計算し、自宅地点の地盤の卓越周波数をモニタリング。リアルタイム系とは独立したバッチ処理で、ダッシュボードには読み取り専用で反映されます。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📰</div>
+                <h3>月次レポート自動生成・公開</h3>
+                <p>その月の地震活動・自局での検出状況・発震機構解マップをまとめたHTMLレポートを毎月自動生成し、GitHub Pagesで公開します。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏔️</div>
+                <h3>公式観測点との地盤差検証</h3>
+                <p>ボーリング柱状図・地質図と照合し、自宅（軟弱地盤）と気象庁公式観測点（硬質地盤）の震度差を継続的に記録・解説しています。</p>
             </div>
         </div>
     </div>
@@ -707,8 +722,10 @@
 <footer>
     <p>Copyright &copy; 2026 Masanori Sakai</p>
     <p style="margin-top:0.4rem;">
-        <a href="https://github.com/Masakai/earthQuake">GitHub</a> &nbsp;·&nbsp;
-        <a href="guide.html">解説ページ</a>
+        <a href="https://github.com/Masakai/earthQuake">GitHub（ソースコード）</a> &nbsp;·&nbsp;
+        <a href="guide.html">解説ページ</a> &nbsp;·&nbsp;
+        <a href="https://qiita.com/masakai/items/2d34f728aaa597d721e7">Qiita（実装解説）</a> &nbsp;·&nbsp;
+        <a href="https://masakai.github.io/tags/raspberry-shake/">ブログ（開発の経緯）</a>
     </p>
 </footer>
 
