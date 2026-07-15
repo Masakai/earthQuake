@@ -2082,13 +2082,13 @@ const hvsrTrendChart = new Chart(document.getElementById('hvsrTrendChart').getCo
             },
             pointBorderColor: HVSR_ACCENT_COLOR,
             tension: 0.15,
-            parsing: { yAxisKey: 'y' },
         }],
     },
     options: {
         animation: false,
         responsive: true,
         maintainAspectRatio: false,
+        parsing: { xAxisKey: 'x', yAxisKey: 'y' },
         plugins: {
             legend: { display: false },
             tooltip: {
@@ -2102,7 +2102,7 @@ const hvsrTrendChart = new Chart(document.getElementById('hvsrTrendChart').getCo
             },
         },
         scales: {
-            x: { ticks: { color: '#6e7681', font: { size: 9 }, maxTicksLimit: 6 }, grid: { color: '#21262d' } },
+            x: { type: 'category', ticks: { color: '#6e7681', font: { size: 9 }, maxTicksLimit: 6 }, grid: { color: '#21262d' } },
             y: { ticks: { color: '#6e7681', font: { size: 9 } }, grid: { color: '#21262d' } },
         },
     },
@@ -2163,6 +2163,7 @@ function _updateSesameBadges(sesameCriteria) {
 function _renderHvsrTrendChart(history) {
     const labels = history.map(e => e.capture_date || e.week_start);
     const data = history.map(e => ({
+        x: e.capture_date || e.week_start,
         y: e.peak_frequency_hz,
         // status="ok"以外（insufficient_data/failed）は塗りつぶしなしの丸で区別する
         filled: e.status === 'ok',
