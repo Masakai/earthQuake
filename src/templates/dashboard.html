@@ -129,6 +129,28 @@
         padding-bottom: 6px;
     }
 
+    .panel-title-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    #p2p-last-received {
+        text-transform: none;
+        letter-spacing: normal;
+        font-size: 10px;
+        color: #8b949e;
+    }
+
+    #p2p-last-received.stale {
+        color: #f0883e;
+    }
+
+    #p2p-last-received.very-stale {
+        color: #da3633;
+    }
+
     /* ===== 左カラム ===== */
     #col-left {
         grid-column: 1;
@@ -627,7 +649,10 @@
 
         <!-- P2P地震情報 -->
         <div class="panel" id="p2p-panel">
-            <div class="panel-title">最新地震情報 (P2P)</div>
+            <div class="panel-title panel-title-row">
+                <span>最新地震情報 (P2P)</span>
+                <span id="p2p-last-received">最終受信: --</span>
+            </div>
             <div id="p2p-table-wrap">
                 <table>
                     <thead>
@@ -825,6 +850,37 @@ function updateUptime() {
     document.getElementById('uptime-val').textContent = pad(h) + ':' + pad(m) + ':' + pad(s);
 }
 setInterval(updateUptime, 1000);
+
+// ===== P2P地震情報 最終受信時刻 =====
+// 24時間で約5件（6-7月の実績平均）というP2P地震情報の発生頻度に対し、
+// 12時間受信なしは注意、24時間受信なしは動作不良を疑うべき異常値として警告表示する。
+const P2P_STALE_SEC = 12 * 3600;
+const P2P_VERY_STALE_SEC = 24 * 3600;
+let _p2pLastReceivedAt = null;
+function updateP2pLastReceived() {
+    const el = document.getElementById('p2p-last-received');
+    if (!el) return;
+    if (!_p2pLastReceivedAt) {
+        el.textContent = '最終受信: --';
+        el.classList.remove('stale', 'very-stale');
+        return;
+    }
+    const sec = Math.floor(Date.now() / 1000 - _p2pLastReceivedAt);
+    let label;
+    if (sec < 60) {
+        label = sec + '秒前';
+    } else if (sec < 3600) {
+        label = Math.floor(sec / 60) + '分前';
+    } else {
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        label = h + '時間' + m + '分前';
+    }
+    el.textContent = '最終受信: ' + label;
+    el.classList.toggle('very-stale', sec >= P2P_VERY_STALE_SEC);
+    el.classList.toggle('stale', sec >= P2P_STALE_SEC && sec < P2P_VERY_STALE_SEC);
+}
+setInterval(updateP2pLastReceived, 1000);
 
 // ===== 推移グラフ =====
 const N_HIST = 600;
@@ -1887,6 +1943,9 @@ function updateDashboard(data) {
 
         if (_startTime === null && d.start_time) {
             _startTime = d.start_time;
+        }
+        if (d.p2p_last_received_at) {
+            _p2pLastReceivedAt = d.p2p_last_received_at;
         }
 
         document.getElementById('fs-val').textContent = (d.fs || 0).toFixed(1);

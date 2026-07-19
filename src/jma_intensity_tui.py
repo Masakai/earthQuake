@@ -504,6 +504,7 @@ class SharedState:
         self._p2p_seen_ids_fifo: deque = deque(maxlen=1000)  # FIFO上限管理用
         self.p2p_eew: dict | None = None  # 最新EEW（取消/無効時はNone）
         self._p2p_eew_received_at: float = 0.0  # EEW受信時刻（TTL管理用）
+        self._p2p_last_received_at: float = 0.0  # P2P地震情報の最終受信時刻（監視用）
         # I値・STA/LTA推移（直近600点 = 5分@0.5s間隔）
         self.i_history: deque = deque(maxlen=600)
         self.ratio_history: deque = deque(maxlen=600)
@@ -530,6 +531,7 @@ class SharedState:
                 "raw_e": self.raw_e.copy(),
                 "events": list(self.events),
                 "p2p_quakes": list(self.p2p_quakes),
+                "p2p_last_received_at": self._p2p_last_received_at,
                 "p2p_eew": (self.p2p_eew
                             if time.time() - self._p2p_eew_received_at < 600
                             else None),

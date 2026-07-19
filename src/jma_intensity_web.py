@@ -212,11 +212,16 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
         shared.p2p_quakes = initial
         shared.p2p_seen_ids = seen_ids
         shared._p2p_seen_ids_fifo.extend(seen_ids)
+        if initial:
+            shared._p2p_last_received_at = time.time()
 
     if not _websocket_ok:
         while not stop_event.is_set():
             quakes = _fetch_p2p_quakes_http_web(20)
-            shared.update(p2p_quakes=quakes)
+            if quakes:
+                with shared._lock:
+                    shared.p2p_quakes = quakes
+                    shared._p2p_last_received_at = time.time()
             stop_event.wait(60)
         return
 
@@ -243,6 +248,7 @@ def p2p_ws_loop_web(shared: SharedState, stop_event: threading.Event):
             if parsed:
                 with shared._lock:
                     shared.p2p_quakes = ([parsed] + list(shared.p2p_quakes))[:20]
+                    shared._p2p_last_received_at = time.time()
         elif code == 556:
             parsed_eew = _parse_eew_item(item)
             with shared._lock:
@@ -378,6 +384,7 @@ async def broadcast_loop(shared: SharedState):
             "ratio_history": snap["ratio_history"].tolist(),
             "events": list(snap["events"]),
             "p2p_quakes": list(snap["p2p_quakes"]),
+            "p2p_last_received_at": snap["p2p_last_received_at"],
             "p2p_eew": snap["p2p_eew"],
             "band_powers": band_powers,
             "band_powers_history": _bp_history_snapshot(),
