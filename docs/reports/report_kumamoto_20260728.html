@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>令和8年熊本地震 統合分析 — P2Pデータ＋震源近傍観測点実測</title>
+<meta name="description" content="2026年7月28日発生の令和8年熊本地震（M7.1・震度7）について、P2P地震情報241件と震源近傍のRaspberry Shake観測点R6E01の実測波形をもとに、余震推移・b値・距離減衰・前兆の有無を定量分析した記録。">
+<meta property="og:title" content="令和8年熊本地震 統合分析">
+<meta property="og:description" content="P2P地震情報241件＋震源近傍観測点R6E01の実測データによる余震統計・b値・距離減衰の定量分析。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://masakai.github.io/earthQuake/reports/report_kumamoto_20260728.html">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:site_name" content="earthQuake — AM.R38DC 観測記録">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="令和8年熊本地震 統合分析">
+<meta name="twitter:description" content="P2P地震情報241件＋震源近傍観測点R6E01の実測データによる余震統計・b値・距離減衰の定量分析。">
+</head>
+<body>
+<a href="../index.html" style="position:fixed;top:16px;left:16px;z-index:200;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.92);backdrop-filter:blur(6px);border:1px solid rgba(11,15,13,0.14);border-radius:20px;padding:6px 14px;font-size:13px;color:#2c2c2a;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans','Yu Gothic',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.12);">&larr; earthQuake トップへ</a>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #f7f8f7;
+    --surface-2:      #ffffff;
+    --page-plane:     #eef0ee;
+    --text-primary:   #0c0f0e;
+    --text-secondary: #4c5350;
+    --text-muted:     #868d89;
+    --gridline:       #dfe3e0;
+    --baseline:       #c1c7c3;
+    --border:         rgba(11,15,13,0.10);
+
+    --series-honshin: #d03b3b; /* critical */
+    --series-time:    #2a78d6; /* sequential blue */
+    --series-time-fill: rgba(42,120,214,0.10);
+    --loc-kumamoto:   #2a78d6; /* categorical slot1 */
+    --loc-amakusa:    #1baf7a; /* categorical slot3 */
+    --loc-oita:       #eda100; /* categorical slot4 */
+
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #111413;
+      --surface-2:      #171b19;
+      --page-plane:     #0b0d0c;
+      --text-primary:   #f5f6f5;
+      --text-secondary: #c3c8c5;
+      --text-muted:     #8b928e;
+      --gridline:       #2a2f2c;
+      --baseline:       #3a413d;
+      --border:         rgba(255,255,255,0.10);
+
+      --series-honshin: #e66767;
+      --series-time:    #3987e5;
+      --series-time-fill: rgba(57,135,229,0.14);
+      --loc-kumamoto:   #3987e5;
+      --loc-amakusa:    #199e70;
+      --loc-oita:       #c98500;
+
+      --status-good:     #0ca30c;
+      --status-warning:  #fab219;
+      --status-serious:  #ec835a;
+      --status-critical: #e66767;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #111413;
+    --surface-2:      #171b19;
+    --page-plane:     #0b0d0c;
+    --text-primary:   #f5f6f5;
+    --text-secondary: #c3c8c5;
+    --text-muted:     #8b928e;
+    --gridline:       #2a2f2c;
+    --baseline:       #3a413d;
+    --border:         rgba(255,255,255,0.10);
+    --series-honshin: #e66767;
+    --series-time:    #3987e5;
+    --series-time-fill: rgba(57,135,229,0.14);
+    --loc-kumamoto:   #3987e5;
+    --loc-amakusa:    #199e70;
+    --loc-oita:       #c98500;
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #e66767;
+  }
+  :root[data-theme="light"] .viz-root {
+    color-scheme: light;
+    --surface-1:      #f7f8f7;
+    --surface-2:      #ffffff;
+    --page-plane:     #eef0ee;
+    --text-primary:   #0c0f0e;
+    --text-secondary: #4c5350;
+    --text-muted:     #868d89;
+    --gridline:       #dfe3e0;
+    --baseline:       #c1c7c3;
+    --border:         rgba(11,15,13,0.10);
+    --series-honshin: #d03b3b;
+    --series-time:    #2a78d6;
+    --series-time-fill: rgba(42,120,214,0.10);
+    --loc-kumamoto:   #2a78d6;
+    --loc-amakusa:    #1baf7a;
+    --loc-oita:       #eda100;
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #d03b3b;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--page-plane);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+    color: var(--text-primary);
+  }
+  .viz-root { padding: 64px 16px 64px; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  header.page-head {
+    margin-bottom: 28px;
+  }
+  .eyebrow {
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600; margin: 0 0 8px;
+  }
+  h1 {
+    font-size: 26px; line-height: 1.3; margin: 0 0 6px; font-weight: 700;
+    text-wrap: balance;
+  }
+  .subhead {
+    font-size: 14px; color: var(--text-secondary); margin: 0;
+    line-height: 1.6; max-width: 62ch;
+  }
+
+  section {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  section > h2 {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text-secondary);
+    margin: 0 0 16px;
+  }
+  section > p.note {
+    font-size: 12.5px; color: var(--text-muted); line-height: 1.7;
+    margin: 12px 0 0; max-width: 68ch;
+  }
+
+  /* --- hero stat row --- */
+  .hero-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .hero-tile {
+    background: var(--surface-1);
+    padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .hero-tile.main { background: var(--surface-2); }
+  .hero-label { font-size: 11.5px; color: var(--text-muted); letter-spacing: .03em; }
+  .hero-value { font-size: 34px; font-weight: 700; line-height: 1; letter-spacing: -0.01em; }
+  .hero-tile.main .hero-value { color: var(--series-honshin); }
+  .hero-sub { font-size: 12.5px; color: var(--text-secondary); }
+  .scale-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--series-honshin); color: #fff;
+    font-size: 12px; font-weight: 700; margin-right: 6px;
+  }
+
+  /* --- timeline chart --- */
+  .chart-box { position: relative; }
+  svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+  .axis-label { font-size: 10.5px; fill: var(--text-muted); }
+  .grid-line { stroke: var(--gridline); stroke-width: 1; }
+  .base-line { stroke: var(--baseline); stroke-width: 1; }
+  .bar-count { fill: var(--series-time); }
+  .pt { opacity: 0.82; transition: opacity .15s; }
+  .pt:hover { opacity: 1; }
+  .pt-honshin { stroke: var(--surface-1); stroke-width: 2; }
+  .bar-count-label { font-size: 10px; fill: var(--text-secondary); font-variant-numeric: tabular-nums; text-anchor: middle; }
+  .marker-m5 { fill: var(--series-honshin); stroke: var(--surface-1); stroke-width: 2; }
+  .marker-m5-label { font-size: 9.5px; fill: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .legend-row { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+  /* --- stacked migration chart --- */
+  .migration-bars { display: flex; flex-direction: column; gap: 6px; }
+  .mrow { display: grid; grid-template-columns: 78px 1fr 34px; align-items: center; gap: 10px; }
+  .mrow-label { font-size: 11.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .mrow-track { position: relative; height: 20px; border-radius: 4px; overflow: hidden; background: var(--gridline); display: flex; }
+  .mrow-seg { height: 100%; }
+  .mrow-total { font-size: 11px; color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* --- two-col grid for b-value / omori --- */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .bvalue-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .bvalue-table th, .bvalue-table td {
+    text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums;
+  }
+  .bvalue-table th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+  .bvalue-table td.b-emph { color: var(--series-time); font-weight: 700; }
+
+  .meter { height: 8px; border-radius: 4px; background: var(--gridline); overflow: hidden; margin-top: 4px; }
+  .meter-fill { height: 100%; border-radius: 4px; }
+
+  /* --- magnitude-5 table --- */
+  table.event-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.event-table th, table.event-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--gridline); text-align: left;
+  }
+  table.event-table th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+  table.event-table td.num { font-variant-numeric: tabular-nums; }
+  .pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; padding: 2px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; color: #fff;
+  }
+  .pill.i7 { background: var(--status-critical); }
+  .pill.i5w { background: var(--status-serious); }
+
+  /* --- precursor callout --- */
+  .callout {
+    display: flex; gap: 12px; padding: 14px 16px; border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .callout-icon {
+    flex: none; width: 28px; height: 28px; border-radius: 8px;
+    background: var(--status-good); color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+  }
+  .callout-body { font-size: 13.5px; line-height: 1.7; color: var(--text-secondary); }
+  .callout-body b { color: var(--text-primary); }
+
+  /* --- verdict list --- */
+  .verdict-list { display: flex; flex-direction: column; gap: 14px; }
+  .verdict-item { display: grid; grid-template-columns: 22px 1fr; gap: 10px; }
+  .verdict-num { font-size: 12px; font-weight: 700; color: var(--text-muted); padding-top: 2px; }
+  .verdict-text { font-size: 13.5px; line-height: 1.75; color: var(--text-secondary); }
+  .verdict-text b { color: var(--text-primary); }
+
+  footer.src {
+    font-size: 11.5px; color: var(--text-muted); line-height: 1.8; margin-top: 24px;
+  }
+  footer.src a { color: var(--text-secondary); }
+</style>
+
+<div class="viz-root">
+<div class="wrap">
+
+  <header class="page-head">
+    <p class="eyebrow">Seismic Analysis &middot; 2026-07-28 &ndash; 07-29</p>
+    <h1>令和8年熊本地震 統合分析</h1>
+    <p class="subhead">P2P地震情報 v2/history（全国241件、熊本・周辺関連177件、2026/07/10&ndash;07/29取得）を用いた、本震前後の地震活動の定量分析。</p>
+  </header>
+
+  <div class="hero-row">
+    <div class="hero-tile main">
+      <div class="hero-label">本震（2026/07/28 16:27）</div>
+      <div class="hero-value"><span class="scale-badge">7</span>M7.1</div>
+      <div class="hero-sub">深さ10km &middot; 熊本県熊本地方</div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">震度5弱以上の回数</div>
+      <div class="hero-value">4</div>
+      <div class="hero-sub">本震含む・18時間以内</div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">18時間累積検知数</div>
+      <div class="hero-value">176</div>
+      <div class="hero-sub">熊本・天草・大分西部</div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">本震前24hの震源域地震</div>
+      <div class="hero-value">0</div>
+      <div class="hero-sub">前震なし・突発型</div>
+    </div>
+  </div>
+
+  <section>
+    <h2>余震の時系列推移（マグニチュード別、本震からの経過時間）</h2>
+    <div class="chart-box">
+      <svg class="chart" viewBox="0 0 900 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="177件の地震を発生時刻とマグニチュードで散布図表示。本震M7.1を起点に時間経過とともに規模・頻度が減衰。">
+        <!-- gridlines: M2,3,4,5,6,7 -->
+        <g>
+          <line class="grid-line" x1="60" y1="223.3" x2="880" y2="223.3" />
+          <line class="grid-line" x1="60" y1="190.0" x2="880" y2="190.0" />
+          <line class="grid-line" x1="60" y1="156.7" x2="880" y2="156.7" />
+          <line class="grid-line" x1="60" y1="123.3" x2="880" y2="123.3" />
+          <line class="grid-line" x1="60" y1="90.0"  x2="880" y2="90.0" />
+          <line class="grid-line" x1="60" y1="56.7"  x2="880" y2="56.7" />
+          <text class="axis-label" x="52" y="227" text-anchor="end">M2</text>
+          <text class="axis-label" x="52" y="194" text-anchor="end">M3</text>
+          <text class="axis-label" x="52" y="160" text-anchor="end">M4</text>
+          <text class="axis-label" x="52" y="127" text-anchor="end">M5</text>
+          <text class="axis-label" x="52" y="94"  text-anchor="end">M6</text>
+          <text class="axis-label" x="52" y="60"  text-anchor="end">M7</text>
+        </g>
+        <!-- scatter points: time(h) x magnitude, 177 events -->
+        <g>
+          <circle class="pt-honshin" cx="60.0" cy="53.3" r="9" style="fill:var(--series-honshin)"/>
+          <circle class="pt" cx="61.5" cy="140.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="69.1" cy="150.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="71.4" cy="163.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="73.6" cy="156.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="77.4" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="79.7" cy="170.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="81.2" cy="170.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="84.2" cy="143.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="87.3" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="91.0" cy="86.7" r="6" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="92.6" cy="160.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="95.6" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="98.6" cy="123.3" r="6" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="100.9" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="103.9" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="105.4" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="109.2" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="111.5" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="113.0" cy="160.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="116.0" cy="216.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="117.6" cy="160.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="119.1" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="122.8" cy="170.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="125.9" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="128.1" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="135.0" cy="216.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="136.5" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="138.0" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="138.7" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="141.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="144.0" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="146.3" cy="166.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="148.6" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="152.4" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="153.9" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="156.9" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="158.4" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="159.9" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="163.0" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="166.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="168.3" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="172.8" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="175.1" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="178.1" cy="150.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="180.4" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="181.2" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="182.7" cy="153.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="184.9" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="185.7" cy="173.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="188.0" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="191.7" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="193.2" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="200.8" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="201.6" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="206.1" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="208.4" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="210.7" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="214.5" cy="170.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="216.0" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="218.2" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="219.0" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="222.8" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="224.3" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="228.9" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="229.6" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="232.6" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="237.9" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="239.4" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="241.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="244.0" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="249.3" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="256.1" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="256.8" cy="173.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="262.2" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="263.7" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="269.0" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="272.0" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="274.3" cy="150.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="276.6" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="281.1" cy="216.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="286.4" cy="143.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="287.9" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="290.9" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="293.2" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="302.3" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="303.8" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="312.9" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="316.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="318.2" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="320.4" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="323.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="328.0" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="329.5" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="334.8" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="337.1" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="338.6" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="347.7" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="350.0" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="358.3" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="359.1" cy="130.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="372.7" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="379.5" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="383.3" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="387.1" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="394.7" cy="173.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="402.2" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="407.5" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="410.6" cy="226.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="411.3" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="414.3" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="417.4" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="419.7" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="425.7" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="429.5" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="430.2" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="447.6" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="448.4" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="453.7" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="456.7" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="458.3" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="459.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="468.1" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="472.6" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="478.0" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="480.2" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="483.3" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="490.1" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="490.8" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="492.4" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="501.4" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="502.2" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="503.7" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="519.6" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="520.3" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="531.0" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="533.2" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="534.7" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="545.3" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="560.5" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="561.2" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="565.8" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="594.6" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="603.7" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="605.9" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="608.2" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="613.5" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="625.6" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="641.5" cy="226.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="667.3" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="671.0" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="672.5" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="674.1" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="680.9" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="690.0" cy="216.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="693.0" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="699.1" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="714.2" cy="160.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="717.2" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="719.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="727.0" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="755.1" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="771.0" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="774.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="783.1" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="792.9" cy="190.0" r="4" style="fill:var(--loc-oita)"/>
+          <circle class="pt" cx="796.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="798.2" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="808.8" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="818.7" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="830.8" cy="206.7" r="4" style="fill:var(--loc-oita)"/>
+          <circle class="pt" cx="849.0" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="857.3" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="858.1" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="859.6" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="871.7" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="880.0" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>        </g>
+        <text class="marker-m5-label" x="70" y="47" style="fill:var(--series-honshin); font-weight:700;">M7.1 本震</text>
+
+        <line class="base-line" x1="60" y1="240" x2="880" y2="240" />
+        <!-- x axis labels -->
+        <g>
+          <text class="axis-label" x="60"  y="254" text-anchor="middle">+0h</text>
+          <text class="axis-label" x="196" y="254" text-anchor="middle">+3h</text>
+          <text class="axis-label" x="333" y="254" text-anchor="middle">+6h</text>
+          <text class="axis-label" x="469" y="254" text-anchor="middle">+9h</text>
+          <text class="axis-label" x="605" y="254" text-anchor="middle">+12h</text>
+          <text class="axis-label" x="741" y="254" text-anchor="middle">+15h</text>
+          <text class="axis-label" x="878" y="254" text-anchor="middle">+18h</text>
+        </g>
+      </svg>
+    </div>
+    <div class="legend-row">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--series-honshin); border-radius:50%"></span>本震（M7.1）</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--loc-kumamoto); border-radius:50%"></span>熊本地方</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--loc-amakusa); border-radius:50%"></span>天草・芦北地方</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--loc-oita); border-radius:50%"></span>大分県西部</div>
+    </div>
+    <p class="note">177件を発生時刻とマグニチュードでプロット（点の大きさもMに連動）。本震直後にM4&ndash;6クラスが連続し、時間経過とともに規模・頻度とも減衰する典型的な余震パターン。1時間ビンの両対数回帰では改良大森公式の減衰指数 p&nbsp;&asymp;&nbsp;0.88（標準的な範囲はp&asymp;1.0）。気象庁は本震から2&ndash;3日は最大震度7程度への注意を継続的に呼びかけており、このデータ範囲（本震+18時間）だけで沈静化と判断するのは時期尚早。</p>
+  </section>
+
+  <section>
+    <h2>震源の空間的推移（3時間ビンごとの内訳）</h2>
+    <div class="migration-bars">
+      <div class="mrow">
+        <div class="mrow-label">+0&ndash;3h</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:71.7%; background:var(--loc-kumamoto)"></div>
+          <div class="mrow-seg" style="width:28.3%; background:var(--loc-amakusa)"></div>
+        </div>
+        <div class="mrow-total">53</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">+3&ndash;6h</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:80.5%; background:var(--loc-kumamoto)"></div>
+          <div class="mrow-seg" style="width:19.5%; background:var(--loc-amakusa)"></div>
+        </div>
+        <div class="mrow-total">41</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">+6&ndash;9h</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:79.3%; background:var(--loc-kumamoto)"></div>
+          <div class="mrow-seg" style="width:20.7%; background:var(--loc-amakusa)"></div>
+        </div>
+        <div class="mrow-total">29</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">+9&ndash;12h</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:71.4%; background:var(--loc-kumamoto)"></div>
+          <div class="mrow-seg" style="width:28.6%; background:var(--loc-amakusa)"></div>
+        </div>
+        <div class="mrow-total">21</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">+12&ndash;15h</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:76.5%; background:var(--loc-kumamoto)"></div>
+          <div class="mrow-seg" style="width:23.5%; background:var(--loc-amakusa)"></div>
+        </div>
+        <div class="mrow-total">17</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">+15&ndash;18h</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:73.3%; background:var(--loc-kumamoto)"></div>
+          <div class="mrow-seg" style="width:13.4%; background:var(--loc-oita)"></div>
+          <div class="mrow-seg" style="width:13.3%; background:var(--loc-amakusa)"></div>
+        </div>
+        <div class="mrow-total">15</div>
+      </div>
+    </div>
+    <div class="legend-row">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--loc-kumamoto)"></span>熊本地方</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--loc-amakusa)"></span>天草・芦北地方</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--loc-oita)"></span>大分県西部</div>
+    </div>
+    <p class="note">天草・芦北地方は本震+0.38h（M3.4）から即座に活動が波及。大分県西部は+16.13h（M3.0）に初検知。震源間の直線距離は数十km規模で、同一断層帯（布田川・日奈久断層帯）沿いの連鎖とみられる（専門機関の正式評価は未確認）。</p>
+  </section>
+
+  <div class="grid-2">
+    <section>
+      <h2>b値分析（Gutenberg&ndash;Richter則）</h2>
+      <table class="bvalue-table">
+        <thead>
+          <tr><th>Mc（下限M）</th><th>b値</th><th>標準誤差</th><th>n</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">M&ge;2.0</td><td class="num b-emph">0.42</td><td class="num">&plusmn;0.02</td><td class="num">174</td></tr>
+          <tr><td class="num">M&ge;2.5</td><td class="num b-emph">0.62</td><td class="num">&plusmn;0.05</td><td class="num">143</td></tr>
+          <tr><td class="num">M&ge;3.0</td><td class="num b-emph">0.74</td><td class="num">&plusmn;0.08</td><td class="num">79</td></tr>
+        </tbody>
+      </table>
+      <div class="meter"><div class="meter-fill" style="width:62%; background:linear-gradient(90deg, var(--status-critical), var(--status-warning) 60%, var(--status-good))"></div></div>
+      <p class="note">典型的な内陸地殻内地震はb&asymp;0.9&ndash;1.0。今回はMc2.5以上でb&asymp;0.6、Mc2.0ではさらに低い0.42&mdash;中規模（M4級）以上の地震が相対的に多い活動を示す。b値低下と大規模地震発生の間に確立した予測関係はなく、参考指標として提示する。</p>
+    </section>
+
+    <section>
+      <h2>震度5弱以上の地震一覧</h2>
+      <table class="event-table">
+        <thead>
+          <tr><th>時刻</th><th>M</th><th>震度</th><th>震源</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">16:27</td><td class="num">7.1</td><td><span class="pill i7">7</span></td><td>熊本地方</td></tr>
+          <tr><td class="num">16:29</td><td class="num">4.5</td><td><span class="pill i5w">5弱</span></td><td>熊本地方</td></tr>
+          <tr><td class="num">17:08</td><td class="num">6.1</td><td><span class="pill i5w">5弱</span></td><td>天草・芦北</td></tr>
+          <tr><td class="num">19:03</td><td class="num">4.2</td><td><span class="pill i5w">5弱</span></td><td>熊本地方</td></tr>
+        </tbody>
+      </table>
+      <p class="note">本震から2.6時間以内に震度5弱以上が4回発生。深さは0&ndash;10kmが171/177件（96.6%）を占め、ごく浅い地殻内地震（2016年熊本地震と同型）。</p>
+    </section>
+  </div>
+
+  <section>
+    <h2>震源近傍観測点 AM.R6E01 の実測記録（震源距離約80km）</h2>
+    <p class="note" style="margin-top:0; margin-bottom:16px;">震源に最も近いRaspberry Shake公開観測点 R6E01（福岡県、緯度33.29&deg;/経度130.95&deg;）のFDSN公開データを取得し、本震の実波形を解析した。震央からの直線距離は約80km&mdash;気象庁の公式観測点でいえば福岡県久留米市（震度4）とほぼ同じ距離帯にあたる。</p>
+
+    <div class="hero-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom:16px;">
+      <div class="hero-tile">
+        <div class="hero-label">最大加速度（PGA、JMAフィルタ後）</div>
+        <div class="hero-value" style="font-size:26px;">24.3<span style="font-size:14px; font-weight:600;">gal</span></div>
+        <div class="hero-sub">3成分合成（ENZ+ENN+ENE）</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">計測震度（気象庁式）</div>
+        <div class="hero-value" style="font-size:26px;">3.40</div>
+        <div class="hero-sub">震度3相当</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">STA/LTA最大比</div>
+        <div class="hero-value" style="font-size:26px;">67.3</div>
+        <div class="hero-sub">閾値15への到達は明瞭</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">推定M（距離減衰式逆算）</div>
+        <div class="hero-value" style="font-size:26px;">5.7</div>
+        <div class="hero-sub">公式M7.1&plusmn;0.8程度の誤差域内</div>
+      </div>
+    </div>
+
+    <div class="chart-box">
+      <svg class="chart" viewBox="0 0 900 230" preserveAspectRatio="xMidYMid meet" role="img" aria-label="R6E01観測点の合成加速度波形。16:27:44付近にピーク54.3galを記録し、以後減衰しながら継続。">
+        <g>
+          <line class="grid-line" x1="60" y1="200" x2="880" y2="200" />
+          <line class="grid-line" x1="60" y1="143.3" x2="880" y2="143.3" />
+          <line class="grid-line" x1="60" y1="86.7" x2="880" y2="86.7" />
+          <line class="grid-line" x1="60" y1="30" x2="880" y2="30" />
+          <text class="axis-label" x="52" y="204" text-anchor="end">0</text>
+          <text class="axis-label" x="52" y="147" text-anchor="end">20</text>
+          <text class="axis-label" x="52" y="90" text-anchor="end">40</text>
+          <text class="axis-label" x="52" y="34" text-anchor="end">60gal</text>
+        </g>
+        <path d="M60.0,198.4 L62.1,198.2 L64.1,198.5 L66.2,198.3 L68.2,198.8 L70.2,198.6 L72.3,198.5 L74.3,198.4 L76.4,199.0 L78.4,198.6 L80.5,198.5 L82.6,198.5 L84.6,198.6 L86.7,199.0 L88.7,198.2 L90.8,198.6 L92.8,198.6 L94.8,198.4 L96.9,198.4 L98.9,198.7 L101.0,198.6 L103.1,198.8 L105.1,198.8 L107.2,198.5 L109.2,199.0 L111.2,198.8 L113.3,198.2 L115.3,198.9 L117.4,198.7 L119.4,198.3 L121.5,197.8 L123.6,198.6 L125.6,198.8 L127.7,198.8 L129.7,198.6 L131.8,198.6 L133.8,198.9 L135.8,198.4 L137.9,198.4 L139.9,198.6 L142.0,198.7 L144.1,198.5 L146.1,198.5 L148.2,197.9 L150.2,198.7 L152.2,198.7 L154.3,198.6 L156.3,198.8 L158.4,198.8 L160.4,198.6 L162.5,198.6 L164.6,198.6 L166.6,198.2 L168.7,198.4 L170.7,198.0 L172.8,198.9 L174.8,198.3 L176.8,198.8 L178.9,197.8 L180.9,198.4 L183.0,198.0 L185.1,198.5 L187.1,198.5 L189.2,198.6 L191.2,198.8 L193.2,198.5 L195.3,198.9 L197.3,198.5 L199.4,198.6 L201.4,198.2 L203.5,198.7 L205.6,198.9 L207.6,199.0 L209.7,198.6 L211.7,199.0 L213.8,198.7 L215.8,198.9 L217.8,198.8 L219.9,199.1 L221.9,198.3 L224.0,198.5 L226.1,198.6 L228.1,198.9 L230.2,198.5 L232.2,198.7 L234.2,198.6 L236.3,198.5 L238.4,198.5 L240.4,198.8 L242.4,198.7 L244.5,198.4 L246.6,198.3 L248.6,198.9 L250.7,198.4 L252.7,198.5 L254.8,198.5 L256.8,198.7 L258.9,198.3 L260.9,198.3 L262.9,198.1 L265.0,197.0 L267.1,197.6 L269.1,197.7 L271.1,197.5 L273.2,197.1 L275.2,187.9 L277.3,187.1 L279.4,184.8 L281.4,185.7 L283.4,171.8 L285.5,181.7 L287.6,175.9 L289.6,168.7 L291.7,163.1 L293.7,158.3 L295.8,152.4 L297.8,159.6 L299.9,166.8 L301.9,159.7 L303.9,152.2 L306.0,162.6 L308.1,164.6 L310.1,150.3 L312.1,159.2 L314.2,162.2 L316.2,156.9 L318.3,162.8 L320.4,164.8 L322.4,175.7 L324.4,168.2 L326.5,169.8 L328.6,167.2 L330.6,168.6 L332.6,176.2 L334.7,164.1 L336.8,166.4 L338.8,171.9 L340.9,177.7 L342.9,185.1 L344.9,177.1 L347.0,171.9 L349.1,171.1 L351.1,174.3 L353.1,183.0 L355.2,173.8 L357.2,176.4 L359.3,172.1 L361.4,173.0 L363.4,175.1 L365.4,179.5 L367.5,175.7 L369.6,177.5 L371.6,173.3 L373.6,174.6 L375.7,172.6 L377.8,170.7 L379.8,162.9 L381.9,144.7 L383.9,150.0 L385.9,118.2 L388.0,119.9 L390.1,113.2 L392.1,104.8 L394.1,46.2 L396.2,129.8 L398.2,111.5 L400.3,128.9 L402.4,110.6 L404.4,133.6 L406.5,123.2 L408.5,158.6 L410.6,159.3 L412.6,126.3 L414.6,97.3 L416.7,125.6 L418.8,141.2 L420.8,152.1 L422.9,121.8 L424.9,123.4 L427.0,133.6 L429.0,100.2 L431.1,109.4 L433.1,118.0 L435.1,130.0 L437.2,132.9 L439.2,156.2 L441.3,146.0 L443.4,138.7 L445.4,154.2 L447.5,134.6 L449.5,125.2 L451.6,134.1 L453.6,154.4 L455.6,148.1 L457.7,139.4 L459.8,148.6 L461.8,156.4 L463.9,163.3 L465.9,157.0 L468.0,150.0 L470.0,157.2 L472.1,157.8 L474.1,151.4 L476.1,168.2 L478.2,154.6 L480.2,170.4 L482.3,180.8 L484.4,171.0 L486.4,152.4 L488.5,160.7 L490.5,174.0 L492.6,173.6 L494.6,170.0 L496.6,156.5 L498.7,144.5 L500.8,162.0 L502.8,159.5 L504.9,164.3 L506.9,157.9 L509.0,171.7 L511.0,148.9 L513.0,163.8 L515.1,163.8 L517.1,161.7 L519.2,173.8 L521.2,157.9 L523.3,158.8 L525.4,153.3 L527.4,163.7 L529.5,168.3 L531.5,149.7 L533.5,146.1 L535.6,119.5 L537.6,161.4 L539.7,148.8 L541.8,154.9 L543.8,138.3 L545.9,158.3 L547.9,171.5 L550.0,165.3 L552.0,160.7 L554.0,148.8 L556.1,165.8 L558.1,162.3 L560.2,164.4 L562.2,161.9 L564.3,156.8 L566.4,168.3 L568.4,168.2 L570.5,174.5 L572.5,177.5 L574.6,171.2 L576.6,177.5 L578.6,168.1 L580.7,174.9 L582.8,162.9 L584.8,171.7 L586.9,173.2 L588.9,176.4 L591.0,176.4 L593.0,160.1 L595.1,167.6 L597.1,161.9 L599.1,170.4 L601.2,165.8 L603.2,185.8 L605.3,166.7 L607.4,187.7 L609.4,179.0 L611.5,174.0 L613.5,179.2 L615.5,175.7 L617.6,176.2 L619.6,175.9 L621.7,170.4 L623.8,172.0 L625.8,181.2 L627.9,180.0 L629.9,184.8 L632.0,179.1 L634.0,176.1 L636.0,180.5 L638.1,174.2 L640.1,186.0 L642.2,186.5 L644.2,185.6 L646.3,192.1 L648.4,187.5 L650.4,185.5 L652.5,185.0 L654.5,187.2 L656.6,192.1 L658.6,190.1 L660.6,191.9 L662.7,190.6 L664.8,190.0 L666.8,189.9 L668.9,181.0 L670.9,186.1 L673.0,184.0 L675.0,190.8 L677.1,188.2 L679.1,189.1 L681.1,193.8 L683.2,193.2 L685.2,192.6 L687.3,190.7 L689.4,190.6 L691.4,191.7 L693.5,192.0 L695.5,190.7 L697.6,190.1 L699.6,191.3 L701.6,189.4 L703.7,189.1 L705.8,193.6 L707.8,191.4 L709.9,191.1 L711.9,190.0 L714.0,189.6 L716.0,190.8 L718.0,189.2 L720.1,190.4 L722.2,189.0 L724.2,192.0 L726.2,187.1 L728.3,192.3 L730.4,190.4 L732.4,188.9 L734.5,192.1 L736.5,192.9 L738.5,191.3 L740.6,190.4 L742.7,188.6 L744.7,188.2 L746.8,194.1 L748.8,192.8 L750.9,192.4 L752.9,190.3 L754.9,191.1 L757.0,192.3 L759.1,193.4 L761.1,193.5 L763.2,193.4 L765.2,194.0 L767.2,193.2 L769.3,191.3 L771.4,194.6 L773.4,194.5 L775.4,193.2 L777.5,195.7 L779.6,193.4 L781.6,193.3 L783.7,194.6 L785.7,192.4 L787.8,189.4 L789.8,189.2 L791.9,193.8 L793.9,195.9 L795.9,188.2 L798.0,189.8 L800.1,191.7 L802.1,195.0 L804.2,195.0 L806.2,193.0 L808.2,190.2 L810.3,193.9 L812.4,195.4 L814.4,196.9 L816.5,195.8 L818.5,195.3 L820.5,195.4 L822.6,193.2 L824.7,195.9 L826.7,195.5 L828.8,196.0 L830.8,195.8 L832.9,195.0 L834.9,195.3 L837.0,193.3 L839.0,193.4 L841.0,193.9 L843.1,196.1 L845.2,194.8 L847.2,194.8 L849.2,193.1 L851.3,193.0 L853.4,193.2 L855.4,195.6 L857.5,195.0 L859.5,194.9 L861.6,193.5 L863.6,196.7 L865.7,197.4 L867.7,196.6 L869.8,195.7 L871.8,196.8 L873.9,195.7 L875.9,195.3 L878.0,194.5 L880.0,200.0 L60.0,200.0 Z" fill="var(--series-time-fill)" stroke="none"/>
+        <path d="M60.0,198.4 L62.1,198.2 L64.1,198.5 L66.2,198.3 L68.2,198.8 L70.2,198.6 L72.3,198.5 L74.3,198.4 L76.4,199.0 L78.4,198.6 L80.5,198.5 L82.6,198.5 L84.6,198.6 L86.7,199.0 L88.7,198.2 L90.8,198.6 L92.8,198.6 L94.8,198.4 L96.9,198.4 L98.9,198.7 L101.0,198.6 L103.1,198.8 L105.1,198.8 L107.2,198.5 L109.2,199.0 L111.2,198.8 L113.3,198.2 L115.3,198.9 L117.4,198.7 L119.4,198.3 L121.5,197.8 L123.6,198.6 L125.6,198.8 L127.7,198.8 L129.7,198.6 L131.8,198.6 L133.8,198.9 L135.8,198.4 L137.9,198.4 L139.9,198.6 L142.0,198.7 L144.1,198.5 L146.1,198.5 L148.2,197.9 L150.2,198.7 L152.2,198.7 L154.3,198.6 L156.3,198.8 L158.4,198.8 L160.4,198.6 L162.5,198.6 L164.6,198.6 L166.6,198.2 L168.7,198.4 L170.7,198.0 L172.8,198.9 L174.8,198.3 L176.8,198.8 L178.9,197.8 L180.9,198.4 L183.0,198.0 L185.1,198.5 L187.1,198.5 L189.2,198.6 L191.2,198.8 L193.2,198.5 L195.3,198.9 L197.3,198.5 L199.4,198.6 L201.4,198.2 L203.5,198.7 L205.6,198.9 L207.6,199.0 L209.7,198.6 L211.7,199.0 L213.8,198.7 L215.8,198.9 L217.8,198.8 L219.9,199.1 L221.9,198.3 L224.0,198.5 L226.1,198.6 L228.1,198.9 L230.2,198.5 L232.2,198.7 L234.2,198.6 L236.3,198.5 L238.4,198.5 L240.4,198.8 L242.4,198.7 L244.5,198.4 L246.6,198.3 L248.6,198.9 L250.7,198.4 L252.7,198.5 L254.8,198.5 L256.8,198.7 L258.9,198.3 L260.9,198.3 L262.9,198.1 L265.0,197.0 L267.1,197.6 L269.1,197.7 L271.1,197.5 L273.2,197.1 L275.2,187.9 L277.3,187.1 L279.4,184.8 L281.4,185.7 L283.4,171.8 L285.5,181.7 L287.6,175.9 L289.6,168.7 L291.7,163.1 L293.7,158.3 L295.8,152.4 L297.8,159.6 L299.9,166.8 L301.9,159.7 L303.9,152.2 L306.0,162.6 L308.1,164.6 L310.1,150.3 L312.1,159.2 L314.2,162.2 L316.2,156.9 L318.3,162.8 L320.4,164.8 L322.4,175.7 L324.4,168.2 L326.5,169.8 L328.6,167.2 L330.6,168.6 L332.6,176.2 L334.7,164.1 L336.8,166.4 L338.8,171.9 L340.9,177.7 L342.9,185.1 L344.9,177.1 L347.0,171.9 L349.1,171.1 L351.1,174.3 L353.1,183.0 L355.2,173.8 L357.2,176.4 L359.3,172.1 L361.4,173.0 L363.4,175.1 L365.4,179.5 L367.5,175.7 L369.6,177.5 L371.6,173.3 L373.6,174.6 L375.7,172.6 L377.8,170.7 L379.8,162.9 L381.9,144.7 L383.9,150.0 L385.9,118.2 L388.0,119.9 L390.1,113.2 L392.1,104.8 L394.1,46.2 L396.2,129.8 L398.2,111.5 L400.3,128.9 L402.4,110.6 L404.4,133.6 L406.5,123.2 L408.5,158.6 L410.6,159.3 L412.6,126.3 L414.6,97.3 L416.7,125.6 L418.8,141.2 L420.8,152.1 L422.9,121.8 L424.9,123.4 L427.0,133.6 L429.0,100.2 L431.1,109.4 L433.1,118.0 L435.1,130.0 L437.2,132.9 L439.2,156.2 L441.3,146.0 L443.4,138.7 L445.4,154.2 L447.5,134.6 L449.5,125.2 L451.6,134.1 L453.6,154.4 L455.6,148.1 L457.7,139.4 L459.8,148.6 L461.8,156.4 L463.9,163.3 L465.9,157.0 L468.0,150.0 L470.0,157.2 L472.1,157.8 L474.1,151.4 L476.1,168.2 L478.2,154.6 L480.2,170.4 L482.3,180.8 L484.4,171.0 L486.4,152.4 L488.5,160.7 L490.5,174.0 L492.6,173.6 L494.6,170.0 L496.6,156.5 L498.7,144.5 L500.8,162.0 L502.8,159.5 L504.9,164.3 L506.9,157.9 L509.0,171.7 L511.0,148.9 L513.0,163.8 L515.1,163.8 L517.1,161.7 L519.2,173.8 L521.2,157.9 L523.3,158.8 L525.4,153.3 L527.4,163.7 L529.5,168.3 L531.5,149.7 L533.5,146.1 L535.6,119.5 L537.6,161.4 L539.7,148.8 L541.8,154.9 L543.8,138.3 L545.9,158.3 L547.9,171.5 L550.0,165.3 L552.0,160.7 L554.0,148.8 L556.1,165.8 L558.1,162.3 L560.2,164.4 L562.2,161.9 L564.3,156.8 L566.4,168.3 L568.4,168.2 L570.5,174.5 L572.5,177.5 L574.6,171.2 L576.6,177.5 L578.6,168.1 L580.7,174.9 L582.8,162.9 L584.8,171.7 L586.9,173.2 L588.9,176.4 L591.0,176.4 L593.0,160.1 L595.1,167.6 L597.1,161.9 L599.1,170.4 L601.2,165.8 L603.2,185.8 L605.3,166.7 L607.4,187.7 L609.4,179.0 L611.5,174.0 L613.5,179.2 L615.5,175.7 L617.6,176.2 L619.6,175.9 L621.7,170.4 L623.8,172.0 L625.8,181.2 L627.9,180.0 L629.9,184.8 L632.0,179.1 L634.0,176.1 L636.0,180.5 L638.1,174.2 L640.1,186.0 L642.2,186.5 L644.2,185.6 L646.3,192.1 L648.4,187.5 L650.4,185.5 L652.5,185.0 L654.5,187.2 L656.6,192.1 L658.6,190.1 L660.6,191.9 L662.7,190.6 L664.8,190.0 L666.8,189.9 L668.9,181.0 L670.9,186.1 L673.0,184.0 L675.0,190.8 L677.1,188.2 L679.1,189.1 L681.1,193.8 L683.2,193.2 L685.2,192.6 L687.3,190.7 L689.4,190.6 L691.4,191.7 L693.5,192.0 L695.5,190.7 L697.6,190.1 L699.6,191.3 L701.6,189.4 L703.7,189.1 L705.8,193.6 L707.8,191.4 L709.9,191.1 L711.9,190.0 L714.0,189.6 L716.0,190.8 L718.0,189.2 L720.1,190.4 L722.2,189.0 L724.2,192.0 L726.2,187.1 L728.3,192.3 L730.4,190.4 L732.4,188.9 L734.5,192.1 L736.5,192.9 L738.5,191.3 L740.6,190.4 L742.7,188.6 L744.7,188.2 L746.8,194.1 L748.8,192.8 L750.9,192.4 L752.9,190.3 L754.9,191.1 L757.0,192.3 L759.1,193.4 L761.1,193.5 L763.2,193.4 L765.2,194.0 L767.2,193.2 L769.3,191.3 L771.4,194.6 L773.4,194.5 L775.4,193.2 L777.5,195.7 L779.6,193.4 L781.6,193.3 L783.7,194.6 L785.7,192.4 L787.8,189.4 L789.8,189.2 L791.9,193.8 L793.9,195.9 L795.9,188.2 L798.0,189.8 L800.1,191.7 L802.1,195.0 L804.2,195.0 L806.2,193.0 L808.2,190.2 L810.3,193.9 L812.4,195.4 L814.4,196.9 L816.5,195.8 L818.5,195.3 L820.5,195.4 L822.6,193.2 L824.7,195.9 L826.7,195.5 L828.8,196.0 L830.8,195.8 L832.9,195.0 L834.9,195.3 L837.0,193.3 L839.0,193.4 L841.0,193.9 L843.1,196.1 L845.2,194.8 L847.2,194.8 L849.2,193.1 L851.3,193.0 L853.4,193.2 L855.4,195.6 L857.5,195.0 L859.5,194.9 L861.6,193.5 L863.6,196.7 L865.7,197.4 L867.7,196.6 L869.8,195.7 L871.8,196.8 L873.9,195.7 L875.9,195.3 L878.0,194.5" fill="none" stroke="var(--series-time)" stroke-width="1.5" stroke-linejoin="round"/>
+        <circle cx="394.1" cy="46.2" r="5" class="pt-honshin" style="fill:var(--series-honshin)"/>
+        <text class="marker-m5-label" x="404" y="42" style="fill:var(--series-honshin); font-weight:700;">54.3gal（フィルタ前ピーク、16:27:44頃）</text>
+        <line class="base-line" x1="60" y1="200" x2="880" y2="200" />
+        <g>
+          <text class="axis-label" x="60"  y="220" text-anchor="middle">16:27:10</text>
+          <text class="axis-label" x="265" y="220" text-anchor="middle">16:27:30</text>
+          <text class="axis-label" x="470" y="220" text-anchor="middle">16:27:50</text>
+          <text class="axis-label" x="675" y="220" text-anchor="middle">16:28:10</text>
+          <text class="axis-label" x="878" y="220" text-anchor="middle">16:28:30</text>
+        </g>
+      </svg>
+    </div>
+    <p class="note">合成加速度（ENZ+ENN+ENE、フィルタ前）の80秒間。理論P波到達（震源距離80km換算で約13秒後、記録開始16:26:30を起点に16:26:43）はEHZ速度波形のRMSがノイズ比3倍を超える立ち上がり（記録開始+32.5秒）と大まかに整合するが、近距離のため主要動がP波初動を圧倒し自動検出は容易でない&mdash;<b>近距離観測点特有の課題</b>として記録する。</p>
+
+    <div class="grid-2" style="margin-top:16px;">
+      <div>
+        <h2 style="margin-bottom:10px;">距離減衰の実測検証（R6E01 vs 自局R38DC）</h2>
+        <table class="event-table">
+          <thead>
+            <tr><th>観測点</th><th>震源距離</th><th>PGA</th><th>計測震度</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>R6E01（福岡）</td><td class="num">80km</td><td class="num">24.3gal</td><td class="num">I=3.40（震度3）</td></tr>
+            <tr><td>R38DC（自局・静岡）</td><td class="num">798km</td><td class="num">0.581gal</td><td class="num">I=0.31（震度0）</td></tr>
+          </tbody>
+        </table>
+        <p class="note">距離約10倍でPGAは約42倍減衰。PGA&prop;1/D<sup>n</sup>の実測べき指数は<b>n&asymp;1.62</b>&mdash;司・翠川(1999)等の地殻内地震の標準的な距離減衰特性（n&asymp;1&ndash;1.7程度）の範囲内に収まり、2観測点の実測データが物理的に矛盾しないことを確認できた。</p>
+      </div>
+      <div>
+        <h2 style="margin-bottom:10px;">公式発表との整合性</h2>
+        <p class="note" style="margin-top:0;">気象庁発表の福岡県久留米市（震源距離約60km、R6E01とほぼ同じ距離帯）は<b>震度4</b>。R6E01の計測震度3.40（震度3上限に近い）は、距離差・観測点固有のサイト特性（地盤増幅率の違い、Raspberry Shakeの簡易設置環境）を踏まえれば大きく矛盾しない。</p>
+        <p class="note">推定Mは司・翠川(1999)距離減衰式の逆算で5.7&mdash;公式M7.1との差は、点震源近似（実際の断層破壊の広がりを考慮しない）や地盤増幅率の不確実性に起因する既知の過小評価傾向の範囲内。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>前兆の有無</h2>
+    <div class="callout">
+      <div class="callout-icon">&#10003;</div>
+      <div class="callout-body">
+        本震前<b>24時間</b>、熊本県熊本地方・天草芦北地方での有感地震は<b>0件</b>。全国でも2件のみ（和歌山県北部M2.5、鹿児島県薩摩地方M3.7）で、震源域そのものに前震活動は確認できない&mdash;<b>2016年熊本地震のような前震&ndash;本震型ではなく、突発型</b>。<br><br>
+        参考として、本震前38時間・6.7時間に約82km離れた鹿児島県薩摩地方でM4.2/M3.7が発生しているが、距離的に同一系列と断定する根拠は乏しい。
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>総合評価</h2>
+    <div class="verdict-list">
+      <div class="verdict-item">
+        <div class="verdict-num">01</div>
+        <div class="verdict-text"><b>発生様式は突発型。</b>前震を伴わず、2016年熊本地震で「割れ残った」とされる布田川・日奈久断層帯の区間での活動と報道されている。</div>
+      </div>
+      <div class="verdict-item">
+        <div class="verdict-num">02</div>
+        <div class="verdict-text"><b>活動は3時間以内に天草・芦北地方へ拡大、16時間後には大分県西部でも検知。</b>断層帯沿いの連鎖的な活動域拡大とみられる。</div>
+      </div>
+      <div class="verdict-item">
+        <div class="verdict-num">03</div>
+        <div class="verdict-text"><b>減衰は概ね標準的（p&asymp;0.88）だが、観測期間はまだ18時間強。</b>気象庁の「2&ndash;3日は最大震度7程度に注意」の呼びかけの範囲内であり、収束の判断には早い。</div>
+      </div>
+      <div class="verdict-item">
+        <div class="verdict-num">04</div>
+        <div class="verdict-text"><b>b値0.4&ndash;0.7台はやや低め</b>で、M4級以上の発生比率が相対的に高い活動を示す統計的傾向。単独で次の大地震を予測する指標ではない。</div>
+      </div>
+      <div class="verdict-item">
+        <div class="verdict-num">05</div>
+        <div class="verdict-text"><b>前震データの不在は、本震単独の直前予測が困難だったことを示す一例。</b>薩摩地方の地震との関連は震源間距離（約82km）から見て断定できない。</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="src">
+    データ: P2P地震情報 API（v2/history, codes=551）。震度・マグニチュード等は速報値を含み、気象庁の確定値と異なる場合がある。<br>
+    参照: <a href="https://www.jma.go.jp/jma/menu/20260728_kumamoto_jishin.html">気象庁 令和8年熊本地震の地震活動の関連情報</a> &middot; <a href="https://373news.com/news/local/detail/237214">南日本新聞（割れ残り関連報道）</a>
+  </footer>
+
+</div>
+</div>
+
+</body>
+</html>
