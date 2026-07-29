@@ -289,39 +289,48 @@ def fetch_fnet(start: datetime.datetime, end: datetime.datetime) -> list[dict]:
 # ===== P2P と F-net の突合 =====
 def match_quakes(p2p: list[dict], fnet: list[dict],
                  tol_minutes: int = 3) -> list[dict]:
-    """発生時刻が近いP2P地震とF-net MT解を突合し、両方の情報を持つレコードを返す。"""
-    tol = datetime.timedelta(minutes=tol_minutes)
-    matched: list[dict] = []
-    used = set()
-    for q in p2p:
-        best = None
-        best_dt = None
-        for i, f in enumerate(fnet):
-            if i in used:
-                continue
+    """発生時刻が近いP2P地震とF-net MT解を突合し、両方の情報を持つレコードを返す。
+
+    P2P・F-net全ペアの時刻差を求め、差が小さい順にグローバルに確定していく
+    （貪欲法だが順序依存にはならない）。P2P側をそのまま外側ループで走査すると、
+    後続のP2Pレコードの方が本来の対応相手なのに、時刻が近いだけの別のF-net解を
+    先に使い切ってしまう誤対応が起きるため。
+    """
+    tol_seconds = datetime.timedelta(minutes=tol_minutes).total_seconds()
+    candidates = []
+    for qi, q in enumerate(p2p):
+        for fi, f in enumerate(fnet):
             diff = abs((f['dt'] - q['dt']).total_seconds())
-            if diff <= tol.total_seconds():
-                if best is None or diff < best_dt:
-                    best = i
-                    best_dt = diff
-        if best is not None:
-            used.add(best)
-            f = fnet[best]
-            matched.append({
-                'time': q['time'],
-                'name': q['name'],
-                'lat': f['lat'],          # 震源位置はF-net（精度が高い）
-                'lon': f['lon'],
-                'depth': f['depth'],
-                'mag': q['mag'],
-                'mw': f['mw'],
-                'scale': q['scale'],
-                'mt': f['mt'],
-                'region': f['region'],
-                'strike': f.get('strike'),
-                'dip': f.get('dip'),
-                'rake': f.get('rake'),
-            })
+            if diff <= tol_seconds:
+                candidates.append((diff, qi, fi))
+    candidates.sort(key=lambda c: c[0])
+
+    used_p2p = set()
+    used_fnet = set()
+    matched: list[dict] = []
+    for diff, qi, fi in candidates:
+        if qi in used_p2p or fi in used_fnet:
+            continue
+        used_p2p.add(qi)
+        used_fnet.add(fi)
+        q = p2p[qi]
+        f = fnet[fi]
+        matched.append({
+            'time': q['time'],
+            'name': q['name'],
+            'lat': f['lat'],          # 震源位置はF-net（精度が高い）
+            'lon': f['lon'],
+            'depth': f['depth'],
+            'mag': q['mag'],
+            'mw': f['mw'],
+            'scale': q['scale'],
+            'mt': f['mt'],
+            'region': f['region'],
+            'strike': f.get('strike'),
+            'dip': f.get('dip'),
+            'rake': f.get('rake'),
+        })
+    matched.sort(key=lambda m: m['time'])
     return matched
 
 

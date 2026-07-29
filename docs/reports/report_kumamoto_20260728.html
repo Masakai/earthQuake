@@ -116,11 +116,13 @@
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
-    background: var(--page-plane);
     font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+  }
+  .viz-root {
+    padding: 64px 16px 64px;
+    background: var(--page-plane);
     color: var(--text-primary);
   }
-  .viz-root { padding: 64px 16px 64px; }
   .wrap { max-width: 980px; margin: 0 auto; }
 
   header.page-head {
@@ -257,6 +259,19 @@
   .verdict-num { font-size: 12px; font-weight: 700; color: var(--text-muted); padding-top: 2px; }
   .verdict-text { font-size: 13.5px; line-height: 1.75; color: var(--text-secondary); }
   .verdict-text b { color: var(--text-primary); }
+
+  .beachball-frame {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .beachball-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+  }
 
   footer.src {
     font-size: 11.5px; color: var(--text-muted); line-height: 1.8; margin-top: 24px;
@@ -577,6 +592,15 @@
       <div class="legend-item"><span class="legend-dot" style="background:var(--loc-oita)"></span>大分県西部</div>
     </div>
     <p class="note">天草・芦北地方は本震+0.38h（M3.4）から即座に活動が波及。大分県西部は+16.13h（M3.0）に初検知。震源間の直線距離は数十km規模で、同一断層帯（布田川・日奈久断層帯）沿いの連鎖とみられる（専門機関の正式評価は未確認）。</p>
+  </section>
+
+  <section>
+    <h2>発震機構解（近隣観測点による解析）</h2>
+    <p class="note" style="margin-top:0; margin-bottom:14px;">自局および近傍RS4Dの単一観測点波形からは発震機構は求められないため、防災科研F-net（広帯域地震計ネットワーク）が周辺の複数観測点から算出したモーメントテンソル解を用いた。P2P地震情報177件のうちF-netの解析対象（おおむねMw3.5以上）に該当する6件が時刻突合できた&mdash;全体のうち6/177件のみを示す図であり、震度5弱以上の一部（16:29 M4.5・19:03 M4.2）を含む残りはF-net未収録である。</p>
+    <div class="beachball-frame">
+      <img src="beachball_kumamoto_20260728.png" alt="令和8年熊本地震の発震機構解マップ。本震Mw6.7を含む6個の地震球がいずれも縦4分割の市松模様（横ずれ断層型）で、熊本地方から天草・芦北地方にかけて分布する。" loading="lazy">
+    </div>
+    <p class="note">6個すべてが横ずれ断層型（すべり角が±180&deg;付近）で統一されており、布田川・日奈久断層帯の走向（北東&ndash;南西）と整合する。2016年熊本地震も同断層帯の横ずれ型で、今回の一連の活動が同じ運動様式であることを裏付ける。震源位置はF-net解析値（P2P速報値より精度が高い）。</p>
   </section>
 
   <div class="grid-2">
