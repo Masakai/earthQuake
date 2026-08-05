@@ -431,7 +431,22 @@ def compute_hvsr_from_traces(enz: np.ndarray, enn: np.ndarray, ene: np.ndarray, 
         if not ok:
             continue
         freqs, hv = compute_window_hv(enz[start:end], enn[start:end], ene[start:end], fs)
-        pf = peak_frequency_from_curve(freqs, hv)
+        # 安定性クライテリア（peak_freq_std_hz）は最終的に表示するカーブ（平滑化・
+        # 帯域制限済み）のピーク位置がどれだけ窓間でばらつくかを測る指標であるべき。
+        # 平滑化前の生スペクトル（DC除去のみ、0.2〜50Hz全域）でargmaxを取ると、
+        # 1点1点が独立したノイズに近いため、ピーク周波数が帯域全体で無秩序に散らばり、
+        # 安定性クライテリアが実質的に必ずfalseになる不具合があった。各窓にも
+        # 最終カーブと同じ平滑化・帯域制限（smooth_and_resample）を適用してから
+        # ピーク周波数を求めることで、最終カーブの安定性を正しく反映させる。
+        #
+        # 高速化のためkonno_ohmachi_smoothing()に複数窓をまとめて（2次元配列で）渡す
+        # 最適化を試みたが、obspy 1.5.0のapply_smoothing_matrix()内部で
+        # np.dot(spectra, smoothing_matrix)という転置ミス（正しくはmatrix @ spectra）
+        # があり、単一スペクトル・count=1の直接計算経路と異なる値を返すバグを実測で
+        # 確認した。そのため意図的に1窓ずつ直接計算経路（この形）を使っている。
+        # 窓ごとに呼ぶため計算コストは増えるが、正確性を優先する。
+        smoothed_freqs, smoothed_hv = smooth_and_resample(freqs, hv)
+        pf = peak_frequency_from_curve(smoothed_freqs, smoothed_hv)
         if pf is not None:
             peak_freq_per_window.append(pf)
         valid_curves.append((freqs, hv))
