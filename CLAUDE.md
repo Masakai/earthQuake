@@ -31,4 +31,4 @@ pytest src/test_api_hvsr_history.py -v    # /api/hvsr_history（12テスト）
 
 ## バージョン
 
-- 現行 v1.7.0。`src/jma_intensity_web.py` の `__version__` を git タグと揃えて手動更新する。
+- 現行 v1.7.1。`src/jma_intensity_web.py` の `__version__` を git タグと揃えて手動更新する。
