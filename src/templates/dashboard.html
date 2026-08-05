@@ -713,7 +713,8 @@
                 <div class="panel-title" style="margin-bottom:0;">HVSR日次推移（試験）</div>
                 <span style="font-size:10px;color:#8b949e;">常時微動・Nakamura法</span>
             </div>
-            <!-- (a) ピーク周波数の日次推移（折れ線） -->
+            <!-- (a) ピーク振幅の日次推移（折れ線）。破線はamplitude_okの閾値(H/V=2.0)。
+                 ピーク周波数は日々の変動が大きく地盤傾向の指標にならないためツールチップのみに表示 -->
             <div class="hvsr-chart-wrap">
                 <canvas id="hvsrTrendChart"></canvas>
             </div>
@@ -2121,12 +2122,48 @@ function updateBpHistoryChart(history) {
 // 新規アクセント色 #a371f7（既存の#stalta-peak-lineと同系統の紫）を使う。
 const HVSR_ACCENT_COLOR = '#a371f7';
 
+// トレンドチャートの主軸はpeak_amplitude（ピーク振幅）。peak_frequency_hzは
+// 実データ22日分の検証で日々の変動係数(CV)が87%と無秩序に大きく、地盤の
+// 傾向を見る指標として機能しないと判明した（H/V曲線がほぼ平坦なため、
+// argmaxで選ばれる周波数がノイズで日々飛ぶ）。一方peak_amplitudeはCV 1.7%と
+// 安定しており、地盤の共振特性が変化すれば動く指標として適している。
+// ピーク周波数は補助情報としてツールチップにのみ残す。
+const HVSR_AMPLITUDE_OK_THRESHOLD = 2.0;  // SESAME amplitude_okの閾値（sesame_criteria_ok()参照）
+
+// 基準線プラグインを使わず素の水平線を描く軽量プラグイン（Chart.js本体機能のみで
+// 完結させ、annotation等の追加ライブラリ依存を増やさないため）。
+const hvsrAmplitudeThresholdLine = {
+    id: 'hvsrAmplitudeThresholdLine',
+    afterDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea || !scales.y) return;
+        const yPix = scales.y.getPixelForValue(HVSR_AMPLITUDE_OK_THRESHOLD);
+        if (yPix < chartArea.top || yPix > chartArea.bottom) return;
+        ctx.save();
+        ctx.strokeStyle = '#6e7681';
+        ctx.setLineDash([4, 3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, yPix);
+        ctx.lineTo(chartArea.right, yPix);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#6e7681';
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        // 右端は最新日のデータ点と重なりやすいため左寄せにする
+        ctx.fillText('明瞭ピーク基準 2.0', chartArea.left + 2, yPix - 2);
+        ctx.restore();
+    },
+};
+
 const hvsrTrendChart = new Chart(document.getElementById('hvsrTrendChart').getContext('2d'), {
     type: 'line',
     data: {
         labels: [],
         datasets: [{
-            label: 'ピーク周波数 (Hz)',
+            label: 'ピーク振幅 (H/V)',
             data: [],
             borderColor: HVSR_ACCENT_COLOR,
             backgroundColor: 'transparent',
@@ -2143,6 +2180,7 @@ const hvsrTrendChart = new Chart(document.getElementById('hvsrTrendChart').getCo
             tension: 0.15,
         }],
     },
+    plugins: [hvsrAmplitudeThresholdLine],
     options: {
         animation: false,
         responsive: true,
@@ -2155,14 +2193,27 @@ const hvsrTrendChart = new Chart(document.getElementById('hvsrTrendChart').getCo
                     label: ctx => {
                         const raw = ctx.raw;
                         const y = raw && raw.y !== undefined ? raw.y : ctx.parsed.y;
-                        return 'ピーク周波数: ' + (y !== null && y !== undefined ? y.toFixed(2) + ' Hz' : '--');
+                        const ampText = 'ピーク振幅: ' + (y !== null && y !== undefined ? y.toFixed(2) : '--');
+                        const pf = raw && raw.peakFreqHz;
+                        const pfText = (pf !== null && pf !== undefined) ? `（${pf.toFixed(2)} Hz付近）` : '';
+                        return ampText + pfText;
                     },
                 },
             },
         },
         scales: {
             x: { type: 'category', ticks: { color: '#6e7681', font: { size: 9 }, maxTicksLimit: 6 }, grid: { color: '#21262d' } },
-            y: { ticks: { color: '#6e7681', font: { size: 9 } }, grid: { color: '#21262d' } },
+            y: {
+                min: 1.0,
+                // 実データ（H/V比おおむね1.6前後）が閾値2.0を大きく下回るため、
+                // suggestedMaxを指定せず自動スケールのままだと閾値線が常に軸範囲外に
+                // 出て描画されない。閾値がグラフ内に収まるよう最低限このsuggestedMaxを保証する
+                // （実データがこれを超えて推移するようになれば自動で上に拡張される）。
+                suggestedMax: HVSR_AMPLITUDE_OK_THRESHOLD + 0.3,
+                ticks: { color: '#6e7681', font: { size: 9 } },
+                grid: { color: '#21262d' },
+                title: { display: true, text: 'H/V比', color: '#6e7681', font: { size: 9 } },
+            },
         },
     },
 });
@@ -2223,7 +2274,8 @@ function _renderHvsrTrendChart(history) {
     const labels = history.map(e => e.capture_date || e.week_start);
     const data = history.map(e => ({
         x: e.capture_date || e.week_start,
-        y: e.peak_frequency_hz,
+        y: e.peak_amplitude,
+        peakFreqHz: e.peak_frequency_hz,
         // status="ok"以外（insufficient_data/failed）は塗りつぶしなしの丸で区別する
         filled: e.status === 'ok',
     }));
