@@ -846,6 +846,8 @@ def main():
     ap.add_argument('--eq-lon',   type=float, default=None, help='震源経度')
     ap.add_argument('--eq-mag',   type=float, default=None, help='マグニチュード')
     ap.add_argument('--eq-depth', type=float, default=None, help='震源深さ(km)')
+    ap.add_argument('--no-open', action='store_true',
+                    help='生成したPNGをプレビューアプリで自動的に開かない（WebUIからの呼び出し向け）')
     args = ap.parse_args()
 
     # ===== WebUI config.json から sta/lta/trig を引き継ぐ =====
@@ -1160,12 +1162,13 @@ def main():
         stalta_src=stalta_src,
     )
 
-    import subprocess, platform
-    opener = 'open' if platform.system() == 'Darwin' else 'xdg-open'
-    try:
-        subprocess.Popen([opener, str(out_path)])
-    except Exception:
-        pass
+    if not args.no_open:
+        import subprocess, platform
+        opener = 'open' if platform.system() == 'Darwin' else 'xdg-open'
+        try:
+            subprocess.Popen([opener, str(out_path)])
+        except Exception:
+            pass
 
 
 if __name__ == '__main__':

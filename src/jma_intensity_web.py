@@ -58,7 +58,7 @@ from jma_intensity_realtime import Ring, jma_scale_from_I
 
 # アプリのバージョン。リリース時に git タグ（vX.Y.Z）と揃えて手動更新する。
 # WebUI のステータスバーに表示し、デプロイ反映を画面から確認できるようにする。
-__version__ = "1.7.1"
+__version__ = "1.7.2"
 
 
 # ===== .env から観測点座標を読み込む =====
@@ -600,6 +600,7 @@ def _run_analyze(job_id: str, start_jst: str, duration: int, out_path: str,
         "--start", start_jst,
         "--duration", str(duration),
         "--out", out_path,
+        "--no-open",
     ]
     if eq_lat is not None and eq_lon is not None:
         cmd += ["--eq-lat", str(eq_lat), "--eq-lon", str(eq_lon)]
