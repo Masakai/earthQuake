@@ -181,16 +181,27 @@
     #intensity-bar-wrap { margin: 10px 0 4px; position: relative; }
     #intensity-bar-bg {
         height: 12px;
-        background: #21262d;
+        background: linear-gradient(90deg,
+            #a0d8ef 0%, #a0d8ef 7.14%,
+            #69b7ea 7.14%, #69b7ea 21.43%,
+            #2196f3 21.43%, #2196f3 35.71%,
+            #4caf50 35.71%, #4caf50 50%,
+            #ffeb3b 50%, #ffeb3b 64.29%,
+            #ff9800 64.29%, #ff9800 71.43%,
+            #ff6d00 71.43%, #ff6d00 78.57%,
+            #e53935 78.57%, #e53935 85.71%,
+            #b71c1c 85.71%, #b71c1c 92.86%,
+            #7b1fa2 92.86%, #7b1fa2 100%);
         border-radius: 6px;
         overflow: hidden;
     }
     #intensity-bar-fill {
         height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, #3fb950, #f97316);
+        width: 100%;
+        background: #21262d;
         border-radius: 6px;
         transition: width 0.5s;
+        margin-left: auto;
     }
     #intensity-vals {
         display: flex;
@@ -1839,7 +1850,8 @@ function updateIntensity(data) {
     document.getElementById('a-value').textContent = a.toFixed(3) + ' gal';
 
     const barFill = document.getElementById('intensity-bar-fill');
-    barFill.style.width = (Math.min(Math.max(I, 0), 7) / 7.0 * 100).toFixed(1) + '%';
+    const iClamped = Math.min(Math.max(I, 0), 7);
+    barFill.style.width = ((7 - iClamped) / 7.0 * 100).toFixed(1) + '%';
 
     const badge = document.getElementById('trig-badge');
     if (data.triggered) {
