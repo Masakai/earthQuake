@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>茨城県南部の地震 観測記録</title>
+<meta name="description" content="2026年8月23日2時00分発生の茨城県南部M5.9・震度5弱について、震源近傍6kmのRaspberry Shake公開観測点RDBC2の実測波形と、自局R38DC（静岡県）の検知記録をまとめた観測サマリー。">
+<meta property="og:title" content="茨城県南部の地震 観測記録">
+<meta property="og:description" content="震源近傍6kmの公開観測点実測波形と自局検知記録による観測サマリー。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://masakai.github.io/earthQuake/reports/report_ibaraki_20260823.html">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:site_name" content="earthQuake — AM.R38DC 観測記録">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="茨城県南部の地震 観測記録">
+<meta name="twitter:description" content="震源近傍6kmの公開観測点実測波形と自局検知記録による観測サマリー。">
+</head>
+<body>
+<a href="../index.html" style="position:fixed;top:16px;left:16px;z-index:200;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.92);backdrop-filter:blur(6px);border:1px solid rgba(11,15,13,0.14);border-radius:20px;padding:6px 14px;font-size:13px;color:#2c2c2a;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans','Yu Gothic',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.12);">&larr; earthQuake トップへ</a>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #f7f8f7;
+    --surface-2:      #ffffff;
+    --page-plane:     #eef0ee;
+    --text-primary:   #0c0f0e;
+    --text-secondary: #4c5350;
+    --text-muted:     #868d89;
+    --gridline:       #dfe3e0;
+    --border:         rgba(11,15,13,0.10);
+
+    --series-honshin: #d03b3b;
+    --series-time:    #2a78d6;
+
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #111413;
+      --surface-2:      #171b19;
+      --page-plane:     #0b0d0c;
+      --text-primary:   #f5f6f5;
+      --text-secondary: #c3c8c5;
+      --text-muted:     #8b928e;
+      --gridline:       #2a2f2c;
+      --border:         rgba(255,255,255,0.10);
+      --series-honshin: #e66767;
+      --series-time:    #3987e5;
+      --status-good:     #0ca30c;
+      --status-warning:  #fab219;
+      --status-serious:  #ec835a;
+      --status-critical: #e66767;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #111413;
+    --surface-2:      #171b19;
+    --page-plane:     #0b0d0c;
+    --text-primary:   #f5f6f5;
+    --text-secondary: #c3c8c5;
+    --text-muted:     #8b928e;
+    --gridline:       #2a2f2c;
+    --border:         rgba(255,255,255,0.10);
+    --series-honshin: #e66767;
+    --series-time:    #3987e5;
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #e66767;
+  }
+  :root[data-theme="light"] .viz-root {
+    color-scheme: light;
+    --surface-1:      #f7f8f7;
+    --surface-2:      #ffffff;
+    --page-plane:     #eef0ee;
+    --text-primary:   #0c0f0e;
+    --text-secondary: #4c5350;
+    --text-muted:     #868d89;
+    --gridline:       #dfe3e0;
+    --border:         rgba(11,15,13,0.10);
+    --series-honshin: #d03b3b;
+    --series-time:    #2a78d6;
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #d03b3b;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+  }
+  .viz-root {
+    padding: 64px 16px 64px;
+    background: var(--page-plane);
+    color: var(--text-primary);
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  header.page-head { margin-bottom: 28px; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600; margin: 0 0 8px;
+  }
+  h1 { font-size: 26px; line-height: 1.3; margin: 0 0 6px; font-weight: 700; text-wrap: balance; }
+  .subhead { font-size: 14px; color: var(--text-secondary); margin: 0; line-height: 1.6; max-width: 62ch; }
+
+  section {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  section > h2 {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text-secondary);
+    margin: 0 0 16px;
+  }
+  section > p.note { font-size: 12.5px; color: var(--text-muted); line-height: 1.7; margin: 12px 0 0; max-width: 68ch; }
+
+  .hero-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .hero-tile { background: var(--surface-1); padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+  .hero-tile.main { background: var(--surface-2); }
+  .hero-label { font-size: 11.5px; color: var(--text-muted); letter-spacing: .03em; }
+  .hero-value { font-size: 34px; font-weight: 700; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .hero-tile.main .hero-value { color: var(--series-honshin); }
+  .hero-sub { font-size: 12.5px; color: var(--text-secondary); }
+  .scale-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--series-honshin); color: #fff;
+    font-size: 12px; font-weight: 700; margin-right: 6px;
+  }
+
+  @media (max-width: 640px) {
+    .hero-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  table.event-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.event-table th, table.event-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--gridline); text-align: left;
+  }
+  table.event-table th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+  table.event-table td.num { font-variant-numeric: tabular-nums; }
+  .pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; padding: 2px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; color: #fff;
+  }
+  .pill.i5w { background: var(--status-serious); }
+  .pill.i4 { background: var(--status-warning); color: #3a2c00; }
+  .pill.i3 { background: var(--status-good); }
+  .pill.i2 { background: var(--gridline); color: var(--text-secondary); }
+  .pill.i1 { background: var(--gridline); color: var(--text-secondary); }
+
+  .wave-frame {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .wave-frame img { display: block; width: 100%; height: auto; border-radius: 4px; }
+
+  .callout {
+    display: flex; gap: 12px; padding: 14px 16px; border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .callout-icon {
+    flex: none; width: 28px; height: 28px; border-radius: 8px;
+    background: var(--status-good); color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+  }
+  .callout-body { font-size: 13.5px; line-height: 1.7; color: var(--text-secondary); }
+  .callout-body b { color: var(--text-primary); }
+
+  footer.src { font-size: 11.5px; color: var(--text-muted); line-height: 1.8; margin-top: 24px; }
+  footer.src a { color: var(--text-secondary); }
+</style>
+
+<div class="viz-root">
+<div class="wrap">
+
+  <header class="page-head">
+    <p class="eyebrow">Seismic Observation &middot; 2026-08-23</p>
+    <h1>茨城県南部の地震 観測記録</h1>
+    <p class="subhead">2026年8月23日2時00分発生の茨城県南部M5.9・震度5弱について、震源からわずか6kmのRaspberry Shake公開観測点RDBC2の実測波形と、自局R38DC（静岡県、震源距離160km）の実測波形をまとめた記録。</p>
+  </header>
+
+  <div class="hero-row">
+    <div class="hero-tile main">
+      <div class="hero-label">本震（2026/08/23 02:00）</div>
+      <div class="hero-value"><span class="scale-badge">5<span style="font-size:8px;">弱</span></span>M5.9</div>
+      <div class="hero-sub">深さ70km &middot; 茨城県南部</div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">有感地域</div>
+      <div class="hero-value">22</div>
+      <div class="hero-sub">都県（東北〜近畿）</div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">震度5弱以上</div>
+      <div class="hero-value">4</div>
+      <div class="hero-sub">茨城・埼玉・千葉・東京</div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">目立った余震</div>
+      <div class="hero-value">0</div>
+      <div class="hero-sub">本震単独・24時間以内</div>
+    </div>
+  </div>
+
+  <section>
+    <h2>震源近傍観測点 AM.RDBC2 の実測記録（震源距離6km）</h2>
+    <p class="note" style="margin-top:0; margin-bottom:16px;">震源直近のRaspberry Shake公開観測点RDBC2（茨城県牛久市、緯度36.00&deg;/経度140.16&deg;）のFDSN公開データを取得し、本震の実波形を解析した。水平距離はわずか6km&mdash;深さ70kmとあわせた震源距離は70km。</p>
+
+    <div class="hero-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom:16px;">
+      <div class="hero-tile">
+        <div class="hero-label">最大加速度（PGA、JMAフィルタ後）</div>
+        <div class="hero-value" style="font-size:26px;">114.7<span style="font-size:14px; font-weight:600;">gal</span></div>
+        <div class="hero-sub">3成分合成（ENZ+ENN+ENE）</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">計測震度（気象庁式）</div>
+        <div class="hero-value" style="font-size:26px;">4.42</div>
+        <div class="hero-sub">震度4相当</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">STA/LTA最大比（自局と同一条件で算出）</div>
+        <div class="hero-value" style="font-size:26px;">15.1</div>
+        <div class="hero-sub">閾値16には僅かに届かず</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">気象庁発表（牛久市中央）</div>
+        <div class="hero-value" style="font-size:26px;">5弱</div>
+        <div class="hero-sub">計測震度4.42と大きく矛盾せず</div>
+      </div>
+    </div>
+
+    <div class="wave-frame">
+      <img src="waveform_ibaraki_20260823.png" alt="AM.RDBC2観測点における茨城県南部M5.9の実測波形。EHZ速度波形・合成加速度・STA/LTA比・スペクトログラム・計測震度の時系列を並べたパネル。02:00:58頃に加速度114.7galのピークがあり、計測震度は震度4相当まで急上昇している。" loading="lazy">
+    </div>
+    <p class="note">震源が深さ70kmとやや深いため、水平距離6kmでも主要動の到達は本震発生から1分弱後。PGA・計測震度ともに02:00:58頃にピーク（I=4.42）を迎え、そこから100秒程度かけて緩やかに減衰している。STA/LTA比・閾値16は自局R38DCと同じ解析条件（STA2秒/LTA30秒）を機械的に適用した参考値で、RDBC2運用者の実際のアラート設定を示すものではない。</p>
+  </section>
+
+  <section>
+    <h2>都道府県別の最大震度</h2>
+    <table class="event-table">
+      <thead>
+        <tr><th>震度</th><th>都県</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="pill i5w">5弱</span></td><td>茨城県・埼玉県・千葉県・東京都</td></tr>
+        <tr><td><span class="pill i4">4</span></td><td>福島県・栃木県・群馬県・神奈川県</td></tr>
+        <tr><td><span class="pill i3">3</span></td><td>宮城県・新潟県・山梨県・長野県・静岡県</td></tr>
+        <tr><td><span class="pill i2">2</span></td><td>山形県</td></tr>
+        <tr><td><span class="pill i1">1</span></td><td>青森県・岩手県・秋田県・岐阜県・愛知県・三重県・滋賀県・兵庫県</td></tr>
+      </tbody>
+    </table>
+    <p class="note">深さ70kmのやや深い地震のため、震源直上だけでなく関東広域（茨城・埼玉・千葉・東京）で震度5弱を観測。近畿地方（兵庫県）まで震度1の揺れが到達しており、深発地震特有の広範囲な有感域を示している。</p>
+  </section>
+
+  <section>
+    <h2>自局 AM.R38DC の実測記録（静岡県、震源距離160km）</h2>
+    <p class="note" style="margin-top:0; margin-bottom:16px;">自局R38DC（緯度35.14&deg;/経度138.93&deg;）から震源までの水平距離は143km、深さ70kmとあわせた震源距離は160km&mdash;RDBC2（6km）と比べれば遠方だが、震源近傍の三島・箱根方面とほぼ同程度の距離帯にあたる。「震源距離」は地表上の水平距離ではなく、観測点と地下の震源（深さ70km）を結んだ3次元的な直線距離（&radic;水平距離&sup2;&#43;深さ&sup2;）である点に注意。</p>
+
+    <div class="hero-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom:16px;">
+      <div class="hero-tile">
+        <div class="hero-label">最大加速度（PGA、JMAフィルタ後）</div>
+        <div class="hero-value" style="font-size:26px;">6.02<span style="font-size:14px; font-weight:600;">gal</span></div>
+        <div class="hero-sub">3成分合成（ENZ+ENN+ENE）</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">計測震度（気象庁式、90秒窓の最大値）</div>
+        <div class="hero-value" style="font-size:26px;">2.15</div>
+        <div class="hero-sub">震度2相当</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">STA/LTA最大比</div>
+        <div class="hero-value" style="font-size:26px;">9.68</div>
+        <div class="hero-sub">閾値16には届かず</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">推定M（距離減衰式逆算）</div>
+        <div class="hero-value" style="font-size:26px;">4.8</div>
+        <div class="hero-sub">公式M5.9&plusmn;0.8程度の誤差域内</div>
+      </div>
+    </div>
+
+    <div class="wave-frame">
+      <img src="waveform_ibaraki_r38dc_20260823.png" alt="AM.R38DC観測点における茨城県南部M5.9の実測波形。震源距離160km。02:01:20頃に加速度6.0galのピークがあり、計測震度は震度2相当まで上昇している。" loading="lazy">
+    </div>
+    <p class="note">リアルタイムのSTA/LTAトリガは02:01:02に検出（震度階級1・計測震度I=0.98）&mdash;この時点の値自体は正しいが、震源距離160kmではP波とS波（主要動）の到達に数十秒の時間差があり、トリガはS波到達前の初期微動段階で確定していた。STA/LTA比自体は02:01:04に最大9.68を記録しているが、揺れの本体（PGA最大6.0gal）はその後の02:01:20頃、計測震度の最大値（I=2.15）はさらに後の02:01:26頃に到達している。90秒窓で計算し直した計測震度の最大値は<b>I=2.15（震度2）</b>。<b>トリガ確定時点の瞬間値と、主要動を含めた事後解析の最大値は別の量である</b>ことを示す一例として記録する。<br><br>計測震度の算出に用いる時間窓の長さは、気象庁告示（平成8年気象庁告示第4号）上は「地震動が継続している時間」とのみ定義され、具体的な秒数の規定はない。自局の解析実装は90秒窓を採用しているが、参考として60秒窓でも再計算したところ、RDBC2・R38DCとも最大値はI=4.42（震度4）・I=2.15（震度2）で変化しなかった&mdash;今回のケースでは主要動が窓長より十分短く収まっており、窓長の選択自体が結果を左右してはいない。</p>
+  </section>
+
+  <section>
+    <h2>余震・関連活動の有無</h2>
+    <div class="callout">
+      <div class="callout-icon">&#10003;</div>
+      <div class="callout-body">
+        本震前後24時間、茨城県南部で目立った余震・群発活動は確認できていない（気象庁発表ベース）。8/20に茨城県北部・茨城県沖で別震源の地震があったが、震源域が異なり同一系列とは考えにくい。
+      </div>
+    </div>
+  </section>
+
+  <footer class="src">
+    データ: 気象庁 地震情報 JSON API（P2P地震情報 v2/history, codes=551）。震度・マグニチュード等は速報値を含み、気象庁の確定値と異なる場合がある。<br>
+    震源近傍観測点RDBC2の実測データはRaspberry Shake公式FDSNから取得。震度分布は同一地震の詳細震度速報（DetailScale, 気象庁発表 02:12）に基づく。<br>
+    発震機構解（F-net）は作成時点（本震から1日弱）で防災科研の検索結果が0件のため未掲載。掲載され次第、追記の可能性あり。<br>
+    作成日: 2026-08-23
+  </footer>
+
+</div>
+</div>
+
+</body>
+</html>
