@@ -4,16 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>令和8年熊本地震 統合分析 — P2Pデータ＋震源近傍観測点実測</title>
-<meta name="description" content="2026年7月28日発生の令和8年熊本地震（M7.1・震度7）について、P2P地震情報241件と震源近傍のRaspberry Shake観測点R6E01の実測波形をもとに、余震推移・b値・距離減衰・前兆の有無を定量分析した記録。">
+<meta name="description" content="2026年7月28日発生の令和8年熊本地震（M7.1・震度7）について、本震から26日間のP2P地震情報578件と震源近傍のRaspberry Shake観測点R6E01の実測波形をもとに、余震推移・b値・距離減衰・前兆の有無を定量分析した記録（2026年8月23日更新）。">
 <meta property="og:title" content="令和8年熊本地震 統合分析">
-<meta property="og:description" content="P2P地震情報241件＋震源近傍観測点R6E01の実測データによる余震統計・b値・距離減衰の定量分析。">
+<meta property="og:description" content="P2P地震情報578件（本震から26日間）＋震源近傍観測点R6E01の実測データによる余震統計・b値・距離減衰の定量分析。">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://masakai.github.io/earthQuake/reports/report_kumamoto_20260728.html">
 <meta property="og:locale" content="ja_JP">
 <meta property="og:site_name" content="earthQuake — AM.R38DC 観測記録">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="令和8年熊本地震 統合分析">
-<meta name="twitter:description" content="P2P地震情報241件＋震源近傍観測点R6E01の実測データによる余震統計・b値・距離減衰の定量分析。">
+<meta name="twitter:description" content="P2P地震情報578件（本震から26日間）＋震源近傍観測点R6E01の実測データによる余震統計・b値・距離減衰の定量分析。">
 </head>
 <body>
 <a href="../index.html" style="position:fixed;top:16px;left:16px;z-index:200;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.92);backdrop-filter:blur(6px);border:1px solid rgba(11,15,13,0.14);border-radius:20px;padding:6px 14px;font-size:13px;color:#2c2c2a;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans','Yu Gothic',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.12);">&larr; earthQuake トップへ</a>
@@ -36,6 +36,7 @@
     --loc-kumamoto:   #2a78d6; /* categorical slot1 */
     --loc-amakusa:    #1baf7a; /* categorical slot3 */
     --loc-oita:       #eda100; /* categorical slot4 */
+    --loc-other:      #8a8f96; /* categorical slot5 (misc/low-count) */
 
     --status-good:     #0ca30c;
     --status-warning:  #fab219;
@@ -61,6 +62,7 @@
       --loc-kumamoto:   #3987e5;
       --loc-amakusa:    #199e70;
       --loc-oita:       #c98500;
+      --loc-other:      #9aa0a6;
 
       --status-good:     #0ca30c;
       --status-warning:  #fab219;
@@ -85,6 +87,7 @@
     --loc-kumamoto:   #3987e5;
     --loc-amakusa:    #199e70;
     --loc-oita:       #c98500;
+    --loc-other:      #9aa0a6;
     --status-good:     #0ca30c;
     --status-warning:  #fab219;
     --status-serious:  #ec835a;
@@ -107,6 +110,7 @@
     --loc-kumamoto:   #2a78d6;
     --loc-amakusa:    #1baf7a;
     --loc-oita:       #eda100;
+    --loc-other:      #8a8f96;
     --status-good:     #0ca30c;
     --status-warning:  #fab219;
     --status-serious:  #ec835a;
@@ -283,9 +287,9 @@
 <div class="wrap">
 
   <header class="page-head">
-    <p class="eyebrow">Seismic Analysis &middot; 2026-07-28 &ndash; 07-29</p>
+    <p class="eyebrow">Seismic Analysis &middot; 2026-07-28 &ndash; 08-23（更新日: 2026-08-23）</p>
     <h1>令和8年熊本地震 統合分析</h1>
-    <p class="subhead">P2P地震情報 v2/history（全国241件、熊本・周辺関連177件、2026/07/10&ndash;07/29取得）を用いた、本震前後の地震活動の定量分析。</p>
+    <p class="subhead">気象庁 地震情報 JSON API（P2P地震情報 v2/jma-quake、全国884件、熊本・周辺関連578件、本震2026/07/28 16:27から2026/08/23 07:07までの約26日間）を用いた、本震前後の地震活動の定量分析。</p>
   </header>
 
   <div class="hero-row">
@@ -296,13 +300,13 @@
     </div>
     <div class="hero-tile">
       <div class="hero-label">震度5弱以上の回数</div>
-      <div class="hero-value">4</div>
-      <div class="hero-sub">本震含む・18時間以内</div>
+      <div class="hero-value">6</div>
+      <div class="hero-sub">本震含む・26日間累計</div>
     </div>
     <div class="hero-tile">
-      <div class="hero-label">18時間累積検知数</div>
-      <div class="hero-value">176</div>
-      <div class="hero-sub">熊本・天草・大分西部</div>
+      <div class="hero-label">26日間累積検知数</div>
+      <div class="hero-value">578</div>
+      <div class="hero-sub">熊本・天草・大分西部ほか</div>
     </div>
     <div class="hero-tile">
       <div class="hero-label">本震前24hの震源域地震</div>
@@ -312,9 +316,9 @@
   </div>
 
   <section>
-    <h2>余震の時系列推移（マグニチュード別、本震からの経過時間）</h2>
+    <h2>余震の時系列推移（マグニチュード別、本震からの経過時間・対数軸）</h2>
     <div class="chart-box">
-      <svg class="chart" viewBox="0 0 900 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="177件の地震を発生時刻とマグニチュードで散布図表示。本震M7.1を起点に時間経過とともに規模・頻度が減衰。">
+      <svg class="chart" viewBox="0 0 900 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="578件の地震を発生時刻（対数軸）とマグニチュードで散布図表示。本震M7.1を起点に時間経過とともに規模・頻度が減衰。">
         <!-- gridlines: M2,3,4,5,6,7 -->
         <g>
           <line class="grid-line" x1="60" y1="223.3" x2="880" y2="223.3" />
@@ -330,197 +334,601 @@
           <text class="axis-label" x="52" y="94"  text-anchor="end">M6</text>
           <text class="axis-label" x="52" y="60"  text-anchor="end">M7</text>
         </g>
-        <!-- scatter points: time(h) x magnitude, 177 events -->
+        <!-- scatter points: time(h, log scale) x magnitude, 578 events -->
         <g>
-          <circle class="pt-honshin" cx="60.0" cy="53.3" r="9" style="fill:var(--series-honshin)"/>
-          <circle class="pt" cx="61.5" cy="140.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="69.1" cy="150.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="71.4" cy="163.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="73.6" cy="156.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="77.4" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="79.7" cy="170.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="81.2" cy="170.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="84.2" cy="143.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="87.3" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="91.0" cy="86.7" r="6" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="92.6" cy="160.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="95.6" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="98.6" cy="123.3" r="6" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="100.9" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="103.9" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="105.4" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="109.2" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="111.5" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="113.0" cy="160.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="116.0" cy="216.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="117.6" cy="160.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="119.1" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="122.8" cy="170.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="125.9" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="128.1" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="135.0" cy="216.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="136.5" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="138.0" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="138.7" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="141.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="144.0" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="146.3" cy="166.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="148.6" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="152.4" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="153.9" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="156.9" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="158.4" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="159.9" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="163.0" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="166.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="168.3" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="172.8" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="175.1" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="178.1" cy="150.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="180.4" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="181.2" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="182.7" cy="153.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="184.9" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="185.7" cy="173.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="188.0" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="191.7" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="193.2" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="200.8" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="201.6" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="206.1" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="208.4" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="210.7" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="214.5" cy="170.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="216.0" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="218.2" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="219.0" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="222.8" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="224.3" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="228.9" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="229.6" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="232.6" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="237.9" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="239.4" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="241.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="244.0" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="249.3" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="256.1" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="256.8" cy="173.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="262.2" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="263.7" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="269.0" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="272.0" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="274.3" cy="150.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="276.6" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="281.1" cy="216.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="286.4" cy="143.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="287.9" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="290.9" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="293.2" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="302.3" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="303.8" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="312.9" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="316.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="318.2" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="320.4" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="323.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="328.0" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="329.5" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="334.8" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="337.1" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt-honshin" cx="61.3" cy="53.5" r="9" style="fill:var(--series-honshin)"/>
+          <circle class="pt" cx="64.2" cy="140.1" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="83.3" cy="150.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="88.5" cy="163.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="93.5" cy="156.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="101.4" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="106.0" cy="170.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="108.9" cy="170.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="114.6" cy="143.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="120.0" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="126.5" cy="86.8" r="6" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="129.0" cy="160.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="133.9" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="138.5" cy="123.4" r="6" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="141.9" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="146.3" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="148.5" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="153.7" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="156.7" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="158.7" cy="160.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="162.6" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="164.5" cy="160.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="166.3" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="170.9" cy="170.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="174.4" cy="153.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="177.0" cy="153.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="184.4" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="186.0" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="187.6" cy="153.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="188.4" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="191.5" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="193.7" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="195.9" cy="166.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="198.1" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="201.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="203.1" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="205.8" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="207.2" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="208.5" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="211.1" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="214.4" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="215.6" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="219.3" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="221.2" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="223.5" cy="150.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="225.3" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="225.9" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="227.0" cy="153.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="228.8" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="229.3" cy="173.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="231.0" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="233.8" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="234.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="240.1" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="240.7" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="243.7" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="245.2" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="246.7" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="249.2" cy="170.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="250.1" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="251.6" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="252.0" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="254.4" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="255.3" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="258.0" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="258.5" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="260.3" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="263.3" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="264.2" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="265.5" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="266.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="269.7" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="273.3" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="273.7" cy="173.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="276.5" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="277.3" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="279.9" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="281.5" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="282.6" cy="150.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="283.7" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="285.9" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="288.4" cy="143.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="289.1" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="290.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="291.6" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="295.7" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="296.3" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="300.3" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="301.9" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="302.5" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="303.5" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="304.7" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="306.6" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="307.2" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="309.3" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="310.2" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="310.8" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="314.4" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="315.2" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="318.4" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="318.7" cy="130.1" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="323.6" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="326.0" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="327.3" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="328.6" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="331.2" cy="173.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="333.7" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="335.5" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="336.4" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="336.7" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="337.7" cy="153.4" r="4" style="fill:var(--loc-kumamoto)"/>
           <circle class="pt" cx="338.6" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="347.7" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="350.0" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="358.3" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="359.1" cy="130.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="372.7" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="379.5" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="383.3" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="387.1" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="394.7" cy="173.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="402.2" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="407.5" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="410.6" cy="226.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="411.3" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="414.3" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="417.4" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="419.7" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="425.7" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="429.5" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="430.2" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="447.6" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="448.4" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="453.7" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="456.7" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="458.3" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="459.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="468.1" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="472.6" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="478.0" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="480.2" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="483.3" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="490.1" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="490.8" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="492.4" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="501.4" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="502.2" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="503.7" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="519.6" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="520.3" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="531.0" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="533.2" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="534.7" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="545.3" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="560.5" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="561.2" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="565.8" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="594.6" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="603.7" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="605.9" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="608.2" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="613.5" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="625.6" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="641.5" cy="226.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="667.3" cy="153.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="671.0" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="672.5" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="674.1" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="680.9" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="690.0" cy="216.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="693.0" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="699.1" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="714.2" cy="160.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="717.2" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="719.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="727.0" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="755.1" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="771.0" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="774.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="783.1" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="792.9" cy="190.0" r="4" style="fill:var(--loc-oita)"/>
-          <circle class="pt" cx="796.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="798.2" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="808.8" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="818.7" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="830.8" cy="206.7" r="4" style="fill:var(--loc-oita)"/>
-          <circle class="pt" cx="849.0" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
-          <circle class="pt" cx="857.3" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="858.1" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="859.6" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="871.7" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
-          <circle class="pt" cx="880.0" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>        </g>
+          <circle class="pt" cx="339.3" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="341.2" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="342.4" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="342.6" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="347.9" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="348.1" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="349.6" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="350.5" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="351.0" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="351.4" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="353.8" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="355.0" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="356.5" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="357.1" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="358.0" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="359.8" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="360.0" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="360.4" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="362.8" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="363.0" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="363.4" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="367.5" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="367.7" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="370.3" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="370.9" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="371.3" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="373.8" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="377.4" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="377.6" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="378.7" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="385.2" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="387.1" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="387.6" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="388.1" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="389.3" cy="153.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="391.8" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="395.1" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="400.2" cy="153.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="401.0" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="401.3" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="401.6" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="402.9" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="404.6" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="405.2" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="406.3" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="409.1" cy="160.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="409.7" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="410.1" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="411.4" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="416.4" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="419.1" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="419.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="421.1" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="422.7" cy="190.0" r="4" style="fill:var(--loc-oita)"/>
+          <circle class="pt" cx="423.3" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="423.6" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="425.3" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="426.9" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="428.8" cy="206.7" r="4" style="fill:var(--loc-oita)"/>
+          <circle class="pt" cx="431.6" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="432.9" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="433.0" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="433.2" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="435.0" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="436.3" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="438.6" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="439.0" cy="233.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="439.2" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="441.5" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="442.2" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="442.9" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="443.5" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="446.8" cy="160.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="449.4" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="451.2" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="452.6" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="452.9" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="453.3" cy="173.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="453.7" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="454.1" cy="216.6" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="454.8" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="455.2" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="455.3" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="457.2" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="459.8" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="461.8" cy="216.6" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="462.6" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="463.5" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="465.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="468.6" cy="160.0" r="4" style="fill:var(--loc-other)"/>
+          <circle class="pt" cx="469.6" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="469.8" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="471.8" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="472.0" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="472.7" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="475.4" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="476.9" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="478.1" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="478.8" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="481.9" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="482.1" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="483.8" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="484.1" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="485.0" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="486.6" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="486.9" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="490.1" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="490.5" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="490.8" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="491.2" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="491.9" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="492.7" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="495.5" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="497.9" cy="96.8" r="6" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="498.4" cy="203.3" r="4" style="fill:var(--loc-oita)"/>
+          <circle class="pt" cx="498.9" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="499.5" cy="200.0" r="4" style="fill:var(--loc-oita)"/>
+          <circle class="pt" cx="499.8" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="500.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="500.8" cy="146.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="502.7" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="504.2" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="510.5" cy="193.3" r="4" style="fill:var(--loc-oita)"/>
+          <circle class="pt" cx="510.5" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="512.1" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="515.5" cy="230.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="517.6" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="518.0" cy="173.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="519.4" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="519.6" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="521.1" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="523.3" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="523.8" cy="136.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="524.4" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="524.7" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="524.8" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="525.0" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="526.0" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="526.5" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="526.7" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="526.8" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="527.6" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="529.0" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="529.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="532.2" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="533.0" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="534.3" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="535.2" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="536.1" cy="163.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="536.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="537.3" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="538.7" cy="150.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="539.0" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="540.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="542.5" cy="180.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="542.7" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="543.9" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="544.8" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="546.6" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="546.8" cy="183.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="548.5" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="549.4" cy="230.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="549.5" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="555.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="556.6" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="557.7" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="559.5" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="559.7" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="563.2" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="564.7" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="564.9" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="566.5" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="566.6" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="568.7" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="572.4" cy="130.1" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="573.9" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="576.0" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="577.8" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="582.6" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="582.7" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="583.2" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="585.7" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="586.5" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="590.6" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="591.7" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="599.9" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="601.0" cy="173.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="601.5" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="601.8" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="603.4" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="604.7" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="605.2" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="606.0" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="606.2" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="607.8" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="608.3" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="608.4" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="610.6" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="610.8" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="610.8" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="611.4" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="612.4" cy="216.6" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="612.9" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="613.8" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="614.7" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="615.7" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="617.1" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="618.1" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="620.5" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="621.8" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="623.2" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="628.5" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="628.6" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="630.1" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="630.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="630.7" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="632.2" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="633.6" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="634.6" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="635.3" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="637.9" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="639.2" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="639.2" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="639.3" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="639.4" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="642.1" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="644.5" cy="170.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="645.9" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="647.0" cy="163.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="649.9" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="650.9" cy="133.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="651.2" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="651.4" cy="183.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="652.0" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="652.3" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="652.4" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="653.4" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="654.4" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="654.7" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="655.0" cy="140.1" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="655.2" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="655.6" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="657.7" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="659.1" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="659.4" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="661.1" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="661.4" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="663.1" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="663.3" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="664.5" cy="173.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="665.1" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="669.4" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="672.7" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="673.4" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="673.8" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="675.0" cy="146.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="675.0" cy="166.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="675.3" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="675.6" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="676.1" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="676.3" cy="183.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="676.3" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="676.7" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="679.0" cy="173.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="680.4" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="680.4" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="684.2" cy="240.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="685.7" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="686.5" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="686.8" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="687.9" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="691.0" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="691.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="692.8" cy="166.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="695.3" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="696.7" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="698.6" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="698.8" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="702.1" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="703.8" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="706.4" cy="153.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="706.8" cy="160.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="707.6" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="707.8" cy="166.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="708.5" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="710.6" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="711.6" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="713.2" cy="143.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="713.2" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="713.3" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="713.5" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="715.6" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="716.1" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="717.1" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="717.8" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="718.6" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="719.4" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="720.3" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="721.1" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="721.4" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="723.4" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="723.9" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="727.6" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="730.3" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="732.4" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="732.5" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="735.8" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="736.7" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="737.1" cy="166.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="737.8" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="739.1" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="739.1" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="739.4" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="741.4" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="741.8" cy="120.1" r="6" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="742.0" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="744.1" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="744.4" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="745.8" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="746.8" cy="156.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="748.0" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="748.4" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="748.6" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="748.8" cy="140.1" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="748.9" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="749.7" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="750.9" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="751.7" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="755.1" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="758.6" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="759.1" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="759.3" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="763.2" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="763.3" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="764.8" cy="196.7" r="4" style="fill:var(--loc-oita)"/>
+          <circle class="pt" cx="765.9" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="768.9" cy="220.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="769.0" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="770.5" cy="220.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="773.5" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="774.7" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="777.3" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="777.4" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="778.1" cy="170.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="778.1" cy="233.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="778.4" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="778.8" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="779.2" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="779.7" cy="150.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="781.8" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="782.7" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="783.4" cy="173.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="783.5" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="787.8" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="789.9" cy="173.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="790.4" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="790.9" cy="156.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="792.0" cy="236.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="792.6" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="792.8" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="793.9" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="795.2" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="796.6" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="797.0" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="797.2" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="797.8" cy="153.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="797.9" cy="166.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="799.3" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="799.5" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="799.8" cy="146.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="800.1" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="800.4" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="801.3" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="801.5" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="802.3" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="803.2" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="803.9" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="804.1" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="804.6" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="805.0" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="805.3" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="806.7" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="807.5" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="808.0" cy="236.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="808.2" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="808.4" cy="186.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="809.1" cy="163.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="810.6" cy="126.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="811.6" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="814.1" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="815.9" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="816.0" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="816.7" cy="140.1" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="817.5" cy="156.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="817.7" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="818.1" cy="210.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="818.8" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="820.8" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="822.2" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="822.7" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="824.1" cy="183.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="824.1" cy="176.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="824.1" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="824.4" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="827.7" cy="190.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="827.8" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="828.0" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="828.3" cy="196.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="828.6" cy="180.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="829.6" cy="220.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="829.9" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="830.4" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="831.4" cy="246.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="832.1" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="832.3" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="832.4" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="833.0" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="833.2" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="833.4" cy="216.6" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="835.7" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="836.2" cy="196.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="836.6" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="837.6" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="837.6" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="838.5" cy="176.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="840.0" cy="220.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="840.7" cy="170.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="841.1" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="841.3" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="841.4" cy="220.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="842.4" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="843.3" cy="180.0" r="4" style="fill:var(--loc-other)"/>
+          <circle class="pt" cx="843.4" cy="190.0" r="4" style="fill:var(--loc-other)"/>
+          <circle class="pt" cx="843.7" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="843.9" cy="213.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="844.1" cy="190.0" r="4" style="fill:var(--loc-other)"/>
+          <circle class="pt" cx="848.3" cy="173.4" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="848.8" cy="200.0" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="849.3" cy="183.3" r="4" style="fill:var(--loc-other)"/>
+          <circle class="pt" cx="850.3" cy="183.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="851.7" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="851.9" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="852.0" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="853.0" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="853.8" cy="166.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="854.4" cy="156.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="854.9" cy="193.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="855.1" cy="206.7" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="855.2" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="858.4" cy="163.4" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="862.2" cy="200.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="862.4" cy="210.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="863.5" cy="203.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="864.5" cy="226.6" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="864.7" cy="213.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="865.3" cy="193.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="866.6" cy="226.6" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="868.8" cy="190.0" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="869.2" cy="206.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="870.1" cy="216.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="873.3" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="873.3" cy="226.6" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="877.4" cy="223.3" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="877.6" cy="203.3" r="4" style="fill:var(--loc-amakusa)"/>
+          <circle class="pt" cx="879.1" cy="186.7" r="4" style="fill:var(--loc-kumamoto)"/>
+          <circle class="pt" cx="880.0" cy="233.3" r="4" style="fill:var(--loc-kumamoto)"/>
+        </g>
         <text class="marker-m5-label" x="70" y="47" style="fill:var(--series-honshin); font-weight:700;">M7.1 本震</text>
 
         <line class="base-line" x1="60" y1="240" x2="880" y2="240" />
-        <!-- x axis labels -->
+        <!-- x axis labels (log scale) -->
         <g>
-          <text class="axis-label" x="60"  y="254" text-anchor="middle">+0h</text>
-          <text class="axis-label" x="196" y="254" text-anchor="middle">+3h</text>
-          <text class="axis-label" x="333" y="254" text-anchor="middle">+6h</text>
-          <text class="axis-label" x="469" y="254" text-anchor="middle">+9h</text>
-          <text class="axis-label" x="605" y="254" text-anchor="middle">+12h</text>
-          <text class="axis-label" x="741" y="254" text-anchor="middle">+15h</text>
-          <text class="axis-label" x="878" y="254" text-anchor="middle">+18h</text>
+          <text class="axis-label" x="61"  y="254" text-anchor="middle">+0h</text>
+          <text class="axis-label" x="149" y="254" text-anchor="middle">+1h</text>
+          <text class="axis-label" x="237" y="254" text-anchor="middle">+3h</text>
+          <text class="axis-label" x="388" y="254" text-anchor="middle">+12h</text>
+          <text class="axis-label" x="471" y="254" text-anchor="middle">+1日</text>
+          <text class="axis-label" x="608" y="254" text-anchor="middle">+3日</text>
+          <text class="axis-label" x="715" y="254" text-anchor="middle">+7日</text>
+          <text class="axis-label" x="803" y="254" text-anchor="middle">+14日</text>
+          <text class="axis-label" x="878" y="254" text-anchor="middle">+26日</text>
         </g>
       </svg>
     </div>
@@ -529,78 +937,220 @@
       <div class="legend-item"><span class="legend-dot" style="background:var(--loc-kumamoto); border-radius:50%"></span>熊本地方</div>
       <div class="legend-item"><span class="legend-dot" style="background:var(--loc-amakusa); border-radius:50%"></span>天草・芦北地方</div>
       <div class="legend-item"><span class="legend-dot" style="background:var(--loc-oita); border-radius:50%"></span>大分県西部</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--loc-other); border-radius:50%"></span>その他（天草灘・阿蘇地方）</div>
     </div>
-    <p class="note">177件を発生時刻とマグニチュードでプロット（点の大きさもMに連動）。本震直後にM4&ndash;6クラスが連続し、時間経過とともに規模・頻度とも減衰する典型的な余震パターン。1時間ビンの両対数回帰では改良大森公式の減衰指数 p&nbsp;&asymp;&nbsp;0.88（標準的な範囲はp&asymp;1.0）。気象庁は本震から2&ndash;3日は最大震度7程度への注意を継続的に呼びかけており、このデータ範囲（本震+18時間）だけで沈静化と判断するのは時期尚早。</p>
+    <p class="note">本震から2026年8月23日までの578件を発生時刻（対数軸）とマグニチュードでプロット（点の大きさもMに連動）。本震直後の1&ndash;2日でM4&ndash;6クラスが連続し、以降は緩やかに規模・頻度とも減衰している。改良大森公式の減衰指数pは、日次集計・時間ビンいずれで回帰してもビンの取り方（代表時刻のオフセット）次第で0.6&ndash;1.0程度まで変動し、本震直後の急減衰が対数時間軸の原点付近に集中するため単一の点推定値としては報告しない。気象庁は本震から2&ndash;3日は最大震度7程度への注意を呼びかけていたが、8月23日時点でも震度5弱以上の地震（8/1）や有感地震が散発しており、活動はまだ収束していない。</p>
   </section>
 
   <section>
-    <h2>震源の空間的推移（3時間ビンごとの内訳）</h2>
-    <div class="migration-bars">
+    <h2>震源の空間的推移（日次内訳、26日間）</h2>
+    <div class="migration-bars" style="max-height:420px; overflow-y:auto; padding-right:4px;">
       <div class="mrow">
-        <div class="mrow-label">+0&ndash;3h</div>
+        <div class="mrow-label">7/28</div>
         <div class="mrow-track">
-          <div class="mrow-seg" style="width:71.7%; background:var(--loc-kumamoto)"></div>
-          <div class="mrow-seg" style="width:28.3%; background:var(--loc-amakusa)"></div>
+          <div class="mrow-seg" style="width:73.8%; background:var(--loc-kumamoto)" title="熊本地方 79件"></div><div class="mrow-seg" style="width:26.2%; background:var(--loc-amakusa)" title="天草・芦北地方 28件"></div>
         </div>
-        <div class="mrow-total">53</div>
+        <div class="mrow-total">107</div>
       </div>
       <div class="mrow">
-        <div class="mrow-label">+3&ndash;6h</div>
+        <div class="mrow-label">7/29</div>
         <div class="mrow-track">
-          <div class="mrow-seg" style="width:80.5%; background:var(--loc-kumamoto)"></div>
-          <div class="mrow-seg" style="width:19.5%; background:var(--loc-amakusa)"></div>
+          <div class="mrow-seg" style="width:78.0%; background:var(--loc-kumamoto)" title="熊本地方 99件"></div><div class="mrow-seg" style="width:18.1%; background:var(--loc-amakusa)" title="天草・芦北地方 23件"></div><div class="mrow-seg" style="width:3.1%; background:var(--loc-oita)" title="大分県西部 4件"></div><div class="mrow-seg" style="width:0.8%; background:var(--loc-other)" title="その他 1件"></div>
         </div>
-        <div class="mrow-total">41</div>
+        <div class="mrow-total">127</div>
       </div>
       <div class="mrow">
-        <div class="mrow-label">+6&ndash;9h</div>
+        <div class="mrow-label">7/30</div>
         <div class="mrow-track">
-          <div class="mrow-seg" style="width:79.3%; background:var(--loc-kumamoto)"></div>
-          <div class="mrow-seg" style="width:20.7%; background:var(--loc-amakusa)"></div>
+          <div class="mrow-seg" style="width:83.3%; background:var(--loc-kumamoto)" title="熊本地方 45件"></div><div class="mrow-seg" style="width:14.8%; background:var(--loc-amakusa)" title="天草・芦北地方 8件"></div><div class="mrow-seg" style="width:1.9%; background:var(--loc-oita)" title="大分県西部 1件"></div>
+        </div>
+        <div class="mrow-total">54</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">7/31</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:75.0%; background:var(--loc-kumamoto)" title="熊本地方 24件"></div><div class="mrow-seg" style="width:25.0%; background:var(--loc-amakusa)" title="天草・芦北地方 8件"></div>
+        </div>
+        <div class="mrow-total">32</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/1</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:72.4%; background:var(--loc-kumamoto)" title="熊本地方 21件"></div><div class="mrow-seg" style="width:27.6%; background:var(--loc-amakusa)" title="天草・芦北地方 8件"></div>
         </div>
         <div class="mrow-total">29</div>
       </div>
       <div class="mrow">
-        <div class="mrow-label">+9&ndash;12h</div>
+        <div class="mrow-label">8/2</div>
         <div class="mrow-track">
-          <div class="mrow-seg" style="width:71.4%; background:var(--loc-kumamoto)"></div>
-          <div class="mrow-seg" style="width:28.6%; background:var(--loc-amakusa)"></div>
+          <div class="mrow-seg" style="width:59.3%; background:var(--loc-kumamoto)" title="熊本地方 16件"></div><div class="mrow-seg" style="width:40.7%; background:var(--loc-amakusa)" title="天草・芦北地方 11件"></div>
         </div>
-        <div class="mrow-total">21</div>
+        <div class="mrow-total">27</div>
       </div>
       <div class="mrow">
-        <div class="mrow-label">+12&ndash;15h</div>
+        <div class="mrow-label">8/3</div>
         <div class="mrow-track">
-          <div class="mrow-seg" style="width:76.5%; background:var(--loc-kumamoto)"></div>
-          <div class="mrow-seg" style="width:23.5%; background:var(--loc-amakusa)"></div>
+          <div class="mrow-seg" style="width:42.9%; background:var(--loc-kumamoto)" title="熊本地方 6件"></div><div class="mrow-seg" style="width:57.1%; background:var(--loc-amakusa)" title="天草・芦北地方 8件"></div>
         </div>
-        <div class="mrow-total">17</div>
+        <div class="mrow-total">14</div>
       </div>
       <div class="mrow">
-        <div class="mrow-label">+15&ndash;18h</div>
+        <div class="mrow-label">8/4</div>
         <div class="mrow-track">
-          <div class="mrow-seg" style="width:73.3%; background:var(--loc-kumamoto)"></div>
-          <div class="mrow-seg" style="width:13.4%; background:var(--loc-oita)"></div>
-          <div class="mrow-seg" style="width:13.3%; background:var(--loc-amakusa)"></div>
+          <div class="mrow-seg" style="width:60.0%; background:var(--loc-kumamoto)" title="熊本地方 12件"></div><div class="mrow-seg" style="width:40.0%; background:var(--loc-amakusa)" title="天草・芦北地方 8件"></div>
         </div>
-        <div class="mrow-total">15</div>
+        <div class="mrow-total">20</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/5</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:90.0%; background:var(--loc-kumamoto)" title="熊本地方 9件"></div><div class="mrow-seg" style="width:10.0%; background:var(--loc-amakusa)" title="天草・芦北地方 1件"></div>
+        </div>
+        <div class="mrow-total">10</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/6</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:73.7%; background:var(--loc-kumamoto)" title="熊本地方 14件"></div><div class="mrow-seg" style="width:26.3%; background:var(--loc-amakusa)" title="天草・芦北地方 5件"></div>
+        </div>
+        <div class="mrow-total">19</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/7</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:28.6%; background:var(--loc-kumamoto)" title="熊本地方 2件"></div><div class="mrow-seg" style="width:71.4%; background:var(--loc-amakusa)" title="天草・芦北地方 5件"></div>
+        </div>
+        <div class="mrow-total">7</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/8</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:28.6%; background:var(--loc-kumamoto)" title="熊本地方 2件"></div><div class="mrow-seg" style="width:57.1%; background:var(--loc-amakusa)" title="天草・芦北地方 4件"></div><div class="mrow-seg" style="width:14.3%; background:var(--loc-oita)" title="大分県西部 1件"></div>
+        </div>
+        <div class="mrow-total">7</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/9</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:58.3%; background:var(--loc-kumamoto)" title="熊本地方 7件"></div><div class="mrow-seg" style="width:41.7%; background:var(--loc-amakusa)" title="天草・芦北地方 5件"></div>
+        </div>
+        <div class="mrow-total">12</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/10</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:90.0%; background:var(--loc-kumamoto)" title="熊本地方 9件"></div><div class="mrow-seg" style="width:10.0%; background:var(--loc-amakusa)" title="天草・芦北地方 1件"></div>
+        </div>
+        <div class="mrow-total">10</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/11</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:55.6%; background:var(--loc-kumamoto)" title="熊本地方 10件"></div><div class="mrow-seg" style="width:44.4%; background:var(--loc-amakusa)" title="天草・芦北地方 8件"></div>
+        </div>
+        <div class="mrow-total">18</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/12</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:77.8%; background:var(--loc-kumamoto)" title="熊本地方 7件"></div><div class="mrow-seg" style="width:22.2%; background:var(--loc-amakusa)" title="天草・芦北地方 2件"></div>
+        </div>
+        <div class="mrow-total">9</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/13</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:66.7%; background:var(--loc-kumamoto)" title="熊本地方 6件"></div><div class="mrow-seg" style="width:33.3%; background:var(--loc-amakusa)" title="天草・芦北地方 3件"></div>
+        </div>
+        <div class="mrow-total">9</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/14</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:58.3%; background:var(--loc-kumamoto)" title="熊本地方 7件"></div><div class="mrow-seg" style="width:41.7%; background:var(--loc-amakusa)" title="天草・芦北地方 5件"></div>
+        </div>
+        <div class="mrow-total">12</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/15</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:45.5%; background:var(--loc-kumamoto)" title="熊本地方 5件"></div><div class="mrow-seg" style="width:54.5%; background:var(--loc-amakusa)" title="天草・芦北地方 6件"></div>
+        </div>
+        <div class="mrow-total">11</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/16</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:46.2%; background:var(--loc-kumamoto)" title="熊本地方 6件"></div><div class="mrow-seg" style="width:38.5%; background:var(--loc-amakusa)" title="天草・芦北地方 5件"></div><div class="mrow-seg" style="width:15.4%; background:var(--loc-other)" title="その他 2件"></div>
+        </div>
+        <div class="mrow-total">13</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/17</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:60.0%; background:var(--loc-kumamoto)" title="熊本地方 3件"></div><div class="mrow-seg" style="width:40.0%; background:var(--loc-other)" title="その他 2件"></div>
+        </div>
+        <div class="mrow-total">5</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/18</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:33.3%; background:var(--loc-kumamoto)" title="熊本地方 3件"></div><div class="mrow-seg" style="width:66.7%; background:var(--loc-amakusa)" title="天草・芦北地方 6件"></div>
+        </div>
+        <div class="mrow-total">9</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/19</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:100.0%; background:var(--loc-amakusa)" title="天草・芦北地方 2件"></div>
+        </div>
+        <div class="mrow-total">2</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/20</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:50.0%; background:var(--loc-kumamoto)" title="熊本地方 3件"></div><div class="mrow-seg" style="width:50.0%; background:var(--loc-amakusa)" title="天草・芦北地方 3件"></div>
+        </div>
+        <div class="mrow-total">6</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/21</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:80.0%; background:var(--loc-kumamoto)" title="熊本地方 4件"></div><div class="mrow-seg" style="width:20.0%; background:var(--loc-amakusa)" title="天草・芦北地方 1件"></div>
+        </div>
+        <div class="mrow-total">5</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/22</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:50.0%; background:var(--loc-kumamoto)" title="熊本地方 1件"></div><div class="mrow-seg" style="width:50.0%; background:var(--loc-amakusa)" title="天草・芦北地方 1件"></div>
+        </div>
+        <div class="mrow-total">2</div>
+      </div>
+      <div class="mrow">
+        <div class="mrow-label">8/23</div>
+        <div class="mrow-track">
+          <div class="mrow-seg" style="width:100.0%; background:var(--loc-kumamoto)" title="熊本地方 2件"></div>
+        </div>
+        <div class="mrow-total">2</div>
       </div>
     </div>
     <div class="legend-row">
       <div class="legend-item"><span class="legend-dot" style="background:var(--loc-kumamoto)"></span>熊本地方</div>
       <div class="legend-item"><span class="legend-dot" style="background:var(--loc-amakusa)"></span>天草・芦北地方</div>
       <div class="legend-item"><span class="legend-dot" style="background:var(--loc-oita)"></span>大分県西部</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--loc-other)"></span>その他（天草灘・阿蘇地方）</div>
     </div>
-    <p class="note">天草・芦北地方は本震+0.38h（M3.4）から即座に活動が波及。大分県西部は+16.13h（M3.0）に初検知。震源間の直線距離は数十km規模で、同一断層帯（布田川・日奈久断層帯）沿いの連鎖とみられる（専門機関の正式評価は未確認）。</p>
+    <p class="note">天草・芦北地方は本震+0.38h（M3.4）から即座に活動が波及。大分県西部は+16.13h（M3.0）に初検知（本震当日のみ）。震源間の直線距離は数十km規模で、同一断層帯（布田川・日奈久断層帯）沿いの連鎖とみられる（専門機関の正式評価は未確認）。日次件数は本震当日107件・翌日127件をピークに、1週間後には1日あたり10&ndash;20件程度、3週間後には1日数件まで減少している。</p>
   </section>
 
   <section>
     <h2>発震機構解（近隣観測点による解析）</h2>
-    <p class="note" style="margin-top:0; margin-bottom:14px;">自局および近傍RS4Dの単一観測点波形からは発震機構は求められないため、防災科研F-net（広帯域地震計ネットワーク）が周辺の複数観測点から算出したモーメントテンソル解を用いた。P2P地震情報177件のうちF-netの解析対象（おおむねMw3.5以上）に該当する6件が時刻突合できた&mdash;全体のうち6/177件のみを示す図であり、震度5弱以上の一部（16:29 M4.5・19:03 M4.2）を含む残りはF-net未収録である。</p>
+    <p class="note" style="margin-top:0; margin-bottom:14px;">自局および近傍RS4Dの単一観測点波形からは発震機構は求められないため、防災科研F-net（広帯域地震計ネットワーク）が周辺の複数観測点から算出したモーメントテンソル解を用いた。P2P地震情報578件のうちF-netの解析対象（おおむねMw3.5以上）に該当する58件が時刻突合できたが、地図の可読性のためMw4.5以上の9件のみを表示している&mdash;全体のうち9/578件を示す図であり、震度5弱以上の一部を含む残りはF-net未収録、または図から省いている。</p>
     <div class="beachball-frame">
-      <img src="beachball_kumamoto_20260728.png" alt="令和8年熊本地震の発震機構解マップ。本震Mw6.7を含む6個の地震球がいずれも縦4分割の市松模様（横ずれ断層型）で、熊本地方から天草・芦北地方にかけて分布する。" loading="lazy">
+      <img src="beachball_kumamoto_20260728.png" alt="令和8年熊本地震の発震機構解マップ。本震Mw6.7を含む9個の地震球がいずれも縦4分割の市松模様（横ずれ断層型）で、熊本地方から天草・芦北地方にかけて分布する。" loading="lazy">
     </div>
-    <p class="note">6個すべてが横ずれ断層型（すべり角が±180&deg;付近）で統一されており、布田川・日奈久断層帯の走向（北東&ndash;南西）と整合する。2016年熊本地震も同断層帯の横ずれ型で、今回の一連の活動が同じ運動様式であることを裏付ける。震源位置はF-net解析値（P2P速報値より精度が高い）。</p>
+    <p class="note">9個すべてが横ずれ断層型（すべり角が±180&deg;付近）で統一されており、布田川・日奈久断層帯の走向（北東&ndash;南西）と整合する。2016年熊本地震も同断層帯の横ずれ型で、今回の一連の活動が同じ運動様式であることを裏付ける。震源位置はF-net解析値（P2P速報値より精度が高い）。</p>
   </section>
 
   <div class="grid-2">
@@ -611,13 +1161,13 @@
           <tr><th>Mc（下限M）</th><th>b値</th><th>標準誤差</th><th>n</th></tr>
         </thead>
         <tbody>
-          <tr><td class="num">M&ge;2.0</td><td class="num b-emph">0.42</td><td class="num">&plusmn;0.02</td><td class="num">174</td></tr>
-          <tr><td class="num">M&ge;2.5</td><td class="num b-emph">0.62</td><td class="num">&plusmn;0.05</td><td class="num">143</td></tr>
-          <tr><td class="num">M&ge;3.0</td><td class="num b-emph">0.74</td><td class="num">&plusmn;0.08</td><td class="num">79</td></tr>
+          <tr><td class="num">M&ge;2.0</td><td class="num b-emph">0.47</td><td class="num">&plusmn;0.01</td><td class="num">552</td></tr>
+          <tr><td class="num">M&ge;2.5</td><td class="num b-emph">0.68</td><td class="num">&plusmn;0.03</td><td class="num">414</td></tr>
+          <tr><td class="num">M&ge;3.0</td><td class="num b-emph">0.76</td><td class="num">&plusmn;0.06</td><td class="num">201</td></tr>
         </tbody>
       </table>
-      <div class="meter"><div class="meter-fill" style="width:62%; background:linear-gradient(90deg, var(--status-critical), var(--status-warning) 60%, var(--status-good))"></div></div>
-      <p class="note">典型的な内陸地殻内地震はb&asymp;0.9&ndash;1.0。今回はMc2.5以上でb&asymp;0.6、Mc2.0ではさらに低い0.42&mdash;中規模（M4級）以上の地震が相対的に多い活動を示す。b値低下と大規模地震発生の間に確立した予測関係はなく、参考指標として提示する。</p>
+      <div class="meter"><div class="meter-fill" style="width:68%; background:linear-gradient(90deg, var(--status-critical), var(--status-warning) 60%, var(--status-good))"></div></div>
+      <p class="note">典型的な内陸地殻内地震はb&asymp;0.9&ndash;1.0。P2P地震情報は震度1以上を観測した地震しか収録しないため、M2.5未満はカタログが不完全（マグニチュード分布はM2.5にピークを持つ）&mdash;Mc2.5以上のb&asymp;0.68を実態に近い値として参照し、Mc2.0の0.47は切断効果による過小評価とみる。b値低下と大規模地震発生の間に確立した予測関係はなく、参考指標として提示する。</p>
     </section>
 
     <section>
@@ -627,13 +1177,15 @@
           <tr><th>時刻</th><th>M</th><th>震度</th><th>震源</th></tr>
         </thead>
         <tbody>
-          <tr><td class="num">16:27</td><td class="num">7.1</td><td><span class="pill i7">7</span></td><td>熊本地方</td></tr>
-          <tr><td class="num">16:29</td><td class="num">4.5</td><td><span class="pill i5w">5弱</span></td><td>熊本地方</td></tr>
-          <tr><td class="num">17:08</td><td class="num">6.1</td><td><span class="pill i5w">5弱</span></td><td>天草・芦北</td></tr>
-          <tr><td class="num">19:03</td><td class="num">4.2</td><td><span class="pill i5w">5弱</span></td><td>熊本地方</td></tr>
+          <tr><td class="num">7/28 16:27</td><td class="num">7.1</td><td><span class="pill i7">7</span></td><td>熊本地方</td></tr>
+          <tr><td class="num">7/28 16:29</td><td class="num">4.5</td><td><span class="pill i5w">5弱</span></td><td>熊本地方</td></tr>
+          <tr><td class="num">7/28 17:08</td><td class="num">6.1</td><td><span class="pill i5w">5弱</span></td><td>天草・芦北</td></tr>
+          <tr><td class="num">7/28 19:03</td><td class="num">4.2</td><td><span class="pill i5w">5弱</span></td><td>熊本地方</td></tr>
+          <tr><td class="num">7/29 22:19</td><td class="num">5.8</td><td><span class="pill i5w">5弱</span></td><td>天草・芦北</td></tr>
+          <tr><td class="num">8/1 21:47</td><td class="num">4.7</td><td><span class="pill i5w">5弱</span></td><td>熊本地方</td></tr>
         </tbody>
       </table>
-      <p class="note">本震から2.6時間以内に震度5弱以上が4回発生。深さは0&ndash;10kmが171/177件（96.6%）を占め、ごく浅い地殻内地震（2016年熊本地震と同型）。</p>
+      <p class="note">本震から4日後（8/1）にも震度5弱（M4.7）が発生しており、震度5弱以上の活動は本震当日だけで収まっていない。深さは0&ndash;10kmが570/578件（98.6%）を占め、ごく浅い地殻内地震（2016年熊本地震と同型）。</p>
     </section>
   </div>
 
@@ -734,15 +1286,15 @@
       </div>
       <div class="verdict-item">
         <div class="verdict-num">02</div>
-        <div class="verdict-text"><b>活動は3時間以内に天草・芦北地方へ拡大、16時間後には大分県西部でも検知。</b>断層帯沿いの連鎖的な活動域拡大とみられる。</div>
+        <div class="verdict-text"><b>活動は本震当日のうちに天草・芦北地方、大分県西部へ拡大。</b>断層帯沿いの連鎖的な活動域拡大とみられる。以降の26日間も震源域は熊本地方・天草芦北地方の2域が中心で、大きく広がってはいない。</div>
       </div>
       <div class="verdict-item">
         <div class="verdict-num">03</div>
-        <div class="verdict-text"><b>減衰は概ね標準的（p&asymp;0.88）だが、観測期間はまだ18時間強。</b>気象庁の「2&ndash;3日は最大震度7程度に注意」の呼びかけの範囲内であり、収束の判断には早い。</div>
+        <div class="verdict-text"><b>本震から26日が経過した現在も活動は継続中で、収束したとは言えない。</b>日次検知数は本震翌日の127件をピークに減少傾向にあるものの、8月に入ってからも1日数件&ndash;20件程度の検知が続き、8月1日には震度5弱（M4.7）も発生している。改良大森公式のp値はビンの取り方で0.6&ndash;1.0程度まで変動し、単一の数値で「標準的な減衰」と断定できる段階ではない。</div>
       </div>
       <div class="verdict-item">
         <div class="verdict-num">04</div>
-        <div class="verdict-text"><b>b値0.4&ndash;0.7台はやや低め</b>で、M4級以上の発生比率が相対的に高い活動を示す統計的傾向。単独で次の大地震を予測する指標ではない。</div>
+        <div class="verdict-text"><b>b値はMc2.5以上で&asymp;0.68</b>。M2.5未満はP2P地震情報のカタログ完全性の限界（震度1以上のみ収録）により過小評価されている可能性が高く、Mc2.0の0.47をそのまま「低いb値」と解釈するのは適切でない。b値低下と大規模地震発生の間に確立した予測関係はなく、参考指標として提示する。</div>
       </div>
       <div class="verdict-item">
         <div class="verdict-num">05</div>
@@ -752,7 +1304,8 @@
   </section>
 
   <footer class="src">
-    データ: P2P地震情報 API（v2/history, codes=551）。震度・マグニチュード等は速報値を含み、気象庁の確定値と異なる場合がある。<br>
+    データ: 気象庁 地震情報 JSON API（P2P地震情報 v2/jma-quake, codes=551）。震度・マグニチュード等は速報値を含み、気象庁の確定値と異なる場合がある。震源近傍観測点R6E01の実測データは本震直後（2026/07/28）取得分のみで、以降は更新していない。発震機構解はF-net、地震リストとの突合は発生時刻±3分・震源距離30km以内で判定。<br>
+    更新履歴: 2026-07-28初版（本震+18時間、177件）／2026-08-23更新（本震+26日、578件、日次集計・対数時間軸に変更、発震機構解を全期間から再取得）。<br>
     参照: <a href="https://www.jma.go.jp/jma/menu/20260728_kumamoto_jishin.html">気象庁 令和8年熊本地震の地震活動の関連情報</a> &middot; <a href="https://373news.com/news/local/detail/237214">南日本新聞（割れ残り関連報道）</a>
   </footer>
 
