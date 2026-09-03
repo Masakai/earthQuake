@@ -672,6 +672,8 @@ def generate_commentary(quakes: list[dict], stats: dict, year: int, month: int) 
 <p>
 {year}年{month}月の有感地震は計<strong>{total}件</strong>記録されました。
 活動レベルは<strong>{activity_level}</strong>と評価されます。{activity_comment}
+</p>
+<p>
 最も地震が集中した日は<strong>{peak_day}日</strong>で、1日に<strong>{peak_day_count}件</strong>の有感地震が発生しました。
 今月の最大震度は<strong>震度{max_scale_str}</strong>です。
 </p>
@@ -733,6 +735,8 @@ def generate_commentary(quakes: list[dict], stats: dict, year: int, month: int) 
 今月は<strong>{areas_str}</strong>での活動が特に目立ちました。
 {depth_comment}
 {swarm_note}
+</p>
+<p>
 関東周辺は震度1〜3程度の小規模地震が平常ペースで続いている状況です。
 引き続き、各地域の活動推移に注意が必要です。
 </p>
