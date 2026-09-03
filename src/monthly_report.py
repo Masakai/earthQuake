@@ -17,6 +17,7 @@ import datetime
 import io
 import json
 import pathlib
+import re
 import ssl
 import sys
 import time
@@ -827,33 +828,111 @@ def make_table(quakes: list[dict], detected_hhmm: set[str] | None = None) -> str
 # ===== 解説・総評（手動 or 外部ファイル）=====
 # 月ごとの総評は data/monthly_report/commentary_YYYYMM.html に置けば、
 # 再生成しても消えずに「解説・総評」セクションへ埋め込まれる。
-# ファイルが無ければ手動記入用のプレースホルダを出す（従来動作）。
-COMMENTARY_PLACEHOLDER = (
-    '  <p class="placeholder">※ ここに手動で解説を記入してください。<br>\n'
-    '  （data/monthly_report/commentary_YYYYMM.html を作成するか、'
-    'このセクションのHTMLを直接編集してください）</p>'
+# ファイルが無ければ、統計値から機械的な下書きを自動生成してファイルに保存する
+# （スケジュール実行時に手動修正を忘れてプレースホルダのまま公開されるのを防ぐため）。
+COMMENTARY_DRAFT_NOTE = (
+    '  <p class="draft-note">⚠️ この解説は集計値から自動生成された下書きです。'
+    '内容を確認し、必要に応じて data/monthly_report/commentary_{yyyymm}.html を編集してください。</p>'
 )
 
 
-def load_manual_commentary(year: int, month: int) -> str:
+def _prev_month_total(year: int, month: int) -> int | None:
+    """前月の report_YYYYMM.html から有感地震の総件数を抽出する（前月比較の下書き用）。
+
+    ファイルが無い・パースできない場合は None を返す（呼び出し側は前月比較を省略する）。
+    """
+    prev = (datetime.date(year, month, 1) - datetime.timedelta(days=1))
+    path = (BASE_DIR / 'data' / 'monthly_report'
+            / f'report_{prev.year}{prev.month:02d}.html')
+    if not path.exists():
+        return None
+    try:
+        html = path.read_text(encoding='utf-8')
+        m = re.search(r'<div class="val">(\d+)</div><div class="lbl">有感地震 総件数</div>', html)
+        return int(m.group(1)) if m else None
+    except Exception:
+        return None
+
+
+def generate_commentary_draft(year: int, month: int, stats: dict, topics: dict) -> str:
+    """統計値・自局トピックから「解説・総評」の下書き文章を機械的に組み立てる。
+
+    前月比較・地域別上位・自局データとの対比を1段落ずつ並べたテンプレート文。
+    読み物としての深さ（群発活動の推移の考察など）は持たないため、あくまで下書きであり、
+    要確認である旨のノートを文末に付ける。
+    """
+    total = stats.get('total', 0)
+    if total == 0:
+        return '  <p>今月は有感地震の記録がありませんでした。</p>' + \
+            COMMENTARY_DRAFT_NOTE.format(yyyymm=f'{year}{month:02d}')
+
+    max_mag_q = stats.get('max_mag_q')
+    top_regions = stats.get('top_regions') or []
+
+    prev_total = _prev_month_total(year, month)
+    if prev_total is not None:
+        diff = total - prev_total
+        trend = '増加' if diff > 0 else ('減少' if diff < 0 else '横ばい')
+        p1_intro = (f'{year}年{month}月は全国で有感地震が{total}件記録され、'
+                    f'前月（{prev_total}件）から{trend}しました。')
+    else:
+        p1_intro = f'{year}年{month}月は全国で有感地震が{total}件記録されました。'
+
+    p1_max = ''
+    if max_mag_q is not None:
+        scale = SCALE_LABEL.get(max_mag_q.get('scale'))
+        scale_note = f'（最大震度{scale}）' if scale else '（国内の震度観測点なし）'
+        p1_max = (f'月内最大の地震は{max_mag_q.get("time","")[:16]}に発生した'
+                  f'{max_mag_q.get("name","")}M{max_mag_q.get("mag","")}{scale_note}でした。')
+
+    p2 = ''
+    if top_regions:
+        items = '、'.join(f'{name}（{cnt}件）' for name, cnt in top_regions[:3])
+        p2 = f'発生件数の多かった地域は{items}の順でした。'
+
+    total_trig = topics.get('total', 0)
+    dq = topics.get('detected_quakes') or []
+    p3_parts = [f'自局（AM.R38DC／静岡県三島市）では{month}月のトリガが{total_trig}件あり、'
+               f'全国の有感地震と発生時刻が一致して波形を捉えられたものは{len(dq)}件でした。']
+    maxI = topics.get('max_I')
+    if maxI:
+        v, r = maxI
+        p3_parts.append(f'最大の計測震度は{v:.2f}（{r.get("date","")} {r.get("ts","")}、'
+                        f'震度階級{r.get("scale","?")}相当）でした。')
+    p3 = ''.join(p3_parts)
+
+    paragraphs = [p1_intro + p1_max, p2, p3]
+    body = '\n\n'.join(f'  <p>{p}</p>' for p in paragraphs if p)
+    return body + '\n' + COMMENTARY_DRAFT_NOTE.format(yyyymm=f'{year}{month:02d}')
+
+
+def load_manual_commentary(year: int, month: int, stats: dict | None = None,
+                           topics: dict | None = None) -> str:
     """月次の解説・総評セクションの中身(HTML断片)を返す。
 
-    data/monthly_report/commentary_YYYYMM.html があればその内容を、
-    無ければプレースホルダを返す。再生成しても総評が残るようにするための仕組み。
+    data/monthly_report/commentary_YYYYMM.html があればその内容を返す。
+    無ければ統計値から下書きを自動生成し、同ファイルに保存してから返す
+    （再生成しても総評が残り、スケジュール実行でも手動修正を忘れて
+    プレースホルダのまま公開される事態を防ぐための仕組み）。
     """
     path = BASE_DIR / 'data' / 'monthly_report' / f'commentary_{year}{month:02d}.html'
     if path.exists():
         body = path.read_text(encoding='utf-8').strip()
         if body:
             return body
-    return COMMENTARY_PLACEHOLDER
+    draft = generate_commentary_draft(year, month, stats or {}, topics or {})
+    try:
+        path.write_text(draft + '\n', encoding='utf-8')
+        print(f'[INFO] 解説・総評の下書きを自動生成しました: {path}')
+    except Exception as e:
+        print(f'[WARN] 解説・総評下書きの保存に失敗: {e}')
+    return draft
 
 
 # ===== HTMLレポート組み立て =====
 def build_html(year: int, month: int, quakes: list[dict], stats: dict,
                detected_hhmm: set[str] | None = None) -> str:
     title = f'{year}年{month}月 月次地震レポート'
-    manual_commentary = load_manual_commentary(year, month)
     map_b64       = make_epicenter_map(quakes, year, month)
     daily_b64     = make_daily_chart(quakes, year, month)
     mag_b64       = make_mag_chart(quakes, year, month)
@@ -904,6 +983,9 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
     # 自局トピック（AM.R38DC）
     topics = compute_station_topics(year, month, quakes, detected_hhmm or set())
     section_station_topics = make_station_topics_html(topics)
+
+    # 解説・総評（手動ファイルがあればそれを、無ければ統計値から下書きを自動生成）
+    manual_commentary = load_manual_commentary(year, month, stats, topics)
 
     det_count     = sum(
         1 for q in quakes
@@ -957,7 +1039,7 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
   .det-no  {{ text-align: center; color: #cbd5e1; }}
   .manual-commentary {{ background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 10px; padding: 24px; margin-bottom: 20px; }}
   .manual-commentary h2 {{ color: #92400e; border-bottom: 2px solid #fde68a; padding-bottom: 8px; margin: 0 0 16px; font-size: 1.1em; }}
-  .manual-commentary .placeholder {{ color: #b45309; font-style: italic; }}
+  .manual-commentary .placeholder, .manual-commentary .draft-note {{ color: #b45309; font-style: italic; }}
   .notice {{ background: #fef9c3; border-left: 4px solid #eab308; border-radius: 6px; padding: 10px 16px; margin-bottom: 20px; font-size: 0.85em; color: #713f12; }}
   .notice a {{ color: #713f12; }}
   .beachball-commentary {{ margin-top: 12px; }}
