@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ネパール氷河崩落・洪水災害 地震観測記録</title>
+<meta name="description" content="2026年8月26日ネパールランタン・リルンで発生した氷河崩落・洪水災害について、震源から50.8kmのRaspberry Shake公開観測点R3B1Eと、研究機関の広帯域地震計NK.KKNの実測波形を用いた記録・解析。">
+<meta property="og:title" content="ネパール氷河崩落・洪水災害 地震観測記録">
+<meta property="og:description" content="震源近傍の公開地震観測点2局の実測波形から、氷河崩落の初動と下流洪水に伴う継続的な振動を読み解く。">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://masakai.github.io/earthQuake/reports/ogp_nepal_glacier.png">
+<meta property="og:url" content="https://masakai.github.io/earthQuake/reports/report_nepal_glacier_20260826.html">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:site_name" content="earthQuake — AM.R38DC 観測記録">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ネパール氷河崩落・洪水災害 地震観測記録">
+<meta name="twitter:description" content="震源近傍の公開地震観測点2局の実測波形から、氷河崩落の初動と下流洪水に伴う継続的な振動を読み解く。">
+<meta name="twitter:image" content="https://masakai.github.io/earthQuake/reports/ogp_nepal_glacier.png">
+</head>
+<body>
+<a href="../index.html" style="position:fixed;top:16px;left:16px;z-index:200;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.92);backdrop-filter:blur(6px);border:1px solid rgba(11,15,13,0.14);border-radius:20px;padding:6px 14px;font-size:13px;color:#2c2c2a;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans','Yu Gothic',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.12);">&larr; earthQuake トップへ</a>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #f7f8f7;
+    --surface-2:      #ffffff;
+    --page-plane:     #eef0ee;
+    --text-primary:   #0c0f0e;
+    --text-secondary: #0c0f0e;
+    --text-muted:     #0c0f0e;
+    --gridline:       #dfe3e0;
+    --border:         rgba(11,15,13,0.10);
+
+    --series-honshin: #bc4c00;
+    --series-time:    #2a78d6;
+
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #111413;
+      --surface-2:      #171b19;
+      --page-plane:     #0b0d0c;
+      --text-primary:   #f5f6f5;
+      --text-secondary: #f5f6f5;
+      --text-muted:     #f5f6f5;
+      --gridline:       #2a2f2c;
+      --border:         rgba(255,255,255,0.10);
+      --series-honshin: #e08a4d;
+      --series-time:    #3987e5;
+      --status-good:     #0ca30c;
+      --status-warning:  #fab219;
+      --status-serious:  #ec835a;
+      --status-critical: #e66767;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #111413;
+    --surface-2:      #171b19;
+    --page-plane:     #0b0d0c;
+    --text-primary:   #f5f6f5;
+    --text-secondary: #f5f6f5;
+    --text-muted:     #f5f6f5;
+    --gridline:       #2a2f2c;
+    --border:         rgba(255,255,255,0.10);
+    --series-honshin: #e08a4d;
+    --series-time:    #3987e5;
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #e66767;
+  }
+  :root[data-theme="light"] .viz-root {
+    color-scheme: light;
+    --surface-1:      #f7f8f7;
+    --surface-2:      #ffffff;
+    --page-plane:     #eef0ee;
+    --text-primary:   #0c0f0e;
+    --text-secondary: #0c0f0e;
+    --text-muted:     #0c0f0e;
+    --gridline:       #dfe3e0;
+    --border:         rgba(11,15,13,0.10);
+    --series-honshin: #bc4c00;
+    --series-time:    #2a78d6;
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-serious:  #ec835a;
+    --status-critical: #d03b3b;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+  }
+  .viz-root {
+    padding: 64px 16px 64px;
+    background: var(--page-plane);
+    color: var(--text-primary);
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  header.page-head { margin-bottom: 28px; }
+  .eyebrow {
+    font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600; margin: 0 0 8px;
+  }
+  h1 { font-size: 36px; line-height: 1.3; margin: 0 0 6px; font-weight: 700; text-wrap: balance; }
+  .subhead { font-size: 19px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.7; }
+  .subhead:last-of-type { margin-bottom: 0; }
+
+  section {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  section > h2 {
+    font-size: 24px; font-weight: 700; letter-spacing: 0.02em;
+    color: var(--text-primary);
+    margin: 0 0 16px;
+  }
+  section > p.note { font-size: 18px; color: var(--text-muted); line-height: 1.8; margin: 12px 0 0; }
+
+  .hero-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .hero-tile { background: var(--surface-1); padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+  .hero-tile.main { background: var(--surface-2); }
+  .hero-label { font-size: 15px; color: var(--text-muted); letter-spacing: .03em; }
+  .hero-value { font-size: 38px; font-weight: 700; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .hero-tile.main .hero-value { color: var(--series-honshin); }
+  .hero-sub { font-size: 16px; color: var(--text-secondary); }
+
+  @media (max-width: 640px) {
+    .hero-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  table.event-table { width: 100%; border-collapse: collapse; font-size: 17px; }
+  table.event-table th, table.event-table td {
+    padding: 10px 12px; border-bottom: 1px solid var(--gridline); text-align: left;
+  }
+  table.event-table th { color: var(--text-muted); font-weight: 600; font-size: 14.5px; text-transform: uppercase; letter-spacing: .03em; }
+  table.event-table td.num { font-variant-numeric: tabular-nums; }
+
+  .wave-frame {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .wave-frame img { display: block; width: 100%; height: auto; border-radius: 4px; }
+
+  .callout {
+    display: flex; gap: 12px; padding: 14px 16px; border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .callout-icon {
+    flex: none; width: 28px; height: 28px; border-radius: 8px;
+    background: var(--status-warning); color: #3a2c00; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+  }
+  .callout-body { font-size: 18px; line-height: 1.8; color: var(--text-secondary); }
+  .callout-body b { color: var(--text-primary); }
+
+  footer.src { font-size: 15px; color: var(--text-muted); line-height: 1.9; margin-top: 24px; }
+  footer.src a { color: var(--text-secondary); }
+</style>
+
+<div class="viz-root">
+<div class="wrap">
+
+  <header class="page-head">
+    <p class="eyebrow">地震観測記録 &middot; 2026年8月26日 &middot; ネパール</p>
+    <h1>ネパール氷河崩落・洪水災害 地震観測記録</h1>
+    <p class="subhead">2026年8月26日02時52分（協定世界時、UTC）、ネパールのランタン・リルン峰で氷河が崩落した。この崩落を起点に土石流と洪水が下流を襲った。</p>
+    <p class="subhead">本レポートでは、震源近くにある2つの地震計、Raspberry Shake公開観測点AM.R3B1Eと研究機関の広帯域地震計NK.KKNが記録した実測波形を用い、崩落の瞬間と、その後に続いた下流の異変を読み解く。死傷者数や避難状況といった被災状況の報告ではなく、地震計の波形から崩落と洪水の物理的な挙動を追う、地学的な観測記録である。</p>
+    <p class="subhead">崩落地点は中国のチベット自治区との国境に近く、対岸でも人的被害が報じられている。ただし中国側の地震観測データや被災状況を伝える一次情報の情報源は確認できなかった。そのため本レポートは、ネパール側で確認できた情報だけで構成している。</p>
+    <p class="subhead">なお本レポートは公開データを解析した私的な記録であり、公式の被害調査や地震学的知見に代わるものではない。</p>
+  </header>
+
+  <div class="hero-row">
+    <div class="hero-tile main">
+      <div class="hero-label">発生時刻（米国地質調査所 USGS報告）</div>
+      <div class="hero-value" style="font-size:28px;">02:52:10<span style="font-size:17px; font-weight:600;"> UTC</span></div>
+      <div class="hero-sub">現地時間 8:37 am（NST）</div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">地震計相当マグニチュード</div>
+      <div class="hero-value">5.2</div>
+      <div class="hero-sub">USGS報告値</div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">崩落地点標高</div>
+      <div class="hero-value" style="font-size:28px;">5,200<span style="font-size:17px; font-weight:600;">m</span></div>
+      <div class="hero-sub">約1,200m滑落</div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">下流被災区間</div>
+      <div class="hero-value" style="font-size:28px;">約72<span style="font-size:17px; font-weight:600;">km</span></div>
+      <div class="hero-sub">トリシュリ川沿い（報道値）</div>
+    </div>
+  </div>
+
+  <section>
+    <h2>震源と観測点の位置関係</h2>
+    <p class="note" style="margin-top:0; margin-bottom:16px;">崩落地点はランタン国立公園内にあり、中国（チベット自治区）との国境に近い。崩れ落ちた氷と岩は、キロン・ツァンポとレンデ・コーラという2つの川が合流するラスワガディ国境検問所を経て、トリシュリ川に流れ込んだ。この川に沿ったティムレ・シャプルベシ・ドゥンチェ・ベトラワティ・トリシュリ・バザールの各集落が被害を受けた。</p>
+    <div class="wave-frame">
+      <img src="map_nepal_glacier_20260826.png" alt="ネパール氷河崩落地点(ランタン・リルン)と観測点AM.R3B1E(51km)・NK.KKN(59km)の位置関係を示す地図。トリシュリ川本流・被災集落・洪水浸水想定帯(概念図)を表示。" loading="lazy">
+    </div>
+    <p class="note">地図上のオレンジ帯は、川沿い約1kmを機械的に塗った浸水想定帯であり、実測の氾濫範囲や浸水の深さを示すものではない。震源からラスワガディまでの区間は、流路の実測データが手に入らなかったため、直線（点線）で概略を示すにとどめている。</p>
+  </section>
+
+  <section>
+    <h2>欧州宇宙機関（ESA）センチネル2号衛星による下流域の変化（震源地点は範囲外）</h2>
+    <p class="note" style="margin-top:0; margin-bottom:12px;">欧州宇宙機関（ESA）は、センチネル2号衛星（光学カメラ、解像度10m）で撮影した崩落前（2026年8月12日）と崩落後（2026年8月27日）の写真を並べて公開している。</p>
+    <p class="note" style="margin-top:0; margin-bottom:16px;">ただし、この写真が写しているのはトリシュリ川の中流域からカトマンズ盆地まで（約52km四方）で、氷河が崩れた震源地点そのもの（カトマンズから北へ約66km）は範囲に入っていない。震源地点そのものの崩落前後を比べた写真は後の節で扱う。</p>
+    <div class="wave-frame">
+      <img src="satellite_nepal_sentinel2_20260812_20260827.jpg" alt="ESA Copernicus Sentinel-2衛星画像。左が2026年8月12日(崩落前)、右が2026年8月27日(崩落後)。トリシュリ川中流域〜カトマンズ盆地を捉えており、震源地点(ランタン・リルン)は範囲外。崩落前はトリシュリ川が細く澄んだ流路として見えるのに対し、崩落後は川幅が広がり茶色く濁った状態になっている。" loading="lazy">
+    </div>
+    <p class="note">崩落前（左）は、トリシュリ川が細く澄んだ流れとして写っている。崩落後（右）は川幅が明らかに広がり、土砂を含んだ濁流特有の明るい茶色に変わっている。写真の左端に見える白い帯は、土煙か水蒸気と見られる。これは震源から流れ下った土石流と洪水が下流に到達した跡であり、崩落そのものの痕跡ではない。</p>
+  </section>
+
+  <section>
+    <h2>震源地点ランタン・リルン峰の崩落前後比較（米国地質調査所 Landsat衛星）</h2>
+    <p class="note" style="margin-top:0; margin-bottom:16px;">氷河科学の専門サイト「AntarcticGlaciers.org」は、崩落前（2026年4月20日）と崩落当日（2026年8月26日）を撮影したLandsat衛星の写真を掲載している。近赤外線を使って植生や氷雪を強調した偽色画像で、ランタン・リルン峰、ツァンブ・リ峰、ギロン国境検問所（ラスワガディ国境検問所の中国側）が両方の写真に写っている。8月26日の写真には「氷河崩落地点」という位置ラベルが付いている。</p>
+    <div class="wave-frame">
+      <img src="satellite_nepal_landsat_source_20260420_20260826.png" alt="Landsat近赤外偽色画像。左が2026年4月20日(崩落前)、右が2026年8月26日(崩落当日)。ランタン・リルン峰・ツァンブ・リ峰の位置に「氷河崩落地点」のラベルがあり、氷河がなくなり灰色の岩肌が露出している。" loading="lazy">
+    </div>
+    <p class="note" style="margin-bottom:8px;">崩落前（左）は、ランタン・リルン峰とツァンブ・リ峰の周囲が白い氷河と雪渓に覆われている。崩落当日（右）はその一部が失われ、下に隠れていた暗い岩肌と土砂が露出している。崩落当日の写真は雲が多く、輪郭がはっきりしない部分も残る。</p>
+    <p class="note">データ提供は米国地質調査所のLandsat、画像作成はGunjan Silwal氏（<a href="https://www.antarcticglaciers.org/2026/08/august-2026-nepal-tibet-floods/" target="_blank" rel="noopener">AntarcticGlaciers.org</a>掲載）。</p>
+
+    <div class="wave-frame" style="margin-top:16px;">
+      <img src="satellite_nepal_scar_detail_2017_2026.png" alt="崩落地点の拡大衛星画像3枚。左上が2026年8月26日(崩落当日)、右上が2026年8月24日(崩落前)、下が2017年12月1日。崩落前後2枚には赤線で崩落による氷河剥離の輪郭が示されている。" loading="lazy">
+    </div>
+    <p class="note" style="margin-bottom:8px;">崩落地点をさらに拡大し、2017年12月・2026年8月24日（崩落前）・2026年8月26日（崩落当日）の3時点を並べた写真もある。赤線は、崩落で氷河が剥がれ落ちた輪郭を示す。2017年時点と比べると、山の形と氷河の広がりが大きく変わっていることがわかる。</p>
+    <p class="note">出典は同じくAntarcticGlaciers.org掲載の画像で、撮影者と提供元の詳細は記載がない。</p>
+  </section>
+
+  <section>
+    <h2>震源近傍観測点 AM.R3B1E の実測記録（震源距離50.8km）</h2>
+    <p class="note" style="margin-top:0; margin-bottom:16px;">R3B1Eは、市民が個人で設置・運用するRaspberry Shakeという地震計ネットワークの1局で、震源に最も近い場所（緯度27.83&deg;/経度85.57&deg;）にある。この観測点が公開している波形データを取得し、氷河崩落の発生時刻前後を解析した。記録は上下動を捉える1チャンネル（サンプリング周波数100Hz）だけで、機材は業務用地震計ほど高精度ではない。</p>
+
+    <div class="hero-row" style="margin-bottom:16px;">
+      <div class="hero-tile">
+        <div class="hero-label">揺れの検出時刻</div>
+        <div class="hero-value" style="font-size:28px;">02:52:02</div>
+        <div class="hero-sub">発生時刻の7.2秒前後</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">平常時と比べた揺れの大きさ</div>
+        <div class="hero-value" style="font-size:32px;">9.1<span style="font-size:17px; font-weight:600;">倍</span></div>
+        <div class="hero-sub">最大では6.7倍</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">揺れの継続時間</div>
+        <div class="hero-value" style="font-size:32px;">20<span style="font-size:17px; font-weight:600;">分以上</span></div>
+        <div class="hero-sub">その後ゆっくり収まった</div>
+      </div>
+      <div class="hero-tile">
+        <div class="hero-label">目立った周波数帯</div>
+        <div class="hero-value" style="font-size:32px;">0&#8211;5<span style="font-size:17px; font-weight:600;">Hz</span></div>
+        <div class="hero-sub">土砂の移動に特有の低い音</div>
+      </div>
+    </div>
+
+    <div class="wave-frame">
+      <img src="waveform_nepal_r3b1e_20260826.png" alt="AM.R3B1E観測点における氷河崩落の実測波形とスペクトログラム。02:40-03:20 UTCの波形と、02:48-03:00のスペクトログラムを示す。発生時刻直後に振幅が急増し、0-5Hz帯にエネルギーが集中している。" loading="lazy">
+    </div>
+    <p class="note" style="margin-bottom:8px;">波形図の赤い破線が、米国地質調査所の報告する発生時刻（02:52:10 UTC）を示す。その直後から揺れが急に大きくなり、20分以上にわたって続いた。</p>
+    <p class="note" style="margin-bottom:8px;">下段のスペクトログラム（時間ごとの周波数成分を色の濃淡で示した図）を見ると、0&#8211;5Hzという低い帯域にエネルギーが集中している。これは、地震そのものというより、大量の土砂や氷雪が動くときに特有のパターンである。</p>
+    <p class="note">震源から観測点までは約51km離れている。この距離なら、地震波（P波）が届くまで十数秒かかると見積もれる。実際の検出時刻もこの見積もりと合っている。</p>
+  </section>
+
+  <section>
+    <h2>震源距離順の記録断面図（5局比較）</h2>
+    <p class="note" style="margin-top:0; margin-bottom:16px;">氷河崩落の瞬間、実際にデータを記録していた観測点は5局あった。震源に近い順に、R3B1E（50.8km）、NK.KKN（59.0km）、RE497（72.1km）、RF015（74.6km）、R02C2（76.3km）である。この5局を震源からの距離順に並べ、揺れが届くまでの時間差を1枚のグラフにした。NK.KKNだけが研究機関の広帯域地震計（Guralp CMG-3T）で、残る4局は個人設置のRaspberry Shakeである。</p>
+    <div class="wave-frame">
+      <img src="recordsection_nepal_20260826.png" alt="震源距離順に5局(R3B1E, NK.KKN, RE497, RF015, R02C2)の波形を並べた記録断面図。震源に近い局ほど早く、遠い局ほど遅く震動が到達している。" loading="lazy">
+    </div>
+    <p class="note" style="margin-bottom:8px;">最も近いR3B1Eが発生時刻の18秒後という最速で揺れをとらえ、NK.KKN（19秒後）が続いた。遠い観測点ほど到達が遅れ、最も遠いR02C2では48秒後だった。この段差が、震源から遠ざかるほど揺れの到達が遅れる様子をそのまま示している。NK.KKNは他の局よりノイズが少なく、波形の立ち上がりもはっきり見える。</p>
+    <p class="note">なおRE497とRF015は震源からの距離差が2.5kmしかない。この2局で到達順が逆転しているのは、地形による揺れの伝わり方の違いか、観測点ごとのノイズレベルの差による誤差の範囲内と考えられる。</p>
+  </section>
+
+  <section>
+    <h2>洪水の流下は捉えられているか（広帯域地震計NK.KKN、震源距離59.0km）</h2>
+    <p class="note" style="margin-top:0; margin-bottom:12px;">NK.KKNはカカニにあるネパール地震局の定常観測点で、研究機関が備え付けた広帯域地震計（Guralp CMG-3T）を使っている。R3B1Eのような個人設置のRaspberry Shakeより雑音が少なく、かすかな揺れも拾いやすい。</p>
+    <p class="note" style="margin-top:0; margin-bottom:16px;">氷河が崩れた瞬間の揺れとは別に、下流を流れ下る洪水そのものが地面を揺らしていないか調べた。土砂や岩が川底にぶつかる音は5&#8211;20Hzの帯域に出やすいため、この帯域だけを取り出して振幅の推移を追った。</p>
+
+    <div class="callout">
+      <div class="callout-icon">!</div>
+      <div class="callout-body">
+        <p style="margin:0 0 10px;"><b>02:52 UTCに起きた崩落の瞬間のピークとは別に、03:15から05:45 UTCまでの約2.5時間、揺れがゆるやかに高まる時間帯があった。</b></p>
+        <p style="margin:0 0 10px;">この時間帯は、ウィキペディアが記録する洪水の到達記録と重なる。ベトラワティ観測所は9時20分（現地時間、UTC 03:35）に送信を止め、プルケ・マレク観測所は11時26分（現地時間、UTC 05:41）に水位が危険水準を超えたと記録している。</p>
+        <p style="margin:0;">ただし、地震計の記録だけから「この揺れは洪水そのものが原因だ」と言い切る手法は確立していない。状況が重なっているという意味で強い状況証拠ではあるが、確定した証拠ではない。</p>
+      </div>
+    </div>
+
+    <div class="wave-frame" style="margin-top:16px;">
+      <img src="bandpass_nepal_kkn_20260826.png" alt="NK.KKN 5-20Hz帯域のRMS振幅推移。氷河崩落の初動(02:52 UTC)とは別に、03:15-05:45 UTC頃に緩やかな二次的な高まりがあり、トリシュリ・バザール方面への洪水到達推定時間帯とほぼ重なる。" loading="lazy">
+    </div>
+    <p class="note" style="margin-bottom:8px;">前日の同じ時間帯と比べても、揺れの大きさはおよそ2倍だった。1日の中で規則的に繰り返す雑音のパターンだけでは、この上乗せ分を説明できない。</p>
+    <p class="note">揺れが続く時間の長さと、山を描くようなゆるやかな増減のしかたは、単発の地震特有の波形とは異なる。土石流や洪水が流れ下るときに続く、連続的な地面の揺れだと考えれば無理がない。</p>
+  </section>
+
+  <section>
+    <h2>利用可能な公開地震観測点</h2>
+    <table class="event-table">
+      <thead>
+        <tr><th>ネットワーク.局</th><th class="num">震源距離</th><th>種類</th><th>備考</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>AM.R3B1E</td><td class="num">50.8km</td><td>Raspberry Shake（ジオフォン、EHZ）</td><td>可搬型市民科学局、震源に最も近い実データ保有局</td></tr>
+        <tr><td>NK.KKN</td><td class="num">59.0km</td><td>広帯域地震計（Guralp CMG-3T、BHZ/BHN/BHE）</td><td>ネパール地震局Kakani定常観測点</td></tr>
+        <tr><td>NQ.KNSET</td><td class="num">73.4km</td><td>強震計（加速度、NetQuakes、HNZ/HNN/HNE）</td><td>米国地質調査所NetQuakesプログラム、サインブ</td></tr>
+        <tr><td>AM.RE497</td><td class="num">72.1km</td><td>Raspberry Shake（ジオフォン、EHZ）</td><td>記録断面図に使用</td></tr>
+        <tr><td>AM.RF015</td><td class="num">74.6km</td><td>Raspberry Shake（ジオフォン、EHZ）</td><td>記録断面図に使用</td></tr>
+        <tr><td>AM.R02C2</td><td class="num">76.3km</td><td>Raspberry Shake（ジオフォン、EHZ）</td><td>記録断面図に使用</td></tr>
+        <tr><td>IO.EVN</td><td class="num">131.5km</td><td>広帯域地震計（Guralp CMG-3ESPC、HHZまで）</td><td>エベレスト・ピラミッド観測所、未解析</td></tr>
+      </tbody>
+    </table>
+    <p class="note" style="margin-bottom:8px;">氷河崩落の瞬間、Raspberry Shakeのネットワークに登録されている観測点は6,000局を超えていた。だが実際にデータを送っていたのは、上の表に挙げた一部の局だけだった。</p>
+    <p class="note">観測点として登録されていても、実際には電源が入っていない、通信が切れているといった理由でデータが届かない例が多い。震源からの距離だけを見て観測点の使いやすさを判断せず、データが実在するかどうかを1局ずつ確かめる必要がある。</p>
+  </section>
+
+  <footer class="src">
+    震源座標・発生時刻: USGS報告（02:52:10 UTC、地震計相当M5.2）およびAntarcticGlaciers.orgによる座標（28.2853&deg;N, 85.5252&deg;E）。<br>
+    被災地名・洪水到達時刻: ウィキペディア「2026 Nepal floods」「Timeline of the 2026 Nepal floods」。座標はOpenStreetMap Nominatimでジオコーディング。<br>
+    波形データ: Raspberry Shake公式FDSN（data.raspberryshake.org）、EarthScope/IRIS FDSN（service.earthscope.org、NKネットワーク）。<br>
+    河川データ: HydroSHEDS/HydroRIVERS（衛星DEM地形追跡ベース）、国境データ: Natural Earth。<br>
+    衛星画像（下流域）: ESA Copernicus Sentinel-2（<a href="https://www.esa.int/Applications/Observing_the_Earth/Copernicus/Sentinel-2/Nepal_flash_flood_imaged_by_satellites" target="_blank" rel="noopener">ESA公式発表</a>、2026年8月12日・8月27日撮影）。<br>
+    衛星画像（震源地点）: USGS/Landsat（<a href="https://www.antarcticglaciers.org/2026/08/august-2026-nepal-tibet-floods/" target="_blank" rel="noopener">AntarcticGlaciers.org</a>掲載、画像作成Gunjan Silwal）。Landsat-9の崩落痕情報は<a href="https://www.cnn.com/2026/08/26/world/live-news/nepal-flash-flooding-floods-intl" target="_blank" rel="noopener">CNN報道</a>による。<br>
+    本レポートは公開データに基づく私的な観測記録・分析であり、公式の被害状況・地震学的知見を代替するものではない。<br>
+    作成日: 2026-09-03
+  </footer>
+
+</div>
+</div>
+
+</body>
+</html>
