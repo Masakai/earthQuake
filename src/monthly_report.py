@@ -933,46 +933,48 @@ def build_html(year: int, month: int, quakes: list[dict], stats: dict,
 <meta name="twitter:description" content="有感地震{stats.get('total', 0)}件・最大M{stats['max_mag_q']['mag'] if stats.get('max_mag_q') else '-'}・最大震度{SCALE_LABEL.get(stats['max_scale_q']['scale'], '-') if stats.get('max_scale_q') else '-'} | AM.R38DC（静岡県三島市）による私的観測記録">
 <meta name="twitter:image" content="{ogp_url}">
 <style>
-  body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background:#f1f5f9; color:#1e293b; margin:0; padding:0; }}
+  body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background:#f1f5f9; color:#1e293b; margin:0; padding:0; font-size: 18px; line-height: 1.7; }}
   .container {{ max-width: 1000px; margin: 0 auto; padding: 24px 16px; }}
   header {{ background: #1e3a5f; color: #fff; padding: 24px 32px; border-radius: 12px; margin-bottom: 24px; }}
-  header h1 {{ margin: 0 0 4px; font-size: 1.6em; }}
-  header p {{ margin: 0; font-size: 0.9em; opacity: 0.8; }}
-  .card {{ background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); padding: 24px; margin-bottom: 20px; }}
-  .card h2 {{ margin: 0 0 16px; font-size: 1.1em; color: #1e3a5f; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }}
+  header h1 {{ margin: 0 0 4px; font-size: 1.8em; }}
+  header p {{ margin: 0; font-size: 0.95em; opacity: 0.85; }}
+  .card {{ background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); padding: 28px; margin-bottom: 20px; }}
+  .card h2 {{ margin: 0 0 16px; font-size: 1.35em; color: #1e3a5f; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }}
+  .card p {{ line-height: 1.8; }}
   img.chart {{ width: 100%; border-radius: 6px; }}
   .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }}
   .stat-box {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; text-align: center; }}
-  .stat-box .val {{ font-size: 2em; font-weight: bold; color: #1e3a5f; }}
-  .stat-box .lbl {{ font-size: 0.8em; color: #64748b; margin-top: 4px; }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 0.88em; }}
-  th {{ background: #1e3a5f; color: #fff; padding: 8px 10px; text-align: left; }}
-  td {{ padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }}
+  .stat-box .val {{ font-size: 1.9em; font-weight: bold; color: #1e3a5f; }}
+  .stat-box .lbl {{ font-size: 0.85em; color: #64748b; margin-top: 4px; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 0.95em; }}
+  th {{ background: #1e3a5f; color: #fff; padding: 10px 12px; text-align: left; }}
+  td {{ padding: 9px 12px; border-bottom: 1px solid #e2e8f0; }}
   tr:hover td {{ background: #f0f9ff; }}
-  .scale-badge {{ display: inline-block; padding: 2px 8px; border-radius: 4px; color: #fff; font-size: 0.85em; font-weight: bold; }}
+  .scale-badge {{ display: inline-block; padding: 3px 10px; border-radius: 4px; color: #fff; font-size: 0.95em; font-weight: bold; }}
   h2 {{ color: #1e3a5f; }}
   ul {{ padding-left: 1.4em; }}
-  li {{ margin-bottom: 4px; }}
+  li {{ margin-bottom: 6px; }}
   .det-yes {{ text-align: center; font-size: 1.1em; }}
   .det-no  {{ text-align: center; color: #cbd5e1; }}
-  .manual-commentary {{ background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 10px; padding: 24px; margin-bottom: 20px; }}
-  .manual-commentary h2 {{ color: #92400e; border-bottom: 2px solid #fde68a; padding-bottom: 8px; margin: 0 0 16px; font-size: 1.1em; }}
+  .manual-commentary {{ background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 10px; padding: 28px; margin-bottom: 20px; }}
+  .manual-commentary h2 {{ color: #92400e; border-bottom: 2px solid #fde68a; padding-bottom: 8px; margin: 0 0 16px; font-size: 1.35em; }}
+  .manual-commentary p {{ line-height: 1.85; }}
   .manual-commentary .placeholder {{ color: #b45309; font-style: italic; }}
-  .notice {{ background: #fef9c3; border-left: 4px solid #eab308; border-radius: 6px; padding: 10px 16px; margin-bottom: 20px; font-size: 0.85em; color: #713f12; }}
+  .notice {{ background: #fef9c3; border-left: 4px solid #eab308; border-radius: 6px; padding: 12px 18px; margin-bottom: 20px; font-size: 0.92em; line-height: 1.8; color: #713f12; }}
   .notice a {{ color: #713f12; }}
   .beachball-commentary {{ margin-top: 12px; }}
-  .beachball-commentary dt {{ font-weight: bold; color: #1e3a5f; margin-top: 12px; font-size: 0.95em; }}
-  .beachball-commentary dd {{ margin: 4px 0 0 0; color: #334155; font-size: 0.9em; line-height: 1.6; }}
-  .beachball-commentary .ftype {{ display: inline-block; background: #fde9dd; color: #9a3412; border-radius: 4px; padding: 1px 8px; font-size: 0.85em; }}
-  .local-I {{ display: inline-block; background: #dcfce7; color: #166534; border-radius: 4px; padding: 1px 8px; font-size: 0.85em; font-weight: bold; }}
+  .beachball-commentary dt {{ font-weight: bold; color: #1e3a5f; margin-top: 14px; font-size: 1.02em; }}
+  .beachball-commentary dd {{ margin: 4px 0 0 0; color: #334155; font-size: 0.95em; line-height: 1.75; }}
+  .beachball-commentary .ftype {{ display: inline-block; background: #fde9dd; color: #9a3412; border-radius: 4px; padding: 2px 10px; font-size: 0.9em; }}
+  .local-I {{ display: inline-block; background: #dcfce7; color: #166534; border-radius: 4px; padding: 2px 10px; font-size: 0.9em; font-weight: bold; }}
   .detected-table {{ margin: 8px 0 0 0; }}
-  .detected-table td {{ font-size: 0.9em; }}
+  .detected-table td {{ font-size: 0.95em; }}
   .detected-table .num {{ text-align: right; white-space: nowrap; }}
   .detected-table .nowrap {{ white-space: nowrap; }}
   .detected-table .local-cell {{ white-space: nowrap; color: #166534; font-weight: bold; }}
-  .detected-table .local-sub {{ color: #64748b; font-weight: normal; font-size: 0.88em; }}
-  .station-note {{ margin-top: 12px; padding: 10px 14px; background: #f8fafc; border-left: 3px solid #94a3b8; border-radius: 4px; font-size: 0.85em; color: #475569; line-height: 1.7; }}
-  footer {{ text-align: center; color: #94a3b8; font-size: 0.8em; margin-top: 24px; }}
+  .detected-table .local-sub {{ color: #64748b; font-weight: normal; font-size: 0.92em; }}
+  .station-note {{ margin-top: 12px; padding: 12px 16px; background: #f8fafc; border-left: 3px solid #94a3b8; border-radius: 4px; font-size: 0.9em; color: #475569; line-height: 1.8; }}
+  footer {{ text-align: center; color: #94a3b8; font-size: 0.85em; margin-top: 24px; }}
 </style>
 </head>
 <body>
