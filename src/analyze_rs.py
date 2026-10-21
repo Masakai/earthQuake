@@ -616,7 +616,9 @@ def plot_analysis(
         ax_sgram.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=JST))
         _sgram_dur = (times_jst[-1] - times_jst[0]).total_seconds()
         _sgram_interval = max(60, int(_sgram_dur / 5 / 60) * 60)
-        ax_sgram.xaxis.set_major_locator(mdates.SecondLocator(interval=_sgram_interval))
+        # SecondLocatorだと区間開始秒を起点に目盛りが打たれ、%H:%M表示で秒が切り捨てられて
+        # 最大59秒ずれて見えるため、毎分0秒に目盛りを打つMinuteLocatorを使う
+        ax_sgram.xaxis.set_major_locator(mdates.MinuteLocator(interval=_sgram_interval // 60))
         ax_sgram.set_xlim(times_jst[0], times_jst[-1])
         ax_sgram.set_xlabel('時刻 (JST)', color='#57606a', fontsize=8)
         ax_sgram.tick_params(axis='x', labelbottom=True, labelsize=8)
