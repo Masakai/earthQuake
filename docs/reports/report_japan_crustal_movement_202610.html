@@ -165,8 +165,8 @@
 
 <header class="page-head">
   <p class="eyebrow">特別図解</p>
-  <h1>電子基準点で見る日本列島の動き<br>2025年10月 → 2026年10月</h1>
-  <p class="subhead">国土地理院の電子基準点1084局について、2025年10月前半と2026年10月前半の座標を比べ、この1年で地面がどちらへ何cm動いたかを地図に描きました。地図は＋−ボタンやピンチ操作で拡大でき、局にカーソルを合わせる（スマートフォンではタップする）と数値が出ます。経緯や読み物としての解説は、2025年8月〜2026年8月で計算した<a href="https://masakai.github.io/posts/japan-crustal-movement-2026-09-27/">ブログ記事</a>にあります。</p>
+  <h1>電子基準点で見る日本列島の1年間の動き<br>2025年10月から2026年10月まで</h1>
+  <p class="subhead">国土地理院の電子基準点1084局について、2025年10月前半と、その1年後の2026年10月前半の座標を比べ、この1年間に地面がどちらへ何cm動いたかを地図に描きました。地図は＋−ボタンやピンチ操作で拡大でき、局にカーソルを合わせる（スマートフォンではタップする）と数値が出ます。経緯や読み物としての解説は、2025年8月〜2026年8月で計算した<a href="https://masakai.github.io/posts/japan-crustal-movement-2026-09-27/">ブログ記事</a>にあります。</p>
 </header>
 
 <div class="hero-row">
@@ -176,17 +176,17 @@
     <div class="hero-sub">福江（長崎県五島）を固定点として表示</div>
   </div>
   <div class="hero-tile">
-    <div class="hero-label">最大の水平移動</div>
+    <div class="hero-label">最大の水平移動（1年間）</div>
     <div class="hero-value">88.1<small>cm</small></div>
     <div class="hero-sub">千丁（熊本県八代市）北東へ。沈下34.7cm</div>
   </div>
   <div class="hero-tile">
-    <div class="hero-label">青森・岩手の太平洋岸</div>
+    <div class="hero-label">青森・岩手の太平洋岸（1年間）</div>
     <div class="hero-value">12.6<small>cm</small></div>
     <div class="hero-sub">17局の中央値。東南東へ</div>
   </div>
   <div class="hero-tile">
-    <div class="hero-label">自局（三島市）に近い局</div>
+    <div class="hero-label">自局（三島市）に近い局（1年間）</div>
     <div class="hero-value">3.4<small>cm</small></div>
     <div class="hero-sub">裾野２・沼津。西北西へ</div>
   </div>
@@ -194,7 +194,7 @@
 
 <section id="sec-japan">
   <h2>全国のこの1年の動き</h2>
-  <p>2025年10月1〜14日の平均座標と、2026年10月1〜14日の平均座標の差です。1年後の同じ季節どうしを比べているので、季節による数mmの上下変動は打ち消し合います。地震による段差も補正せず、そのまま含めています。</p>
+  <p>矢印と数値は、すべて<b>1年間に動いた量</b>です。2週間で動いた量ではありません。日々の座標は数mmずつばらつくので、始点（2025年10月1〜14日）と終点（2026年10月1〜14日）でそれぞれ14日分の平均をとり、その差を1年間の移動量としています。1年後の同じ季節どうしを比べているので、季節による数mmの上下変動は打ち消し合います。この1年間に起きた地震による動きも、補正せずそのまま含めています。</p>
   <div class="controls">
     <div class="seg" role="group" aria-label="表示する成分">
       <button type="button" data-mode="h" aria-pressed="true">水平方向</button>
@@ -215,7 +215,7 @@
   <h3>目立つ局</h3>
   <ul class="facts">
     <li>熊本県の千丁は北東へ88.1cm、城南は北へ46.5cm。ほぼすべてが2026年7月28日の熊本地震の本震で動いた分です（下の節を参照）。</li>
-    <li>青森・岩手の太平洋岸は東南東へ9.5〜15.8cm。この1年に、青森県東方沖（2025年12月8日、M7.6）と三陸沖（2026年4月20日、M7.5）で大きな地震がありました（Mは気象庁の発表値）。</li>
+    <li>青森・岩手の太平洋岸は、1年間で東南東へ9.5〜15.8cm。この1年に、青森県東方沖（2025年12月8日、M7.6）と三陸沖（2026年4月20日、M7.5）で大きな地震がありました（Mは気象庁の発表値）。たとえば岩泉１の15.8cmのうち8.4cmは三陸沖の地震の前後で動いた分で、その後の半年間にさらに5.7cm動いています。青森県東方沖の地震の前後では0.7cmでした。</li>
     <li>硫黄島１は西北西へ21.5cm、隆起28.4cm。火山の島で、他の局とは別の動き方をしています。</li>
     <li>大宜味（沖縄県）の隆起8.4cmは見かけの値です。始点の2025年8〜10月だけ座標が一時的に下がっており、その前後の座標はほぼ同じです。</li>
     <li>石下（茨城県）は沈下5.7cm。2026年4月から下がり始め、周辺の局は動いていません。原因は確認できていません。</li>
@@ -230,13 +230,13 @@
   <div class="tbl-scroll">
     <table class="data" id="tbl-jp">
       <thead><tr>
-        <th data-k="name">局名</th><th data-k="gid">局番号</th><th data-k="h" class="num" aria-sort="descending">水平(cm)</th>
-        <th data-k="az" class="num">向き</th><th data-k="u" class="num">上下(cm)</th><th data-k="lat" class="num">緯度</th><th data-k="lon" class="num">経度</th><th data-k="flag">注記</th>
+        <th data-k="name">局名</th><th data-k="gid">局番号</th><th data-k="h" class="num" aria-sort="descending">1年間の水平(cm)</th>
+        <th data-k="az" class="num">向き</th><th data-k="u" class="num">1年間の上下(cm)</th><th data-k="lat" class="num">緯度</th><th data-k="lon" class="num">経度</th><th data-k="flag">注記</th>
       </tr></thead>
       <tbody></tbody>
     </table>
   </div>
-  <p class="note">見出しをクリックすると並べ替えます。注記「ばらつき大」は、比較に使った2週間のどちらかで上下の日々の値のばらつき（標準偏差）が12mmを超えた局で、上下の値は参考程度です。</p>
+  <p class="note">見出しをクリックすると並べ替えます。注記「ばらつき大」は、始点・終点の平均に使った14日間のどちらかで上下の日々の値のばらつき（標準偏差）が12mmを超えた局で、上下の値は参考程度です。</p>
 </section>
 
 <section id="sec-kuma">
@@ -444,14 +444,14 @@ const divBar = lim => `<div class="bar" style="background:linear-gradient(to rig
   let mode = 'h', pxPerCm = 2.5;
   const S = makeVecMap(document.getElementById('map-jp'), {
     bounds: [[30.8, 128.6], [45.6, 146.0]],
-    tip: s => `<b>${s.name}</b> <span class="muted">${s.gid}</span><br>水平 ${(s.h / 10).toFixed(1)}cm（${dirName(s.az)}へ）<br>上下 ${fmtS(s.u / 10)}cm${s.flag ? ' <span class="muted">（ばらつき大）</span>' : ''}`
+    tip: s => `<b>${s.name}</b> <span class="muted">${s.gid}</span><br><span class="muted">1年間（2025年10月→2026年10月）の移動</span><br>水平 ${(s.h / 10).toFixed(1)}cm（${dirName(s.az)}へ）<br>上下 ${fmtS(s.u / 10)}cm${s.flag ? ' <span class="muted">（ばらつき大）</span>' : ''}`
   });
   const sec = document.getElementById('sec-japan');
   const leg = document.getElementById('legend-jp');
   function legend() {
     if (mode === 'h') {
-      leg.innerHTML = `<div class="row">${arrowSvg(Math.round(5 * pxPerCm), css('--arrow'))} 5cmの移動</div>` +
-                      `<div class="row">${arrowSvg(Math.round(15 * pxPerCm), css('--arrow-big'))} 15cm超（長さは15cmで止める）</div>`;
+      leg.innerHTML = `<div class="row">${arrowSvg(Math.round(5 * pxPerCm), css('--arrow'))} 1年間に5cmの移動</div>` +
+                      `<div class="row">${arrowSvg(Math.round(15 * pxPerCm), css('--arrow-big'))} 1年間に15cm超（長さは15cmで止める）</div>`;
     } else {
       leg.innerHTML = `上下の変化（cm）${divBar(30)}<div class="ticks"><span>−3 沈下</span><span>0</span><span>＋3 隆起</span></div>`;
     }
@@ -558,8 +558,8 @@ const divBar = lim => `<div class="bar" style="background:linear-gradient(to rig
   function legend() {
     const c26 = css('--arrow-big'), c16 = css('--arrow'), len = Math.round(20 * pxPerCm);
     const rows = [];
-    if (which !== 'k16') rows.push(`<div class="row">${arrowSvg(len, c26)} 2026年 20cm</div>`);
-    if (which !== 'k26') rows.push(`<div class="row">${arrowSvg(len, c16)} 2016年 20cm</div>`);
+    if (which !== 'k16') rows.push(`<div class="row">${arrowSvg(len, c26)} 2026年の本震 20cm</div>`);
+    if (which !== 'k26') rows.push(`<div class="row">${arrowSvg(len, c16)} 2016年の前震・本震 20cm</div>`);
     leg.innerHTML = rows.join('') + '<div class="row">★ 本震の震央（気象庁）</div>';
     document.getElementById('kuma-scale-val').textContent = `${pxPerCm}px/cm`;
   }
@@ -618,7 +618,7 @@ const divBar = lim => `<div class="bar" style="background:linear-gradient(to rig
   });
   const leg = document.getElementById('legend-izu');
   function legend() {
-    if (mode === 'h') leg.innerHTML = `<div class="row">${arrowSvg(Math.round(30 * pxPerMm), css('--arrow'))} 年3cm</div><div class="row">★ 自局 AM.R38DC</div>`;
+    if (mode === 'h') leg.innerHTML = `<div class="row">${arrowSvg(Math.round(30 * pxPerMm), css('--arrow'))} 1年あたり3cm</div><div class="row">★ 自局 AM.R38DC</div>`;
     else leg.innerHTML = `上下の速度（mm/年）${divBar(8)}<div class="ticks"><span>−8 沈下</span><span>0</span><span>＋8 隆起</span></div>`;
     document.getElementById('izu-scale-val').textContent = `${pxPerMm}px/(mm/年)`;
     document.getElementById('izu-scale-wrap').style.visibility = mode === 'h' ? 'visible' : 'hidden';
